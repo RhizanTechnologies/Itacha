@@ -7,4 +7,7 @@
 # Exclude all top-level files/folders except these two
 !ithaca-ui/
 !ithaca_landing_page_hero_and_features/
+# Ignore the backup of the inner .git folder (kept locally but not tracked)
+ithaca-ui/.git_backup/
+
 

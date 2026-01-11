@@ -1,6 +1,0 @@
-Add dependencies and update global styles
-
-- Added new dependencies: class-variance-authority, clsx, lucide-react, tailwind-merge, and tw-animate-css.
-- Updated globals.css to include new CSS variables and styles.
-- Created components.json for component configuration.
-- Implemented utility function `cn` in utils.ts for class name merging.
