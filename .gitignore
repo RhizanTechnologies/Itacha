@@ -1,0 +1,10 @@
+# Ignore everything at the repository root
+/*
+
+# Keep this .gitignore tracked so exceptions work
+!.gitignore
+
+# Exclude all top-level files/folders except these two
+!ithaca-ui/
+!ithaca_landing_page_hero_and_features/
+
