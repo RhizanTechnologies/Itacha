@@ -1,65 +1,158 @@
-import Image from "next/image";
+"use client";
+
+import { useState } from "react";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { Button } from "@/components/ui/button";
+import { SignInDialog } from "@/components/auth/sign-in-dialog";
+import { OnboardingDialog } from "@/components/auth/onboarding-dialog";
 
 export default function Home() {
+  const [showSignIn, setShowSignIn] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  const handleOnboardingComplete = () => {
+    setShowOnboarding(false);
+    // TODO: Update user's hasCompletedOnboarding flag
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="min-h-screen bg-background text-foreground">
+      {/* Header with Theme Toggle */}
+      <header className="border-b border-border sticky top-0 bg-background/80 backdrop-blur-sm z-40">
+        <div className="container mx-auto flex items-center justify-between px-4 py-4">
+          <div className="flex items-center gap-3">
+            <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
+              <svg
+                className="size-5 text-primary"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 10V3L4 14h7v7l9-11h-7z"
+                />
+              </svg>
+            </div>
+            <h1 className="text-xl font-bold">Ithaca</h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" onClick={() => setShowOnboarding(true)}>
+              Tutorial
+            </Button>
+            <Button onClick={() => setShowSignIn(true)}>Sign In</Button>
+            <ThemeToggle />
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </header>
+
+      {/* Main Content */}
+      <main className="container mx-auto px-4 py-16">
+        <div className="max-w-4xl mx-auto space-y-12">
+          {/* Hero Section */}
+          <section className="text-center space-y-4">
+            <h2 className="text-5xl font-bold tracking-tight">
+              Scientific Argument Graph Explorer
+            </h2>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              Explore scientific debates through interactive argument graphs.
+              Visualize how papers support, contradict, or extend each other.
+            </p>
+            <div className="flex gap-4 justify-center pt-4">
+              <Button size="lg" onClick={() => setShowSignIn(true)}>
+                Get Started
+              </Button>
+              <Button size="lg" variant="outline" onClick={() => setShowOnboarding(true)}>
+                Learn More
+              </Button>
+            </div>
+          </section>
+
+          {/* Design Tokens Demo */}
+          <section className="space-y-6">
+            <h3 className="text-3xl font-semibold">Graph Visualization</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Supports */}
+              <div className="p-6 rounded-lg border border-border bg-card hover:shadow-lg transition-shadow">
+                <div className="w-12 h-12 rounded-full bg-supports mb-4"></div>
+                <h4 className="font-semibold mb-2">Supports</h4>
+                <p className="text-sm text-muted-foreground">
+                  Papers that provide supporting evidence
+                </p>
+              </div>
+
+              {/* Contradicts */}
+              <div className="p-6 rounded-lg border border-border bg-card hover:shadow-lg transition-shadow">
+                <div className="w-12 h-12 rounded-full bg-contradicts mb-4"></div>
+                <h4 className="font-semibold mb-2">Contradicts</h4>
+                <p className="text-sm text-muted-foreground">
+                  Papers that present conflicting findings
+                </p>
+              </div>
+
+              {/* Extends */}
+              <div className="p-6 rounded-lg border border-border bg-card hover:shadow-lg transition-shadow">
+                <div className="w-12 h-12 rounded-full bg-extends mb-4"></div>
+                <h4 className="font-semibold mb-2">Extends</h4>
+                <p className="text-sm text-muted-foreground">
+                  Papers that build upon previous work
+                </p>
+              </div>
+            </div>
+          </section>
+
+          {/* Features */}
+          <section className="space-y-6">
+            <h3 className="text-3xl font-semibold">Features</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="p-6 rounded-lg border border-border bg-card">
+                <h4 className="font-semibold mb-2 flex items-center gap-2">
+                  <div className="size-8 rounded bg-orcid/10 flex items-center justify-center">
+                    <svg className="size-4 text-orcid" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 0C5.372 0 0 5.372 0 12s5.372 12 12 12 12-5.372 12-12S18.628 0 12 0zM7.369 4.378c.525 0 .947.431.947.947a.95.95 0 01-.947.947.95.95 0 01-.947-.947c0-.525.422-.947.947-.947zm-.722 3.038h1.444v10.041H6.647V7.416zm3.562 0h3.9c3.712 0 5.344 2.653 5.344 5.025 0 2.578-2.016 5.016-5.325 5.016h-3.919V7.416z"/>
+                    </svg>
+                  </div>
+                  ORCID Integration
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  Sign in with your ORCID iD for seamless researcher authentication
+                </p>
+              </div>
+
+              <div className="p-6 rounded-lg border border-border bg-card">
+                <h4 className="font-semibold mb-2">Interactive Graphs</h4>
+                <p className="text-sm text-muted-foreground">
+                  Explore citation networks with intuitive pan, zoom, and filtering
+                </p>
+              </div>
+
+              <div className="p-6 rounded-lg border border-border bg-card">
+                <h4 className="font-semibold mb-2">Real-time Collaboration</h4>
+                <p className="text-sm text-muted-foreground">
+                  Share and collaborate on research networks with your team
+                </p>
+              </div>
+
+              <div className="p-6 rounded-lg border border-border bg-card">
+                <h4 className="font-semibold mb-2">Dark Mode</h4>
+                <p className="text-sm text-muted-foreground">
+                  Beautiful interface in both light and dark themes
+                </p>
+              </div>
+            </div>
+          </section>
         </div>
       </main>
+
+      {/* Auth Dialogs */}
+      <SignInDialog open={showSignIn} onOpenChange={setShowSignIn} />
+      <OnboardingDialog
+        open={showOnboarding}
+        onOpenChange={setShowOnboarding}
+        onComplete={handleOnboardingComplete}
+      />
     </div>
   );
 }
