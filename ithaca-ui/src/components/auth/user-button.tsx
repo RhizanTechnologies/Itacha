@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useSession, signOut } from "@/components/auth/session-provider";
+import { useSession, signOut } from "@/lib/auth-client";
 
 export function UserButton() {
   const router = useRouter();

@@ -42,8 +42,10 @@ export function SignInDialog({ open, onOpenChange }: SignInDialogProps) {
   const handleOAuthSignIn = async (provider: "google" | "orcid") => {
     setIsLoading(true);
     try {
-      // Redirect to OAuth provider
-      window.location.href = `/api/auth/signin/${provider}`;
+      await authClient.signIn.social({
+        provider: provider,
+        callbackURL: "/explore", // or wherever you successfully redirect
+      });
     } catch (error) {
       console.error(`${provider} sign-in error:`, error);
       setIsLoading(false);

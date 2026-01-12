@@ -1,12 +1,16 @@
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { useState } from "react";
+import { Menu, X } from "lucide-react";
 
 interface PublicLayoutProps {
   children: React.ReactNode;
 }
 
 export default function PublicLayout({ children }: PublicLayoutProps) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header */}
@@ -31,6 +35,7 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
             <h1 className="text-xl font-bold">Ithaca</h1>
           </Link>
 
+          {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-6">
             <Link href="/about" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
               About
@@ -48,8 +53,54 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
 
           <div className="flex items-center gap-2">
             <ThemeToggle />
+            
+            {/* Mobile Menu Trigger */}
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="md:hidden"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </Button>
           </div>
         </div>
+
+        {/* Mobile Nav Overlay */}
+        {mobileMenuOpen && (
+          <div className="md:hidden border-t border-border bg-background absolute left-0 right-0 p-4 shadow-lg animate-in slide-in-from-top-5">
+             <nav className="flex flex-col space-y-4">
+                <Link 
+                  href="/about" 
+                  className="px-4 py-2 hover:bg-muted rounded-md text-sm font-medium"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  About
+                </Link>
+                <Link 
+                  href="/blog" 
+                  className="px-4 py-2 hover:bg-muted rounded-md text-sm font-medium"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Blog
+                </Link>
+                <Link 
+                  href="/docs" 
+                  className="px-4 py-2 hover:bg-muted rounded-md text-sm font-medium"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Docs
+                </Link>
+                <Link 
+                  href="/roadmap" 
+                  className="px-4 py-2 hover:bg-muted rounded-md text-sm font-medium"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Roadmap
+                </Link>
+             </nav>
+          </div>
+        )}
       </header>
 
       {/* Main Content */}

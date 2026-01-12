@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import { SignInDialog } from "@/components/auth/sign-in-dialog";
 import { OnboardingDialog } from "@/components/auth/onboarding-dialog";
 
@@ -17,7 +18,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* Header with Theme Toggle */}
+      {/* Header with Theme Toggle and Nav */}
       <header className="border-b border-border sticky top-0 bg-background/80 backdrop-blur-sm z-40">
         <div className="container mx-auto flex items-center justify-between px-4 py-4">
           <div className="flex items-center gap-3">
@@ -38,6 +39,20 @@ export default function Home() {
             </div>
             <h1 className="text-xl font-bold">Ithaca</h1>
           </div>
+
+          {/* Desktop Nav */}
+          <nav className="hidden md:flex items-center gap-6">
+            <Link href="/about" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+              About
+            </Link>
+            <Link href="/blog" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+              Blog
+            </Link>
+            <Link href="/roadmap" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+              Roadmap
+            </Link>
+          </nav>
+
           <div className="flex items-center gap-2">
             <Button variant="ghost" onClick={() => setShowOnboarding(true)}>
               Tutorial
