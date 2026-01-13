@@ -6,10 +6,12 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { SignInDialog } from "@/components/auth/sign-in-dialog";
 import { OnboardingDialog } from "@/components/auth/onboarding-dialog";
+import { Menu, X } from "lucide-react";
 
 export default function Home() {
   const [showSignIn, setShowSignIn] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);
@@ -21,7 +23,7 @@ export default function Home() {
       {/* Header with Theme Toggle and Nav */}
       <header className="border-b border-border sticky top-0 bg-background/80 backdrop-blur-sm z-40">
         <div className="container mx-auto flex items-center justify-between px-4 py-4">
-          <div className="flex items-center gap-3">
+          <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
             <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
               <svg
                 className="size-5 text-primary"
@@ -38,7 +40,7 @@ export default function Home() {
               </svg>
             </div>
             <h1 className="text-xl font-bold">Ithaca</h1>
-          </div>
+          </Link>
 
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-6">
@@ -48,19 +50,75 @@ export default function Home() {
             <Link href="/blog" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
               Blog
             </Link>
+            <Link href="/docs" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+              Docs
+            </Link>
             <Link href="/roadmap" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
               Roadmap
             </Link>
           </nav>
 
           <div className="flex items-center gap-2">
-            <Button variant="ghost" onClick={() => setShowOnboarding(true)}>
+            <Button variant="ghost" onClick={() => setShowOnboarding(true)} className="hidden sm:inline-flex">
               Tutorial
             </Button>
             <Button onClick={() => setShowSignIn(true)}>Sign In</Button>
             <ThemeToggle />
+            
+            {/* Mobile Menu Trigger */}
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="md:hidden"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </Button>
           </div>
         </div>
+
+        {/* Mobile Nav Overlay */}
+        {mobileMenuOpen && (
+          <div className="md:hidden border-t border-border bg-background absolute left-0 right-0 p-4 shadow-lg animate-in slide-in-from-top-5">
+            <nav className="flex flex-col space-y-4">
+              <Link 
+                href="/about" 
+                className="px-4 py-2 hover:bg-muted rounded-md text-sm font-medium"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                About
+              </Link>
+              <Link 
+                href="/blog" 
+                className="px-4 py-2 hover:bg-muted rounded-md text-sm font-medium"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Blog
+              </Link>
+              <Link 
+                href="/docs" 
+                className="px-4 py-2 hover:bg-muted rounded-md text-sm font-medium"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Docs
+              </Link>
+              <Link 
+                href="/roadmap" 
+                className="px-4 py-2 hover:bg-muted rounded-md text-sm font-medium"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Roadmap
+              </Link>
+              <Button 
+                variant="outline" 
+                className="w-full" 
+                onClick={() => { setMobileMenuOpen(false); setShowOnboarding(true); }}
+              >
+                Tutorial
+              </Button>
+            </nav>
+          </div>
+        )}
       </header>
 
       {/* Main Content */}

@@ -125,7 +125,9 @@ export default function CanvasLayout({ children }: CanvasLayoutProps) {
         </header>
 
         {/* Viewport */}
-        <main className="flex-1 relative overflow-hidden bg-muted/5">
+        <main className={`flex-1 relative bg-muted/5 ${
+          pathname?.startsWith("/explore") ? "overflow-hidden" : "overflow-auto"
+        }`}>
           {children}
         </main>
       </div>

@@ -1,5 +1,8 @@
+"use client";
+
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
+import { NavAuthButtons } from "@/components/auth/nav-auth-buttons";
 import Link from "next/link";
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
@@ -37,21 +40,24 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
 
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-6">
+            <Link href="/explore" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+              Explore
+            </Link>
             <Link href="/about" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
               About
-            </Link>
-            <Link href="/blog" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-              Blog
             </Link>
             <Link href="/docs" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
               Docs
             </Link>
-            <Link href="/roadmap" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-              Roadmap
+            <Link href="/blog" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+              Blog
             </Link>
           </nav>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <div className="hidden md:block">
+              <NavAuthButtons />
+            </div>
             <ThemeToggle />
             
             {/* Mobile Menu Trigger */}
