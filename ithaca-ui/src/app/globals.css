@@ -242,7 +242,10 @@
   }
 
   .animate-ping,
-  .edge-dash-animate {
+  .edge-dash-animate,
+  .blob,
+  .constellation-edge,
+  .constellation-node {
     animation: none !important;
   }
 }
@@ -288,6 +291,88 @@
   outline-offset: 2px;
   border-radius: 4px;
 }
+
+/* Hero decorative blobs */
+.hero-bg {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3rem;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.hero-layer {
+  position: relative;
+  z-index: 10;
+}
+
+.blob {
+  width: 320px;
+  height: 320px;
+  border-radius: 50%;
+  filter: blur(48px);
+  transform: translateZ(0);
+  mix-blend-mode: screen;
+  opacity: 0.9;
+  animation: blob-float 8s ease-in-out infinite;
+}
+
+.blob:nth-child(2) {
+  width: 420px;
+  height: 420px;
+  animation-delay: 2s;
+}
+
+@keyframes blob-float {
+  0% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-18px) scale(1.03); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+/* Graph constellation */
+.constellation {
+  width: min(1100px, 100%);
+  height: auto;
+  position: absolute;
+  inset: auto 0 0 0;
+  margin: 0 auto;
+  opacity: 0.9;
+  color: hsl(var(--primary));
+}
+
+.constellation-edges {
+  stroke-dasharray: 10;
+}
+
+.constellation-edge {
+  animation: constellation-dash 22s linear infinite;
+  opacity: 0.55;
+}
+
+@keyframes constellation-dash {
+  to {
+    stroke-dashoffset: -1200;
+  }
+}
+
+.constellation-node {
+  animation: node-pulse 3.6s ease-in-out infinite;
+}
+
+.constellation-node:nth-child(2) { animation-delay: 0.3s; }
+.constellation-node:nth-child(3) { animation-delay: 0.6s; }
+.constellation-node:nth-child(4) { animation-delay: 0.9s; }
+.constellation-node:nth-child(5) { animation-delay: 1.2s; }
+.constellation-node:nth-child(6) { animation-delay: 1.5s; }
+
+@keyframes node-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.85; }
+  50% { transform: scale(1.035); opacity: 1; }
+}
+
 
 /* High contrast mode support */
 @media (forced-colors: active) {
