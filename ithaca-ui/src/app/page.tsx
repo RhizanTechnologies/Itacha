@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useAnimationPause } from "@/hooks/useAnimationPause";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -12,6 +13,8 @@ import { Reveal, Stagger, StaggerItem } from "@/components/motion";
 import { GraphConstellation } from "@/components/visual/graph-constellation";
 
 export default function Home() {
+  useAnimationPause();
+  
   const [showSignIn, setShowSignIn] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -168,8 +171,8 @@ export default function Home() {
       {/* Main Content */}
       <main id="content" role="main" className="container mx-auto px-4 py-16">
         <div className="max-w-4xl mx-auto space-y-12">
-          {/* Hero Section */}
-          <section className="relative text-center overflow-hidden rounded-3xl border border-border bg-card/40 p-8 md:p-12 shadow-sm">
+          {/* Hero Section - OPTIMIZED for scroll performance */}
+          <section className="relative text-center overflow-hidden rounded-3xl border border-border bg-card/40 p-8 md:p-12 shadow-sm" style={{ contain: "layout style paint" }}>
             <div aria-hidden className="hero-bg pointer-events-none">
               <div className="blob bg-primary/30"></div>
               <div className="blob bg-accent/20"></div>
@@ -219,8 +222,8 @@ export default function Home() {
             </Stagger>
           </section>
 
-          {/* Design Tokens Demo */}
-          <section className="space-y-6">
+          {/* Design Tokens Demo - OPTIMIZED */}
+          <section className="space-y-6" style={{ contain: "layout style" }}>
             <Reveal>
               <h3 className="text-3xl font-semibold">Graph Visualization</h3>
             </Reveal>
@@ -260,8 +263,8 @@ export default function Home() {
             </div>
           </section>
 
-          {/* Features */}
-          <section className="space-y-6">
+          {/* Features - OPTIMIZED */}
+          <section className="space-y-6" style={{ contain: "layout style" }}>
             <Reveal>
               <h3 className="text-3xl font-semibold">Features</h3>
             </Reveal>

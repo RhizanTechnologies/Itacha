@@ -200,10 +200,12 @@
 
 .conflict-wiggle {
   animation: conflict-wiggle 0.5s ease-in-out;
+  will-change: transform;
 }
 
 .conflict-wiggle-continuous {
   animation: conflict-wiggle 2s ease-in-out infinite;
+  will-change: transform;
 }
 
 /* Conflict pulse glow for edges */
@@ -211,23 +213,59 @@
 
   0%,
   100% {
-    filter: drop-shadow(0 0 2px hsl(var(--contradicts)));
+    box-shadow: 0 0 2px hsl(var(--contradicts)), 
+                0 0 4px hsl(var(--contradicts) / 0.5);
     opacity: 1;
   }
 
   50% {
-    filter: drop-shadow(0 0 8px hsl(var(--contradicts)));
+    box-shadow: 0 0 8px hsl(var(--contradicts)), 
+                0 0 12px hsl(var(--contradicts) / 0.6);
     opacity: 0.8;
   }
 }
 
 .conflict-pulse {
   animation: conflict-pulse 1.5s ease-in-out infinite;
+  will-change: box-shadow, opacity;
+  border-radius: 4px;
 }
 
 /* =================================
-   ACCESSIBILITY UTILITIES
+   TAB VISIBILITY OPTIMIZATION
    ================================= */
+
+/* Pause animations when tab is hidden to save battery */
+:root.tab-hidden .constellation-edge,
+:root.tab-hidden .constellation-node,
+:root.tab-hidden .blob,
+:root.tab-hidden .edge-dash-animate,
+:root.tab-hidden .conflict-pulse,
+:root.tab-hidden .conflict-wiggle-continuous {
+  animation-play-state: paused !important;
+}
+
+/* Static state for constellation when paused (mobile/reduced-motion) */
+.constellation-paused .constellation-edge,
+.constellation-paused .constellation-node,
+.constellation-edge.paused,
+.constellation-node.paused {
+  animation: none !important;
+}
+
+/* Visual feedback for paused state */
+.constellation-paused .constellation-edge {
+  opacity: 0.2;
+}
+
+.constellation-paused .constellation-node {
+  transform: scale(1) !important;
+  opacity: 0.4 !important;
+}
+
+/* =================================
+    ACCESSIBILITY UTILITIES
+    ================================= */
 
 /* Reduced Motion - Disable animations for users who prefer it */
 @media (prefers-reduced-motion: reduce) {
@@ -302,6 +340,8 @@
   gap: 3rem;
   z-index: 0;
   pointer-events: none;
+  contain: layout style paint;
+  overflow: hidden;
 }
 
 .hero-layer {
@@ -317,7 +357,10 @@
   transform: translateZ(0);
   mix-blend-mode: screen;
   opacity: 0.9;
+  will-change: transform;
   animation: blob-float 8s ease-in-out infinite;
+  contain: layout style paint;
+  backface-visibility: hidden;
 }
 
 .blob:nth-child(2) {
@@ -349,6 +392,8 @@
   margin: 0 auto;
   opacity: 0.9;
   color: hsl(var(--primary));
+  contain: layout style paint;
+  overflow: visible;
 }
 
 .constellation-edges {
@@ -358,6 +403,7 @@
 .constellation-edge {
   animation: constellation-dash 22s linear infinite;
   opacity: 0.55;
+  will-change: stroke-dashoffset;
 }
 
 @keyframes constellation-dash {
@@ -368,6 +414,7 @@
 
 .constellation-node {
   animation: node-pulse 3.6s ease-in-out infinite;
+  will-change: transform, opacity;
 }
 
 .constellation-node:nth-child(2) {

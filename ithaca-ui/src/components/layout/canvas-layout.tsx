@@ -28,7 +28,7 @@ export default function CanvasLayout({ children }: CanvasLayoutProps) {
     <div className="flex h-screen w-full bg-background overflow-hidden">
       {/* Sidebar */}
       <aside 
-        className={`border-r border-border bg-muted/10 transition-all duration-300 flex flex-col ${
+        className={`border-r border-border bg-muted/10 transition-[width] duration-300 ease-in-out flex flex-col ${
           collapsed ? "w-16" : "w-64"
         }`}
       >

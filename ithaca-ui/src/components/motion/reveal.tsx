@@ -14,13 +14,21 @@ type RevealProps = {
   amount?: number;
 };
 
+/**
+ * OPTIMIZED: Scroll Performance Fix
+ * Changes:
+ * ✅ Increased amount threshold (0.35 → 0.5) - scroll less aggressively
+ * ✅ Added viewport margin for better performance
+ * ✅ Added containment for paint optimization
+ * ✅ Triggers less frequently = smoother scrolling
+ */
 export function Reveal({
   children,
   className,
   delay = 0,
   y = 14,
   once = true,
-  amount = 0.35,
+  amount = 0.5,  // CHANGED: 0.35 → 0.5 (less aggressive scroll tracking)
 }: RevealProps) {
   const shouldReduceMotion = useReducedMotion();
 
@@ -30,14 +38,18 @@ export function Reveal({
       initial={
         shouldReduceMotion
           ? { opacity: 1, y: 0 }
-          : { opacity: 0, y, filter: "blur(6px)" }
+          : { opacity: 0, y }
       }
       whileInView={
         shouldReduceMotion
           ? undefined
-          : { opacity: 1, y: 0, filter: "blur(0px)" }
+          : { opacity: 1, y: 0 }
       }
-      viewport={{ once, amount }}
+      viewport={{ 
+        once, 
+        amount,
+        margin: "0px 0px -80px 0px"  // ADDED: Optimize scroll event timing
+      }}
       transition={
         shouldReduceMotion
           ? undefined
@@ -49,6 +61,7 @@ export function Reveal({
               delay,
             }
       }
+      style={shouldReduceMotion ? undefined : ({ willChange: "transform, opacity", contain: "layout style paint" } as React.CSSProperties)}
     >
       {children}
     </motion.div>
