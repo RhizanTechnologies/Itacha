@@ -213,14 +213,14 @@
 
   0%,
   100% {
-    box-shadow: 0 0 2px hsl(var(--contradicts)), 
-                0 0 4px hsl(var(--contradicts) / 0.5);
+    box-shadow: 0 0 2px hsl(var(--contradicts)),
+      0 0 4px hsl(var(--contradicts) / 0.5);
     opacity: 1;
   }
 
   50% {
-    box-shadow: 0 0 8px hsl(var(--contradicts)), 
-                0 0 12px hsl(var(--contradicts) / 0.6);
+    box-shadow: 0 0 8px hsl(var(--contradicts)),
+      0 0 12px hsl(var(--contradicts) / 0.6);
     opacity: 0.8;
   }
 }
@@ -353,33 +353,34 @@
   width: 320px;
   height: 320px;
   border-radius: 50%;
-  filter: blur(48px);
-  transform: translateZ(0);
+  filter: blur(32px);
+  transform: translate3d(0, 0, 0);
   mix-blend-mode: screen;
-  opacity: 0.9;
-  will-change: transform;
-  animation: blob-float 8s ease-in-out infinite;
-  contain: layout style paint;
+  opacity: 0.85;
+  animation: blob-float 12s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  contain: strict;
   backface-visibility: hidden;
+  pointer-events: none;
 }
 
 .blob:nth-child(2) {
-  width: 420px;
-  height: 420px;
-  animation-delay: 2s;
+  width: 380px;
+  height: 380px;
+  animation-delay: 3s;
+  animation-duration: 14s;
 }
 
 @keyframes blob-float {
-  0% {
-    transform: translateY(0) scale(1);
+
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+    opacity: 0.85;
   }
 
   50% {
-    transform: translateY(-18px) scale(1.03);
-  }
-
-  100% {
-    transform: translateY(0) scale(1);
+    transform: translate3d(0, -12px, 0);
+    opacity: 0.95;
   }
 }
 
@@ -401,9 +402,8 @@
 }
 
 .constellation-edge {
-  animation: constellation-dash 22s linear infinite;
+  animation: constellation-dash 35s linear infinite;
   opacity: 0.55;
-  will-change: stroke-dashoffset;
 }
 
 @keyframes constellation-dash {
@@ -413,8 +413,7 @@
 }
 
 .constellation-node {
-  animation: node-pulse 3.6s ease-in-out infinite;
-  will-change: transform, opacity;
+  animation: node-pulse 5s ease-in-out infinite;
 }
 
 .constellation-node:nth-child(2) {
@@ -441,12 +440,10 @@
 
   0%,
   100% {
-    transform: scale(1);
-    opacity: 0.85;
+    opacity: 0.8;
   }
 
   50% {
-    transform: scale(1.035);
     opacity: 1;
   }
 }
