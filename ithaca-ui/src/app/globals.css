@@ -290,7 +290,7 @@
 
 /* Focus Indicators - 2px outline for keyboard navigation */
 :focus-visible {
-  outline: 2px solid hsl(var(--ring));
+  outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
 
@@ -299,8 +299,8 @@
   position: absolute;
   top: -40px;
   left: 0;
-  background: hsl(var(--primary));
-  color: hsl(var(--primary-foreground));
+  background: var(--primary);
+  color: var(--primary-foreground);
   padding: 8px 16px;
   z-index: 100;
   transition: top 0.2s;
@@ -353,34 +353,48 @@
   width: 320px;
   height: 320px;
   border-radius: 50%;
-  filter: blur(32px);
-  transform: translate3d(0, 0, 0);
-  mix-blend-mode: screen;
-  opacity: 0.85;
-  animation: blob-float 12s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-  contain: strict;
+  filter: blur(48px);
+  transform: translateZ(0);
+  /* Light mode: keep highlights subtle and avoid "washed out" hero */
+  mix-blend-mode: multiply;
+  opacity: 0.35;
+  will-change: transform;
+  animation: blob-float 8s ease-in-out infinite;
+  contain: layout style paint;
   backface-visibility: hidden;
-  pointer-events: none;
+}
+
+.blob--primary {
+  background: var(--primary);
+}
+
+.blob--accent {
+  background: var(--accent);
+}
+
+.dark .blob {
+  /* Dark mode: add depth and glow */
+  mix-blend-mode: screen;
+  opacity: 0.9;
 }
 
 .blob:nth-child(2) {
-  width: 380px;
-  height: 380px;
-  animation-delay: 3s;
-  animation-duration: 14s;
+  width: 420px;
+  height: 420px;
+  animation-delay: 2s;
 }
 
 @keyframes blob-float {
-
-  0%,
-  100% {
-    transform: translate3d(0, 0, 0);
-    opacity: 0.85;
+  0% {
+    transform: translateY(0) scale(1);
   }
 
   50% {
-    transform: translate3d(0, -12px, 0);
-    opacity: 0.95;
+    transform: translateY(-18px) scale(1.03);
+  }
+
+  100% {
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -391,10 +405,16 @@
   position: absolute;
   inset: auto 0 0 0;
   margin: 0 auto;
-  opacity: 0.9;
-  color: hsl(var(--primary));
+  /* Light mode: keep this very subtle (avoid overpowering white background) */
+  opacity: 0.22;
+  color: var(--foreground);
   contain: layout style paint;
   overflow: visible;
+}
+
+.dark .constellation {
+  opacity: 0.55;
+  color: var(--primary);
 }
 
 .constellation-edges {
@@ -402,8 +422,9 @@
 }
 
 .constellation-edge {
-  animation: constellation-dash 35s linear infinite;
+  animation: constellation-dash 22s linear infinite;
   opacity: 0.55;
+  will-change: stroke-dashoffset;
 }
 
 @keyframes constellation-dash {
@@ -413,7 +434,8 @@
 }
 
 .constellation-node {
-  animation: node-pulse 5s ease-in-out infinite;
+  animation: node-pulse 3.6s ease-in-out infinite;
+  will-change: transform, opacity;
 }
 
 .constellation-node:nth-child(2) {
@@ -440,10 +462,12 @@
 
   0%,
   100% {
-    opacity: 0.8;
+    transform: scale(1);
+    opacity: 0.85;
   }
 
   50% {
+    transform: scale(1.035);
     opacity: 1;
   }
 }

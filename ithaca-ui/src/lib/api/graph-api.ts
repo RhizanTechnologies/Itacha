@@ -160,16 +160,19 @@ class GraphAPIService {
 
   /**
    * Fetch graph data from API
+   * @param nodeCount - Number of papers to generate (default: 100)
    * TODO: Replace with actual API call
    */
-  async fetchGraph(): Promise<{ nodes: PaperNode[]; edges: EdgeData[] }> {
+  async fetchGraph(
+    nodeCount: number = 100,
+  ): Promise<{ nodes: PaperNode[]; edges: EdgeData[] }> {
     // Simulate API delay
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     const nodes: PaperNode[] = [];
     const edges: EdgeData[] = [];
 
-    const NODE_COUNT = 100;
+    const NODE_COUNT = Math.max(5, Math.min(nodeCount, 200)); // Clamp between 5-200
     const CLUSTERS = 5;
 
     // Generate nodes
@@ -258,7 +261,7 @@ class GraphAPIService {
     // Generate mock evidence based on edges
     const evidence: EvidenceItem[] = [];
     const relatedEdges = this.edges.filter(
-      (e) => e.source === paperId || e.target === paperId
+      (e) => e.source === paperId || e.target === paperId,
     );
 
     for (const edge of relatedEdges.slice(0, 4)) {
@@ -283,8 +286,8 @@ class GraphAPIService {
             edge.edgeType === "supports"
               ? "supporting"
               : edge.edgeType === "contradicts"
-              ? "contradicting"
-              : "extending"
+                ? "contradicting"
+                : "extending"
           } evidence for this claim.`,
           source: `Section ${Math.floor(Math.random() * 5) + 1}, p.${
             Math.floor(Math.random() * 20) + 1
@@ -345,7 +348,7 @@ class GraphAPIService {
    */
   applyFilters(
     graph: Graph,
-    filters: FilterState
+    filters: FilterState,
   ): { hiddenNodes: Set<string>; hiddenEdges: Set<string> } {
     const hiddenNodes = new Set<string>();
     const hiddenEdges = new Set<string>();

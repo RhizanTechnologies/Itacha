@@ -1,15 +1,30 @@
 "use client";
 
-import { useState } from "react";
-import { Mail, IdCard, Globe, Loader2, Eye, EyeOff, Lock, AlertCircle, Check } from "lucide-react";
+import { useState, useEffect } from "react";
+import {
+  Mail,
+  IdCard,
+  Globe,
+  Loader2,
+  Eye,
+  EyeOff,
+  Lock,
+  AlertCircle,
+  Check,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth-client";
+import { useSession } from "@/lib/auth-client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 // Password strength checker
-function getPasswordStrength(password: string): { score: number; label: string; color: string } {
+function getPasswordStrength(password: string): {
+  score: number;
+  label: string;
+  color: string;
+} {
   let score = 0;
   if (password.length >= 8) score++;
   if (password.length >= 12) score++;
@@ -26,7 +41,15 @@ function getPasswordStrength(password: string): { score: number; label: string; 
 
 export default function SignUpPage() {
   const router = useRouter();
-  
+  const { data: session, isPending } = useSession();
+
+  // Redirect authenticated users to explore
+  useEffect(() => {
+    if (!isPending && session?.user) {
+      router.replace("/explore");
+    }
+  }, [session, isPending, router]);
+
   // Form state
   const [mode, setMode] = useState<"oauth" | "email">("oauth");
   const [name, setName] = useState("");
@@ -34,7 +57,7 @@ export default function SignUpPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  
+
   // Status state
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +66,24 @@ export default function SignUpPage() {
   const passwordStrength = getPasswordStrength(password);
   const passwordsMatch = password === confirmPassword;
   const isFormValid = name && email && password.length >= 8 && passwordsMatch;
+
+  // Show loading while checking session
+  if (isPending) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  // If user is logged in, don't render the form (redirect will happen)
+  if (session?.user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   // Email/Password signup
   const handleEmailSignup = async (e: React.FormEvent) => {
@@ -60,16 +101,16 @@ export default function SignUpPage() {
         name,
         callbackURL: "/explore",
       });
-      
+
       setSuccess(true);
       // Redirect after brief success message
       setTimeout(() => router.push("/explore"), 1500);
     } catch (err) {
       console.error("Signup error:", err);
       setError(
-        err instanceof Error 
-          ? err.message 
-          : "Failed to create account. Please try again."
+        err instanceof Error
+          ? err.message
+          : "Failed to create account. Please try again.",
       );
     } finally {
       setIsLoading(false);
@@ -100,7 +141,9 @@ export default function SignUpPage() {
             <Check className="size-8 text-green-600 dark:text-green-400" />
           </div>
           <h1 className="text-2xl font-bold mb-2">Account Created!</h1>
-          <p className="text-muted-foreground">Redirecting to your workspace...</p>
+          <p className="text-muted-foreground">
+            Redirecting to your workspace...
+          </p>
         </div>
       </div>
     );
@@ -251,10 +294,14 @@ export default function SignUpPage() {
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
                   </button>
                 </div>
-                
+
                 {/* Password Strength */}
                 {password && (
                   <div className="space-y-1">
@@ -263,13 +310,18 @@ export default function SignUpPage() {
                         <div
                           key={level}
                           className={`h-1 flex-1 rounded ${
-                            level <= passwordStrength.score ? passwordStrength.color : "bg-muted"
+                            level <= passwordStrength.score
+                              ? passwordStrength.color
+                              : "bg-muted"
                           }`}
                         />
                       ))}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Password strength: <span className="font-medium">{passwordStrength.label}</span>
+                      Password strength:{" "}
+                      <span className="font-medium">
+                        {passwordStrength.label}
+                      </span>
                     </p>
                   </div>
                 )}
@@ -316,7 +368,10 @@ export default function SignUpPage() {
         <div className="text-center mt-6">
           <p className="text-sm text-muted-foreground">
             Already have an account?{" "}
-            <Link href="/signin" className="text-primary hover:underline font-medium">
+            <Link
+              href="/signin"
+              className="text-primary hover:underline font-medium"
+            >
               Sign in
             </Link>
           </p>

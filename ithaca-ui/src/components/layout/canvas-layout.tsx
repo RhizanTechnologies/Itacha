@@ -4,14 +4,14 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { 
-  Network, 
-  Search, 
-  FolderOpen, 
-  Settings, 
-  Menu, 
+import {
+  Search,
+  FolderOpen,
+  Settings,
+  Menu,
   Plus,
-  ChevronLeft
+  ChevronLeft,
+  LayoutDashboard,
 } from "lucide-react";
 import { useState } from "react";
 import { UserButton } from "@/components/auth/user-button";
@@ -27,107 +27,128 @@ export default function CanvasLayout({ children }: CanvasLayoutProps) {
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden">
       {/* Sidebar */}
-      <aside 
-        className={`border-r border-border bg-muted/10 transition-[width] duration-300 ease-in-out flex flex-col ${
+      <aside
+        className={`relative border-r border-border bg-muted/10 transition-[width] duration-300 ease-in-out flex flex-col ${
           collapsed ? "w-16" : "w-64"
         }`}
       >
-        {/* Sidebar Header */}
-        <div className="h-14 border-b border-border flex items-center px-4 justify-between">
-          {!collapsed && (
-             <div className="flex items-center gap-2 font-bold text-lg">
-                <div className="bg-primary/10 p-1 rounded">
-                  <Network className="h-5 w-5 text-primary" />
-                </div>
-                Ithaca
-             </div>
-          )}
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => setCollapsed(!collapsed)}
-            className={collapsed ? "mx-auto" : ""}
+        {/* Sidebar Header - Consistent with Public Layout */}
+        <div className="h-14 border-b border-border flex items-center px-3 gap-2">
+          <Link
+            href="/"
+            className="flex items-center gap-2 hover:opacity-80 transition-opacity flex-1 min-w-0"
           >
-            {collapsed ? <Menu className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+            <div className="size-8 shrink-0 rounded-lg bg-primary/10 flex items-center justify-center">
+              <svg
+                className="size-5 text-primary"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 10V3L4 14h7v7l9-11h-7z"
+                />
+              </svg>
+            </div>
+            {!collapsed && (
+              <span className="font-bold text-lg truncate">Ithaca</span>
+            )}
+          </Link>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setCollapsed(!collapsed)}
+            className="shrink-0"
+          >
+            {collapsed ? (
+              <Menu className="h-4 w-4" />
+            ) : (
+              <ChevronLeft className="h-4 w-4" />
+            )}
           </Button>
         </div>
-
-        {/* New Project Button */}
-        <div className="p-4">
-           {collapsed ? (
-             <Button size="icon" className="w-full">
-               <Plus className="h-4 w-4" />
-             </Button>
-           ) : (
-             <Button className="w-full gap-2">
-               <Plus className="h-4 w-4" />
-               New Project
-             </Button>
-           )}
-        </div>
-
         {/* Navigation */}
-        <nav className="flex-1 px-2 space-y-1">
+        <nav className="flex-1 px-2 space-y-1 pt-3">
           <Link href="/explore">
-            <Button 
-              variant={pathname?.startsWith("/explore") ? "secondary" : "ghost"} 
-              className={`w-full justify-start ${collapsed ? "px-2" : ""}`}
+            <Button
+              variant={pathname?.startsWith("/explore") ? "secondary" : "ghost"}
+              className={`w-full justify-start gap-2 ${collapsed ? "px-2 justify-center" : ""}`}
             >
-              <Search className="h-4 w-4 mr-2" />
+              <Search className="h-4 w-4 shrink-0" />
               {!collapsed && "Explore"}
             </Button>
           </Link>
-          <Link href="/projects">
-            <Button 
-              variant={pathname?.startsWith("/projects") ? "secondary" : "ghost"}
-              className={`w-full justify-start ${collapsed ? "px-2" : ""}`}
+          <Link href="/dashboard">
+            <Button
+              variant={
+                pathname?.startsWith("/dashboard") ? "secondary" : "ghost"
+              }
+              className={`w-full justify-start gap-2 ${collapsed ? "px-2 justify-center" : ""}`}
             >
-              <FolderOpen className="h-4 w-4 mr-2" />
-               {!collapsed && "Projects"}
+              <LayoutDashboard className="h-4 w-4 shrink-0" />
+              {!collapsed && "Dashboard"}
+            </Button>
+          </Link>
+          <Link href="/projects">
+            <Button
+              variant={
+                pathname?.startsWith("/projects") ? "secondary" : "ghost"
+              }
+              className={`w-full justify-start gap-2 ${collapsed ? "px-2 justify-center" : ""}`}
+            >
+              <FolderOpen className="h-4 w-4 shrink-0" />
+              {!collapsed && "Projects"}
             </Button>
           </Link>
         </nav>
-
         {/* Footer Actions */}
         <div className="p-2 border-t border-border space-y-1">
-          <Button 
-            variant="ghost" 
-            className={`w-full justify-start ${collapsed ? "px-2" : ""}`}
-            onClick={() => {}} // TODO: Settings modal
-          >
-            <Settings className="h-4 w-4 mr-2" />
-            {!collapsed && "Settings"}
-          </Button>
+          <Link href="/dashboard?tab=settings">
+            <Button
+              variant="ghost"
+              className={`w-full justify-start gap-2 ${collapsed ? "px-2 justify-center" : ""}`}
+            >
+              <Settings className="h-4 w-4 shrink-0" />
+              {!collapsed && "Settings"}
+            </Button>
+          </Link>
         </div>
       </aside>
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Topbar */}
-        <header className="h-14 border-b border-border flex items-center justify-between px-4 bg-background">
-           <div className="w-full max-w-xl">
-             {/* Global Search / Command Bar Placeholder */}
-             <div className="relative">
-               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-               <input 
-                  type="text"
-                  placeholder="Search papers, authors, or topics..." 
-                  className="w-full h-9 pl-9 pr-4 rounded-md border border-input bg-muted/50 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-               />
-             </div>
-           </div>
-           
-           <div className="flex items-center gap-2">
-             <ThemeToggle />
-             <div className="w-px h-6 bg-border mx-2" />
-             <UserButton />
-           </div>
+        {/* Topbar - Consistent with Public Layout header height */}
+        <header className="h-14 border-b border-border flex items-center justify-between px-4 bg-background/80 backdrop-blur-sm">
+          <div className="w-full max-w-xl">
+            {/* Global Search / Command Bar */}
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search papers, authors, or topics..."
+                className="w-full h-9 pl-9 pr-4 rounded-md border border-input bg-muted/50 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
+            <div className="w-px h-6 bg-border" />
+            <UserButton />
+          </div>
         </header>
 
         {/* Viewport */}
-        <main className={`flex-1 relative bg-muted/5 ${
-          pathname?.startsWith("/explore") ? "overflow-hidden" : "overflow-auto"
-        }`}>
+        <main
+          className={`flex-1 relative bg-muted/5 ${
+            pathname?.startsWith("/explore")
+              ? "overflow-hidden"
+              : "overflow-auto"
+          }`}
+        >
           {children}
         </main>
       </div>

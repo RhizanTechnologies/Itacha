@@ -21,7 +21,7 @@ export function NavAuthButtons() {
     return (
       <div className="flex items-center gap-3">
         <Button asChild variant="ghost" size="sm">
-          <Link href="/explore">Explore</Link>
+          <Link href="/dashboard">Dashboard</Link>
         </Button>
         <UserMenu variant="minimal" />
       </div>
@@ -30,9 +30,6 @@ export function NavAuthButtons() {
 
   return (
     <div className="flex items-center gap-2">
-      <Button asChild variant="ghost" size="sm">
-        <Link href="/explore">Try Demo</Link>
-      </Button>
       <Button asChild variant="outline" size="sm">
         <Link href="/signin">Sign In</Link>
       </Button>

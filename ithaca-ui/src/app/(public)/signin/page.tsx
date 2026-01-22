@@ -1,25 +1,61 @@
 "use client";
 
-import { useState } from "react";
-import { Mail, IdCard, Globe, Loader2, Eye, EyeOff, Lock, AlertCircle } from "lucide-react";
+import { useState, useEffect } from "react";
+import {
+  Mail,
+  IdCard,
+  Globe,
+  Loader2,
+  Eye,
+  EyeOff,
+  Lock,
+  AlertCircle,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth-client";
+import { useSession } from "@/lib/auth-client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 export default function SignInPage() {
   const router = useRouter();
-  
+  const { data: session, isPending } = useSession();
+
+  // Redirect authenticated users to explore
+  useEffect(() => {
+    if (!isPending && session?.user) {
+      router.replace("/explore");
+    }
+  }, [session, isPending, router]);
+
   // Form state
   const [mode, setMode] = useState<"oauth" | "email">("oauth");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  
+
   // Status state
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Show loading while checking session
+  if (isPending) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  // If user is logged in, don't render the form (redirect will happen)
+  if (session?.user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   // Email/Password signin
   const handleEmailSignIn = async (e: React.FormEvent) => {
@@ -37,9 +73,9 @@ export default function SignInPage() {
     } catch (err) {
       console.error("Signin error:", err);
       setError(
-        err instanceof Error 
-          ? err.message 
-          : "Invalid email or password. Please try again."
+        err instanceof Error
+          ? err.message
+          : "Invalid email or password. Please try again.",
       );
     } finally {
       setIsLoading(false);
@@ -177,8 +213,8 @@ export default function SignInPage() {
                   <label className="text-xs font-semibold text-muted-foreground uppercase">
                     Password
                   </label>
-                  <Link 
-                    href="/reset-password" 
+                  <Link
+                    href="/reset-password"
                     className="text-xs text-primary hover:underline"
                   >
                     Forgot password?
@@ -199,7 +235,11 @@ export default function SignInPage() {
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
                   </button>
                 </div>
               </div>
@@ -224,7 +264,10 @@ export default function SignInPage() {
         <div className="text-center mt-6">
           <p className="text-sm text-muted-foreground">
             Don't have an account?{" "}
-            <Link href="/signup" className="text-primary hover:underline font-medium">
+            <Link
+              href="/signup"
+              className="text-primary hover:underline font-medium"
+            >
               Sign up
             </Link>
           </p>

@@ -61,7 +61,7 @@ export function GlobalFilters({
         },
       });
     },
-    [filters, onFiltersChange]
+    [filters, onFiltersChange],
   );
 
   const handleCitationChange = useCallback(
@@ -71,7 +71,7 @@ export function GlobalFilters({
         citationRange: [value[0], value[1]] as [number, number],
       });
     },
-    [filters, onFiltersChange]
+    [filters, onFiltersChange],
   );
 
   const handleYearChange = useCallback(
@@ -81,7 +81,7 @@ export function GlobalFilters({
         yearRange: [value[0], value[1]] as [number, number],
       });
     },
-    [filters, onFiltersChange]
+    [filters, onFiltersChange],
   );
 
   const resetFilters = useCallback(() => {
@@ -119,7 +119,9 @@ export function GlobalFilters({
       <div className="flex items-center justify-between p-4 border-b border-border bg-muted/30">
         <div>
           <h3 className="font-bold text-sm">Global Filters</h3>
-          <p className="text-xs text-muted-foreground">Configure graph visibility</p>
+          <p className="text-xs text-muted-foreground">
+            Configure graph visibility
+          </p>
         </div>
         <button
           onClick={onToggle}
@@ -253,8 +255,12 @@ function FilterToggle({
       }`}
     >
       <div className="flex items-center gap-2">
-        <Icon className={`h-4 w-4 ${checked ? color : "text-muted-foreground"}`} />
-        <span className={`text-sm font-medium ${checked ? "" : "text-muted-foreground"}`}>
+        <Icon
+          className={`h-4 w-4 ${checked ? color : "text-muted-foreground"}`}
+        />
+        <span
+          className={`text-sm font-medium ${checked ? "" : "text-muted-foreground"}`}
+        >
           {label}
         </span>
       </div>
@@ -266,7 +272,7 @@ function FilterToggle({
 // Graph Legend Component
 export function GraphLegend() {
   return (
-    <div className="absolute bottom-20 left-4 z-30 bg-card/90 backdrop-blur border border-border rounded-lg p-3 shadow-lg">
+    <div className="absolute bottom-16 left-4 z-30 bg-card/90 backdrop-blur border border-border rounded-lg p-3 shadow-lg">
       <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
         Legend
       </h4>

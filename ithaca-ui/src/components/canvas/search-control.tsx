@@ -13,52 +13,60 @@ export function SearchControl() {
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
 
   // Search nodes by label
-  const handleSearch = useCallback((searchQuery: string) => {
-    setQuery(searchQuery);
-    
-    if (!searchQuery.trim()) {
-      setResults([]);
-      return;
-    }
+  const handleSearch = useCallback(
+    (searchQuery: string) => {
+      setQuery(searchQuery);
 
-    const graph = sigma.getGraph();
-    const matches: string[] = [];
-    
-    graph.forEachNode((node, attrs) => {
-      const label = (attrs.label as string || "").toLowerCase();
-      if (label.includes(searchQuery.toLowerCase())) {
-        matches.push(node);
+      if (!searchQuery.trim()) {
+        setResults([]);
+        return;
       }
-    });
 
-    setResults(matches.slice(0, 5)); // Limit to 5 results
-  }, [sigma]);
+      const graph = sigma.getGraph();
+      const matches: string[] = [];
+
+      graph.forEachNode((node, attrs) => {
+        const label = ((attrs.label as string) || "").toLowerCase();
+        if (label.includes(searchQuery.toLowerCase())) {
+          matches.push(node);
+        }
+      });
+
+      setResults(matches.slice(0, 5)); // Limit to 5 results
+    },
+    [sigma],
+  );
 
   // Focus on a specific node
-  const focusNode = useCallback((nodeId: string) => {
-    const graph = sigma.getGraph();
-    
-    if (!graph.hasNode(nodeId)) return;
+  const focusNode = useCallback(
+    (nodeId: string) => {
+      const graph = sigma.getGraph();
 
-    const nodePosition = sigma.getNodeDisplayData(nodeId);
-    if (!nodePosition) return;
+      if (!graph.hasNode(nodeId)) return;
 
-    // Center camera on node
-    sigma.getCamera().animate(
-      { x: nodePosition.x, y: nodePosition.y, ratio: 0.5 },
-      { duration: 500 }
-    );
+      const nodePosition = sigma.getNodeDisplayData(nodeId);
+      if (!nodePosition) return;
 
-    // Highlight the node
-    setSelectedNode(nodeId);
-    setResults([]);
-    setQuery("");
+      // Center camera on node
+      sigma
+        .getCamera()
+        .animate(
+          { x: nodePosition.x, y: nodePosition.y, ratio: 0.5 },
+          { duration: 500 },
+        );
 
-    // Dim other nodes, highlight selected
-    graph.forEachNode((node) => {
-      graph.setNodeAttribute(node, "highlighted", node === nodeId);
-    });
-  }, [sigma]);
+      // Highlight the node
+      setSelectedNode(nodeId);
+      setResults([]);
+      setQuery("");
+
+      // Dim other nodes, highlight selected
+      graph.forEachNode((node) => {
+        graph.setNodeAttribute(node, "highlighted", node === nodeId);
+      });
+    },
+    [sigma],
+  );
 
   // Clear highlight when query changes
   useEffect(() => {
@@ -74,7 +82,7 @@ export function SearchControl() {
   const clearSearch = () => {
     setQuery("");
     setResults([]);
-    
+
     const graph = sigma.getGraph();
     graph.forEachNode((node) => {
       graph.removeNodeAttribute(node, "highlighted");
@@ -83,7 +91,7 @@ export function SearchControl() {
   };
 
   return (
-    <div className="absolute top-4 left-4 z-10 w-72">
+    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 w-72">
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input

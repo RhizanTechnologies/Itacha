@@ -41,49 +41,84 @@ async function generateShareLink(graphId: string): Promise<string> {
   // In production, this would call the backend API
   // POST /api/graphs/share { graphId }
   // Returns { shareUrl: "https://ithaca.app/share/abc123" }
-  
+
   // For now, generate a deterministic mock URL based on graphId
-  const hash = graphId.split('').reduce((a, b) => {
-    a = ((a << 5) - a) + b.charCodeAt(0);
+  const hash = graphId.split("").reduce((a, b) => {
+    a = (a << 5) - a + b.charCodeAt(0);
     return a & a;
   }, 0);
-  
+
   return `https://ithaca.app/graph/share/${Math.abs(hash).toString(36)}`;
 }
 
 /**
  * Export graph as PNG using canvas capture
- * TODO: Integrate with Sigma.js layers.download() when available
+ * Captures all Sigma canvas layers and combines them
  */
 async function exportAsPNG(title: string): Promise<void> {
-  // Try to capture the Sigma canvas
-  const sigmaContainer = document.querySelector('.sigma-container canvas');
-  
-  if (sigmaContainer && sigmaContainer instanceof HTMLCanvasElement) {
-    // Direct canvas export
-    const dataUrl = sigmaContainer.toDataURL('image/png');
-    downloadFile(dataUrl, `${sanitizeFilename(title)}.png`);
-  } else {
-    // Fallback: try to find any canvas in the sigma container
-    const anyCanvas = document.querySelector('[class*="sigma"] canvas');
-    if (anyCanvas && anyCanvas instanceof HTMLCanvasElement) {
-      const dataUrl = anyCanvas.toDataURL('image/png');
-      downloadFile(dataUrl, `${sanitizeFilename(title)}.png`);
-    } else {
-      // Last resort: use html2canvas approach would go here
-      console.warn("Could not find Sigma canvas for PNG export");
-      throw new Error("Canvas not available for export");
+  // Sigma uses multiple canvas layers - find them all
+  const container = document.querySelector(".react-sigma");
+
+  if (!container) {
+    // Fallback to any sigma-related container
+    const anyContainer = document.querySelector('[class*="sigma"]');
+    if (!anyContainer) {
+      throw new Error("Sigma container not found");
     }
   }
+
+  // Find all canvases in the Sigma container
+  const canvases = document.querySelectorAll(
+    ".react-sigma canvas, [class*='sigma'] canvas",
+  );
+
+  if (canvases.length === 0) {
+    throw new Error("No canvas found for export");
+  }
+
+  // Get dimensions from the first canvas
+  const firstCanvas = canvases[0] as HTMLCanvasElement;
+  const width = firstCanvas.width || firstCanvas.offsetWidth * 2;
+  const height = firstCanvas.height || firstCanvas.offsetHeight * 2;
+
+  // Create a combined canvas
+  const combinedCanvas = document.createElement("canvas");
+  combinedCanvas.width = width;
+  combinedCanvas.height = height;
+  const ctx = combinedCanvas.getContext("2d");
+
+  if (!ctx) {
+    throw new Error("Could not create canvas context");
+  }
+
+  // Fill with background color (detect dark mode)
+  const isDark = document.documentElement.classList.contains("dark");
+  ctx.fillStyle = isDark ? "#0B0C10" : "#F6F7F8";
+  ctx.fillRect(0, 0, width, height);
+
+  // Draw each canvas layer on top
+  canvases.forEach((canvas) => {
+    if (canvas instanceof HTMLCanvasElement) {
+      try {
+        ctx.drawImage(canvas, 0, 0);
+      } catch (e) {
+        console.warn("Could not draw canvas layer:", e);
+      }
+    }
+  });
+
+  // Export the combined canvas
+  const dataUrl = combinedCanvas.toDataURL("image/png");
+  downloadFile(dataUrl, `${sanitizeFilename(title)}.png`);
 }
 
 /**
  * Export graph data as JSON
  */
 async function exportAsJSON(
-  title: string, 
-  nodeCount: number, 
-  edgeCount: number
+  title: string,
+  nodeCount: number,
+  edgeCount: number,
 ): Promise<void> {
   // In production, this would fetch the actual graph data from state/API
   const graphData = {
@@ -117,7 +152,10 @@ function downloadFile(url: string, filename: string) {
 }
 
 function sanitizeFilename(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/-+/g, "-");
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/-+/g, "-");
 }
 
 export function ShareExportDialog({
@@ -160,44 +198,52 @@ export function ShareExportDialog({
     setTimeout(() => setCopied(false), 2000);
   }, [shareUrl]);
 
-  const handleExport = useCallback(async (format: "png" | "json") => {
-    setExporting(format);
-    setError(null);
-    
-    try {
-      if (format === "png") {
-        await exportAsPNG(graphTitle);
-      } else {
-        await exportAsJSON(graphTitle, nodeCount, edgeCount);
-      }
-    } catch (err) {
-      setError(`Export failed: ${err instanceof Error ? err.message : "Unknown error"}`);
-      console.error(err);
-    } finally {
-      setExporting(null);
-    }
-  }, [graphTitle, nodeCount, edgeCount]);
+  const handleExport = useCallback(
+    async (format: "png" | "json") => {
+      setExporting(format);
+      setError(null);
 
-  const handleSocialShare = useCallback((platform: string) => {
-    if (!shareUrl) return;
-    
-    const text = `Check out this scientific argument graph: ${graphTitle}`;
-    const encodedUrl = encodeURIComponent(shareUrl);
-    
-    let shareLink = "";
-    switch (platform) {
-      case "twitter":
-        shareLink = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodedUrl}`;
-        break;
-      case "email":
-        shareLink = `mailto:?subject=${encodeURIComponent(`Shared Graph: ${graphTitle}`)}&body=${encodeURIComponent(`${text}\n\n${shareUrl}`)}`;
-        break;
-    }
-    
-    if (shareLink) {
-      window.open(shareLink, "_blank", "noopener,noreferrer");
-    }
-  }, [graphTitle, shareUrl]);
+      try {
+        if (format === "png") {
+          await exportAsPNG(graphTitle);
+        } else {
+          await exportAsJSON(graphTitle, nodeCount, edgeCount);
+        }
+      } catch (err) {
+        setError(
+          `Export failed: ${err instanceof Error ? err.message : "Unknown error"}`,
+        );
+        console.error(err);
+      } finally {
+        setExporting(null);
+      }
+    },
+    [graphTitle, nodeCount, edgeCount],
+  );
+
+  const handleSocialShare = useCallback(
+    (platform: string) => {
+      if (!shareUrl) return;
+
+      const text = `Check out this scientific argument graph: ${graphTitle}`;
+      const encodedUrl = encodeURIComponent(shareUrl);
+
+      let shareLink = "";
+      switch (platform) {
+        case "twitter":
+          shareLink = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodedUrl}`;
+          break;
+        case "email":
+          shareLink = `mailto:?subject=${encodeURIComponent(`Shared Graph: ${graphTitle}`)}&body=${encodeURIComponent(`${text}\n\n${shareUrl}`)}`;
+          break;
+      }
+
+      if (shareLink) {
+        window.open(shareLink, "_blank", "noopener,noreferrer");
+      }
+    },
+    [graphTitle, shareUrl],
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -280,7 +326,7 @@ export function ShareExportDialog({
           {/* Export Options */}
           <div className="space-y-3">
             <label className="text-sm font-medium">Export</label>
-            
+
             <div className="grid grid-cols-2 gap-2">
               <Button
                 variant="outline"
@@ -300,7 +346,7 @@ export function ShareExportDialog({
                   Canvas screenshot
                 </span>
               </Button>
-              
+
               <Button
                 variant="outline"
                 className="h-auto p-3 flex-col gap-1"
@@ -340,12 +386,12 @@ export function ShareExportDialog({
   );
 }
 
-// Floating Share Button for Canvas
+// Floating Share Button for Canvas - positioned at bottom-right
 export function ShareButton({ onClick }: { onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="absolute top-4 right-4 z-30 flex items-center gap-2 bg-card/90 backdrop-blur border border-border rounded-lg px-3 py-2 shadow-lg hover:bg-muted transition-colors"
+      className="absolute bottom-6 right-4 z-30 flex items-center gap-2 bg-card/90 backdrop-blur border border-border rounded-lg px-3 py-2 shadow-lg hover:bg-muted transition-colors"
     >
       <Share2 className="h-4 w-4" />
       <span className="text-sm font-medium">Share</span>
