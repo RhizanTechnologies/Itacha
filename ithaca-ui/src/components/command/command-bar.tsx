@@ -82,7 +82,7 @@ export function CommandBar({ onSelectPaper, onAction }: CommandBarProps) {
       } finally {
         setIsSearching(false);
       }
-    }, 200); // Debounce
+    }, 300); // Debounce
 
     return () => clearTimeout(searchTimeout);
   }, [search]);
@@ -93,7 +93,7 @@ export function CommandBar({ onSelectPaper, onAction }: CommandBarProps) {
       setOpen(false);
       setSearch("");
     },
-    [onSelectPaper]
+    [onSelectPaper],
   );
 
   const handleAction = useCallback(
@@ -101,7 +101,7 @@ export function CommandBar({ onSelectPaper, onAction }: CommandBarProps) {
       onAction?.(action);
       setOpen(false);
     },
-    [onAction]
+    [onAction],
   );
 
   return (
@@ -109,13 +109,15 @@ export function CommandBar({ onSelectPaper, onAction }: CommandBarProps) {
       {/* Trigger Button */}
       <button
         onClick={() => setOpen(true)}
-        className="fixed top-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-4 py-2 bg-card/90 backdrop-blur border border-border rounded-full shadow-lg hover:bg-muted transition-all group"
+        className="fixed top-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-4 py-2.5 bg-background/95 backdrop-blur-sm border border-border/50 rounded-full shadow-lg hover:bg-muted/80 transition-all hover:scale-[1.02] active:scale-95 group w-full max-w-sm justify-between md:justify-start md:w-auto"
       >
-        <Search className="h-4 w-4 text-muted-foreground group-hover:text-foreground" />
-        <span className="text-sm text-muted-foreground group-hover:text-foreground">
-          Search papers...
-        </span>
-        <kbd className="hidden sm:inline-flex h-5 px-1.5 items-center gap-0.5 rounded border border-border bg-muted font-mono text-[10px] font-medium text-muted-foreground">
+        <div className="flex items-center gap-2">
+          <Search className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+          <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
+            Search papers, actions...
+          </span>
+        </div>
+        <kbd className="hidden sm:inline-flex h-5 px-1.5 items-center gap-0.5 rounded border border-border bg-muted/50 font-mono text-[10px] font-medium text-muted-foreground">
           <span className="text-xs">⌘</span>K
         </kbd>
       </button>
@@ -137,7 +139,9 @@ export function CommandBar({ onSelectPaper, onAction }: CommandBarProps) {
             ) : (
               <div className="py-6 text-center">
                 <Search className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
-                <p className="text-sm text-muted-foreground">No results found.</p>
+                <p className="text-sm text-muted-foreground">
+                  No results found.
+                </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   Try searching for a paper title or author
                 </p>
@@ -153,10 +157,13 @@ export function CommandBar({ onSelectPaper, onAction }: CommandBarProps) {
                   key={paper.id}
                   value={paper.title}
                   onSelect={() => handleSelectPaper(paper.id)}
+                  className="py-3 cursor-pointer"
                 >
-                  <FileText className="mr-2 h-4 w-4 text-muted-foreground" />
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium">{paper.title}</span>
+                  <FileText className="mr-3 h-5 w-5 text-muted-foreground/70" />
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-sm font-medium heading-text">
+                      {paper.title}
+                    </span>
                     <span className="text-xs text-muted-foreground">
                       {paper.authors} • {paper.year}
                     </span>
@@ -174,10 +181,13 @@ export function CommandBar({ onSelectPaper, onAction }: CommandBarProps) {
                   key={paper.id}
                   value={paper.title}
                   onSelect={() => handleSelectPaper(paper.id)}
+                  className="py-3 cursor-pointer"
                 >
-                  <History className="mr-2 h-4 w-4 text-muted-foreground" />
-                  <div className="flex flex-col">
-                    <span className="text-sm">{paper.title}</span>
+                  <History className="mr-3 h-5 w-5 text-muted-foreground/70" />
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-sm font-medium heading-text">
+                      {paper.title}
+                    </span>
                     <span className="text-xs text-muted-foreground">
                       {paper.authors} • {paper.year}
                     </span>
@@ -190,9 +200,12 @@ export function CommandBar({ onSelectPaper, onAction }: CommandBarProps) {
           <CommandSeparator />
 
           {/* Quick Actions */}
-          <CommandGroup heading="Quick Actions">
-            <CommandItem onSelect={() => handleAction("toggle-physics")}>
-              <Zap className="mr-2 h-4 w-4" />
+          <CommandGroup heading="Quick Actions" className="pt-2">
+            <CommandItem
+              onSelect={() => handleAction("toggle-physics")}
+              className="py-2.5"
+            >
+              <Zap className="mr-2 h-4 w-4 text-yellow-500/80" />
               <span>Toggle Physics Simulation</span>
               <CommandShortcut>⌘P</CommandShortcut>
             </CommandItem>

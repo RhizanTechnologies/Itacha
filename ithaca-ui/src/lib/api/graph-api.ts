@@ -223,17 +223,20 @@ class GraphAPIService {
             Math.floor(Math.random() * 3)
           ];
 
-          const edge: EdgeData = {
-            id: `${i}-${target}`,
-            source: String(i),
-            target: String(target),
-            edgeType,
-            confidence: Math.floor(Math.random() * 30) + 70,
-            size: 1,
-            color: EDGE_COLORS[edgeType],
-          };
-
-          edges.push(edge);
+          const edgeId = `${i}-${target}`;
+          // Check for existing edge (undirected or directed depending on need, here directed)
+          if (!edges.some((e) => e.id === edgeId)) {
+            const edge: EdgeData = {
+              id: edgeId,
+              source: String(i),
+              target: String(target),
+              edgeType,
+              confidence: Math.floor(Math.random() * 30) + 70,
+              size: 1,
+              color: EDGE_COLORS[edgeType],
+            };
+            edges.push(edge);
+          }
         }
       }
     }

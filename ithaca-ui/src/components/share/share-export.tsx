@@ -29,7 +29,8 @@ interface ShareExportProps {
   graphTitle?: string;
   nodeCount?: number;
   edgeCount?: number;
-  // For actual PNG export, pass the Sigma instance
+  // For actual PNG export, pass the function
+  onExportPNG?: () => Promise<void>;
   sigmaRef?: React.RefObject<any>;
 }
 
@@ -164,6 +165,7 @@ export function ShareExportDialog({
   graphTitle = "Argument Graph",
   nodeCount = 100,
   edgeCount = 250,
+  onExportPNG,
 }: ShareExportProps) {
   const [copied, setCopied] = useState(false);
   const [exporting, setExporting] = useState<string | null>(null);
@@ -205,7 +207,11 @@ export function ShareExportDialog({
 
       try {
         if (format === "png") {
-          await exportAsPNG(graphTitle);
+          if (onExportPNG) {
+            await onExportPNG();
+          } else {
+            await exportAsPNG(graphTitle);
+          }
         } else {
           await exportAsJSON(graphTitle, nodeCount, edgeCount);
         }
@@ -391,7 +397,7 @@ export function ShareButton({ onClick }: { onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="absolute bottom-6 right-4 z-30 flex items-center gap-2 bg-card/90 backdrop-blur border border-border rounded-lg px-3 py-2 shadow-lg hover:bg-muted transition-colors"
+      className="absolute bottom-6 right-4 z-30 flex items-center gap-2 bg-card/95 backdrop-blur-sm border border-border rounded-lg px-3 py-2 shadow-lg hover:bg-muted transition-colors"
     >
       <Share2 className="h-4 w-4" />
       <span className="text-sm font-medium">Share</span>

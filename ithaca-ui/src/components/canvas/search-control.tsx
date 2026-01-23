@@ -13,11 +13,10 @@ export function SearchControl() {
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
 
   // Search nodes by label
-  const handleSearch = useCallback(
-    (searchQuery: string) => {
-      setQuery(searchQuery);
-
-      if (!searchQuery.trim()) {
+  // Search nodes by label
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!query.trim()) {
         setResults([]);
         return;
       }
@@ -27,15 +26,20 @@ export function SearchControl() {
 
       graph.forEachNode((node, attrs) => {
         const label = ((attrs.label as string) || "").toLowerCase();
-        if (label.includes(searchQuery.toLowerCase())) {
+        if (label.includes(query.toLowerCase())) {
           matches.push(node);
         }
       });
 
       setResults(matches.slice(0, 5)); // Limit to 5 results
-    },
-    [sigma],
-  );
+    }, 300); // 300ms Debounce
+
+    return () => clearTimeout(timer);
+  }, [query, sigma]);
+
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setQuery(e.target.value);
+  };
 
   // Focus on a specific node
   const focusNode = useCallback(
@@ -98,7 +102,7 @@ export function SearchControl() {
           type="text"
           placeholder="Search nodes..."
           value={query}
-          onChange={(e) => handleSearch(e.target.value)}
+          onChange={handleSearch}
           className="pl-9 pr-8 bg-background/90 backdrop-blur border-border shadow-lg"
         />
         {query && (

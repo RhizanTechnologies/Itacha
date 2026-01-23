@@ -1,40 +1,45 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  Lasso,
+  MousePointer,
   X,
   Download,
-  Share2,
-  BookmarkPlus,
   ZoomIn,
   Eye,
-  MousePointer2,
+  GitCompare,
 } from "lucide-react";
 
-interface LassoSelection {
-  points: { x: number; y: number }[];
-  nodeIds: string[];
-}
-
-interface SubgraphLassoToolProps {
+interface NodeSelectionToolProps {
   isActive: boolean;
   onToggle: () => void;
-  onSelectionComplete: (selection: LassoSelection) => void;
-  selectedNodes?: string[];
+  selectedNodes: string[];
+  onClearSelection: () => void;
+  onRemoveNode: (nodeId: string) => void;
+  onFocusSelection: () => void;
+  onCompare: () => void;
+  nodeLabels?: Record<string, string>; // Map of nodeId to label
 }
 
-export function SubgraphLassoTool({
+/**
+ * NodeSelectionTool - Simple click-to-select for multiple nodes
+ * When active, clicking nodes in the graph adds them to selection
+ * Used for path comparison and batch operations
+ */
+export function NodeSelectionTool({
   isActive,
   onToggle,
-  onSelectionComplete,
-  selectedNodes = [],
-}: SubgraphLassoToolProps) {
+  selectedNodes,
+  onClearSelection,
+  onRemoveNode,
+  onFocusSelection,
+  onCompare,
+  nodeLabels = {},
+}: NodeSelectionToolProps) {
   return (
     <>
-      {/* Lasso Toggle Button */}
+      {/* Selection Mode Toggle Button */}
       <button
         onClick={onToggle}
         className={`absolute top-16 right-4 z-30 flex items-center gap-2 px-3 py-2 rounded-lg border shadow-lg transition-all ${
@@ -43,61 +48,89 @@ export function SubgraphLassoTool({
             : "bg-card/90 backdrop-blur border-border hover:bg-muted"
         }`}
       >
-        <Lasso className="h-4 w-4" />
+        <MousePointer className="h-4 w-4" />
         <span className="text-sm font-medium">
-          {isActive ? "Selecting..." : "Lasso Select"}
+          {isActive ? "Selecting..." : "Select Nodes"}
         </span>
+        {selectedNodes.length > 0 && (
+          <Badge
+            variant={isActive ? "secondary" : "default"}
+            className="text-xs"
+          >
+            {selectedNodes.length}
+          </Badge>
+        )}
       </button>
 
       {/* Selection Panel */}
       {selectedNodes.length > 0 && (
-        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-40 bg-card/95 backdrop-blur border border-border rounded-xl shadow-2xl p-4 min-w-80 animate-in slide-in-from-bottom-4 fade-in">
+        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-40 bg-card/95 backdrop-blur border border-border rounded-xl shadow-2xl p-4 min-w-80 max-w-md animate-in slide-in-from-bottom-4 fade-in">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <h3 className="font-bold text-sm">Selection</h3>
+              <h3 className="font-bold text-sm">Selected Nodes</h3>
               <p className="text-xs text-muted-foreground">
-                {selectedNodes.length} nodes selected
+                {selectedNodes.length} node
+                {selectedNodes.length !== 1 ? "s" : ""} selected
               </p>
             </div>
             <Button
               variant="ghost"
               size="icon"
               className="h-8 w-8"
-              onClick={() => onSelectionComplete({ points: [], nodeIds: [] })}
+              onClick={onClearSelection}
+              title="Clear selection"
             >
               <X className="h-4 w-4" />
             </Button>
           </div>
 
-          {/* Selected Node Preview */}
-          <div className="flex flex-wrap gap-1 mb-4 max-h-20 overflow-y-auto">
-            {selectedNodes.slice(0, 10).map((nodeId) => (
-              <Badge key={nodeId} variant="secondary" className="text-xs">
-                {nodeId}
+          {/* Selected Node Tags */}
+          <div className="flex flex-wrap gap-1.5 mb-4 max-h-24 overflow-y-auto">
+            {selectedNodes.map((nodeId) => (
+              <Badge
+                key={nodeId}
+                variant="secondary"
+                className="text-xs pr-1 flex items-center gap-1"
+              >
+                <span className="truncate max-w-32">
+                  {nodeLabels[nodeId] || nodeId}
+                </span>
+                <button
+                  onClick={() => onRemoveNode(nodeId)}
+                  className="ml-1 hover:bg-muted rounded-full p-0.5"
+                >
+                  <X className="h-3 w-3" />
+                </button>
               </Badge>
             ))}
-            {selectedNodes.length > 10 && (
-              <Badge variant="outline" className="text-xs">
-                +{selectedNodes.length - 10} more
-              </Badge>
-            )}
           </div>
 
           {/* Actions */}
-          <div className="grid grid-cols-4 gap-2">
-            <Button variant="outline" size="sm" className="flex-col h-auto py-2 gap-1">
+          <div className="grid grid-cols-3 gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-col h-auto py-2 gap-1"
+              onClick={onFocusSelection}
+            >
               <ZoomIn className="h-4 w-4" />
               <span className="text-[10px]">Focus</span>
             </Button>
-            <Button variant="outline" size="sm" className="flex-col h-auto py-2 gap-1">
-              <Eye className="h-4 w-4" />
-              <span className="text-[10px]">Isolate</span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-col h-auto py-2 gap-1"
+              onClick={onCompare}
+              disabled={selectedNodes.length < 2}
+            >
+              <GitCompare className="h-4 w-4" />
+              <span className="text-[10px]">Compare</span>
             </Button>
-            <Button variant="outline" size="sm" className="flex-col h-auto py-2 gap-1">
-              <BookmarkPlus className="h-4 w-4" />
-              <span className="text-[10px]">Save</span>
-            </Button>
-            <Button variant="outline" size="sm" className="flex-col h-auto py-2 gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-col h-auto py-2 gap-1"
+            >
               <Download className="h-4 w-4" />
               <span className="text-[10px]">Export</span>
             </Button>
@@ -105,63 +138,15 @@ export function SubgraphLassoTool({
         </div>
       )}
 
-      {/* Instructions Toast */}
+      {/* Instructions Toast - when active but no selection */}
       {isActive && selectedNodes.length === 0 && (
         <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-40 bg-primary text-primary-foreground px-4 py-2 rounded-full shadow-lg animate-in fade-in">
           <div className="flex items-center gap-2 text-sm">
-            <MousePointer2 className="h-4 w-4" />
-            <span>Click and drag to select nodes</span>
+            <MousePointer className="h-4 w-4" />
+            <span>Click nodes to select them</span>
           </div>
         </div>
       )}
     </>
-  );
-}
-
-// Lasso Drawing Canvas (SVG overlay)
-export function LassoDrawingCanvas({
-  isDrawing,
-  points,
-}: {
-  isDrawing: boolean;
-  points: { x: number; y: number }[];
-}) {
-  if (!isDrawing || points.length < 2) return null;
-
-  const pathData = points.reduce((acc, point, i) => {
-    return acc + (i === 0 ? `M ${point.x} ${point.y}` : ` L ${point.x} ${point.y}`);
-  }, "");
-
-  return (
-    <svg
-      className="absolute inset-0 z-20 pointer-events-none"
-      style={{ width: "100%", height: "100%" }}
-    >
-      {/* Lasso path */}
-      <path
-        d={pathData}
-        fill="none"
-        stroke="hsl(var(--primary))"
-        strokeWidth="2"
-        strokeDasharray="5,5"
-        className="animate-dash"
-      />
-      {/* Fill area */}
-      <path
-        d={pathData + " Z"}
-        fill="hsl(var(--primary) / 0.1)"
-        stroke="none"
-      />
-      {/* Start point indicator */}
-      {points.length > 0 && (
-        <circle
-          cx={points[0].x}
-          cy={points[0].y}
-          r="6"
-          fill="hsl(var(--primary))"
-          className="animate-pulse"
-        />
-      )}
-    </svg>
   );
 }

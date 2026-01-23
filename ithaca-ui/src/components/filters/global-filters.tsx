@@ -100,7 +100,7 @@ export function GlobalFilters({
     return (
       <button
         onClick={onToggle}
-        className="absolute top-4 left-4 z-30 flex items-center gap-2 bg-card/90 backdrop-blur border border-border rounded-lg px-3 py-2 shadow-lg hover:bg-muted transition-colors"
+        className="absolute top-4 left-4 z-30 flex items-center gap-2 bg-card/95 backdrop-blur-sm border border-border rounded-lg px-3 py-2 shadow-lg hover:bg-muted transition-colors"
       >
         <SlidersHorizontal className="h-4 w-4" />
         <span className="text-sm font-medium">Filters</span>
