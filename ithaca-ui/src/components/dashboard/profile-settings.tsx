@@ -3,15 +3,25 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { UserProfile } from "@/lib/api/dashboard-api";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { UserProfile, dashboardAPI } from "@/lib/api/dashboard-api";
 import { Loader2 } from "lucide-react";
 
 interface ProfileSettingsProps {
   profile: UserProfile;
+  onUpdate?: () => void;
 }
 
-export function ProfileSettings({ profile: initialProfile }: ProfileSettingsProps) {
+export function ProfileSettings({
+  profile: initialProfile,
+  onUpdate,
+}: ProfileSettingsProps) {
   const [profile, setProfile] = useState(initialProfile);
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -20,13 +30,23 @@ export function ProfileSettings({ profile: initialProfile }: ProfileSettingsProp
     e.preventDefault();
     setLoading(true);
     setSaved(false);
-    
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    
-    setLoading(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+
+    try {
+      // Call actual API
+      await dashboardAPI.updateProfile(profile);
+
+      // Notify parent to refresh state
+      if (onUpdate) {
+        onUpdate();
+      }
+
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (error) {
+      console.error("Failed to update profile", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -41,29 +61,41 @@ export function ProfileSettings({ profile: initialProfile }: ProfileSettingsProp
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid gap-2">
-              <label htmlFor="name" className="text-sm font-medium">Display Name</label>
-              <Input 
-                id="name" 
-                value={profile.name} 
-                onChange={(e) => setProfile({ ...profile, name: e.target.value })} 
+              <label htmlFor="name" className="text-sm font-medium">
+                Display Name
+              </label>
+              <Input
+                id="name"
+                value={profile.name}
+                onChange={(e) =>
+                  setProfile({ ...profile, name: e.target.value })
+                }
               />
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <label htmlFor="institution" className="text-sm font-medium">Institution</label>
-                <Input 
-                  id="institution" 
-                  value={profile.institution || ""} 
-                  onChange={(e) => setProfile({ ...profile, institution: e.target.value })} 
+                <label htmlFor="institution" className="text-sm font-medium">
+                  Institution
+                </label>
+                <Input
+                  id="institution"
+                  value={profile.institution || ""}
+                  onChange={(e) =>
+                    setProfile({ ...profile, institution: e.target.value })
+                  }
                 />
               </div>
               <div className="grid gap-2">
-                <label htmlFor="department" className="text-sm font-medium">Department</label>
-                <Input 
-                  id="department" 
-                  value={profile.department || ""} 
-                  onChange={(e) => setProfile({ ...profile, department: e.target.value })} 
+                <label htmlFor="department" className="text-sm font-medium">
+                  Department
+                </label>
+                <Input
+                  id="department"
+                  value={profile.department || ""}
+                  onChange={(e) =>
+                    setProfile({ ...profile, department: e.target.value })
+                  }
                 />
               </div>
             </div>

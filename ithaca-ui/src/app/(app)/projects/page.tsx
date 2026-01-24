@@ -33,64 +33,7 @@ import Link from "next/link";
 import { CreateProjectDialog } from "@/components/projects/create-project-dialog";
 
 // Types
-interface Project {
-  id: string;
-  title: string;
-  description: string;
-  graphCount: number;
-  collectionCount: number;
-  lastModified: string;
-  isFavorite: boolean;
-  color: string;
-}
-
-interface Collection {
-  id: string;
-  projectId: string;
-  title: string;
-  paperCount: number;
-  createdAt: string;
-}
-
-// Mock Data
-const MOCK_PROJECTS: Project[] = [
-  {
-    id: "1",
-    title: "Thesis Research",
-    description: "Machine learning applications in climate science",
-    graphCount: 5,
-    collectionCount: 12,
-    lastModified: "2 hours ago",
-    isFavorite: true,
-    color: "#3b82f6",
-  },
-  {
-    id: "2",
-    title: "Lab Collaboration",
-    description: "Shared research with the NLP group",
-    graphCount: 3,
-    collectionCount: 8,
-    lastModified: "1 day ago",
-    isFavorite: false,
-    color: "#8b5cf6",
-  },
-  {
-    id: "3",
-    title: "Literature Review",
-    description: "Comprehensive survey of transformer architectures",
-    graphCount: 2,
-    collectionCount: 24,
-    lastModified: "3 days ago",
-    isFavorite: true,
-    color: "#ec4899",
-  },
-];
-
-const MOCK_COLLECTIONS: Collection[] = [
-  { id: "c1", projectId: "1", title: "Core Papers", paperCount: 45, createdAt: "Sep 2023" },
-  { id: "c2", projectId: "1", title: "Climate Models", paperCount: 23, createdAt: "Oct 2023" },
-  { id: "c3", projectId: "2", title: "NLP Fundamentals", paperCount: 67, createdAt: "Aug 2023" },
-];
+import { dashboardAPI, Project, Collection } from "@/lib/api/dashboard-api";
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -101,34 +44,38 @@ export default function ProjectsPage() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isNewProjectOpen, setIsNewProjectOpen] = useState(false);
 
-  const handleCreateProject = async (data: { title: string; description: string; color: string }) => {
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    
-    const newProject: Project = {
-      id: String(Date.now()),
-      title: data.title,
-      description: data.description,
-      graphCount: 0,
-      collectionCount: 0,
-      lastModified: "Just now",
-      isFavorite: false,
-      color: data.color,
-    };
-    
-    setProjects([newProject, ...projects]);
+  const handleCreateProject = async (data: {
+    title: string;
+    description: string;
+    color: string;
+  }) => {
+    try {
+      const newProject = await dashboardAPI.createProject(data);
+      setProjects([newProject, ...projects]);
+    } catch (e) {
+      console.error("Failed to create project", e);
+    }
+  };
+
+  const loadData = async () => {
+    setIsLoading(true);
+    try {
+      const [loadedProjects, loadedCollections] = await Promise.all([
+        dashboardAPI.getProjects(),
+        dashboardAPI.getCollections(),
+      ]);
+      setProjects(loadedProjects);
+      // @ts-ignore - Collection type mismatch handling in UI vs API if any, checking later
+      setCollections(loadedCollections);
+    } catch (e) {
+      console.error("Failed to lead projects", e);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Load data
   useEffect(() => {
-    async function loadData() {
-      setIsLoading(true);
-      // Simulate API call
-      await new Promise((r) => setTimeout(r, 500));
-      setProjects(MOCK_PROJECTS);
-      setCollections(MOCK_COLLECTIONS);
-      setIsLoading(false);
-    }
     loadData();
   }, []);
 
@@ -136,18 +83,27 @@ export default function ProjectsPage() {
   const filteredProjects = projects.filter(
     (p) =>
       p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.description.toLowerCase().includes(searchQuery.toLowerCase())
+      p.description.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   // Get collections for selected project
   const projectCollections = selectedProject
-    ? collections.filter((c) => c.projectId === selectedProject.id)
+    ? collections.filter((c: any) => c.projectId === selectedProject.id)
     : [];
 
-  const toggleFavorite = (projectId: string) => {
+  const toggleFavorite = async (projectId: string) => {
+    await dashboardAPI.toggleProjectFavorite(projectId);
     setProjects((prev) =>
-      prev.map((p) => (p.id === projectId ? { ...p, isFavorite: !p.isFavorite } : p))
+      prev.map((p) =>
+        p.id === projectId ? { ...p, isFavorite: !p.isFavorite } : p,
+      ),
     );
+  };
+
+  const handleDeleteProject = async (projectId: string) => {
+    await dashboardAPI.deleteProject(projectId);
+    setProjects((prev) => prev.filter((p) => p.id !== projectId));
+    if (selectedProject?.id === projectId) setSelectedProject(null);
   };
 
   if (isLoading) {
@@ -240,6 +196,7 @@ export default function ProjectsPage() {
                         isSelected={selectedProject?.id === project.id}
                         onSelect={() => setSelectedProject(project)}
                         onToggleFavorite={() => toggleFavorite(project.id)}
+                        onDelete={() => handleDeleteProject(project.id)}
                       />
                     ))}
                 </div>
@@ -266,6 +223,7 @@ export default function ProjectsPage() {
                     isSelected={selectedProject?.id === project.id}
                     onSelect={() => setSelectedProject(project)}
                     onToggleFavorite={() => toggleFavorite(project.id)}
+                    onDelete={() => handleDeleteProject(project.id)}
                   />
                 ))}
               </div>
@@ -322,9 +280,12 @@ export default function ProjectsPage() {
                           href={`/explore?collection=${collection.id}`}
                           className="block p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
                         >
-                          <div className="font-medium text-sm">{collection.title}</div>
+                          <div className="font-medium text-sm">
+                            {collection.title}
+                          </div>
                           <div className="text-xs text-muted-foreground">
-                            {collection.paperCount} papers • {collection.createdAt}
+                            {collection.paperCount} papers •{" "}
+                            {collection.createdAt}
                           </div>
                         </Link>
                       ))}
@@ -335,7 +296,11 @@ export default function ProjectsPage() {
                     </p>
                   )}
 
-                  <Button variant="outline" size="sm" className="w-full mt-4 gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full mt-4 gap-2"
+                  >
                     <Plus className="h-4 w-4" />
                     Add Collection
                   </Button>
@@ -345,11 +310,11 @@ export default function ProjectsPage() {
           )}
         </div>
       </div>
-      
-      <CreateProjectDialog 
-        open={isNewProjectOpen} 
-        onOpenChange={setIsNewProjectOpen} 
-        onSubmit={handleCreateProject} 
+
+      <CreateProjectDialog
+        open={isNewProjectOpen}
+        onOpenChange={setIsNewProjectOpen}
+        onSubmit={handleCreateProject}
       />
     </div>
   );
@@ -362,12 +327,14 @@ function ProjectCard({
   isSelected,
   onSelect,
   onToggleFavorite,
+  onDelete,
 }: {
   project: Project;
   viewMode: "grid" | "list";
   isSelected: boolean;
   onSelect: () => void;
   onToggleFavorite: () => void;
+  onDelete: () => void;
 }) {
   if (viewMode === "list") {
     return (
@@ -424,10 +391,7 @@ function ProjectCard({
         isSelected ? "ring-2 ring-primary" : "hover:shadow-md"
       }`}
     >
-      <div
-        className="h-2"
-        style={{ backgroundColor: project.color }}
-      />
+      <div className="h-2" style={{ backgroundColor: project.color }} />
       <CardContent className="p-4">
         <div className="flex items-start justify-between">
           <div
@@ -461,7 +425,13 @@ function ProjectCard({
                 Edit
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-destructive">
+              <DropdownMenuItem
+                className="text-destructive"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete();
+                }}
+              >
                 <Trash2 className="h-4 w-4 mr-2" />
                 Delete
               </DropdownMenuItem>

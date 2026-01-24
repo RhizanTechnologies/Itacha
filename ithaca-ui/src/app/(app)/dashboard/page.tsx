@@ -22,14 +22,15 @@ import {
   Clock,
   Loader2,
 } from "lucide-react";
-import { 
-  dashboardAPI, 
-  UserProfile, 
-  DashboardStats, 
-  RecentActivity, 
+import {
+  dashboardAPI,
+  UserProfile,
+  DashboardStats,
+  RecentActivity,
   Correction,
-  Collection 
+  Collection,
 } from "@/lib/api/dashboard-api";
+import { useSession } from "@/lib/auth-client";
 import { ProfileSettings } from "@/components/dashboard/profile-settings";
 
 // Stats Icon Map
@@ -39,13 +40,12 @@ const STAT_ICONS = {
   edgesCorrected: GitBranch,
 };
 
-
-
 export default function DashboardPage() {
+  const { data: session } = useSession();
   const searchParams = useSearchParams();
   // Get active tab from URL or default to overview
   const activeTab = searchParams.get("tab") || "overview";
-  
+
   // State from API
   const [currentTab, setCurrentTab] = useState(activeTab);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -61,16 +61,29 @@ export default function DashboardPage() {
     async function loadDashboard() {
       setIsLoading(true);
       setError(null);
-      
+
       try {
-        const [profileData, statsData, activityData, correctionsData, collectionsData] = 
-          await Promise.all([
-            dashboardAPI.getUserProfile(),
-            dashboardAPI.getStats(),
-            dashboardAPI.getRecentActivity(),
-            dashboardAPI.getCorrections(),
-            dashboardAPI.getCollections(),
-          ]);
+        const [
+          profileData,
+          statsData,
+          activityData,
+          correctionsData,
+          collectionsData,
+        ] = await Promise.all([
+          dashboardAPI.getUserProfile(
+            session?.user
+              ? {
+                  name: session.user.name,
+                  email: session.user.email,
+                  image: session.user.image || undefined,
+                }
+              : undefined,
+          ),
+          dashboardAPI.getStats(),
+          dashboardAPI.getRecentActivity(),
+          dashboardAPI.getCorrections(),
+          dashboardAPI.getCollections(),
+        ]);
 
         setProfile(profileData);
         setStats(statsData);
@@ -86,8 +99,13 @@ export default function DashboardPage() {
     }
 
     loadDashboard();
+  }, [session]); // Reload when session loads
 
-  }, []);
+  // Callback to refresh profile after edit
+  const handleProfileUpdate = async () => {
+    const updatedProfile = await dashboardAPI.getUserProfile();
+    setProfile(updatedProfile);
+  };
 
   // Update tab when URL changes
   useEffect(() => {
@@ -139,7 +157,8 @@ export default function DashboardPage() {
                 <div>
                   <h1 className="text-2xl font-bold">{profile.name}</h1>
                   <p className="text-muted-foreground">
-                    {profile.department}{profile.institution && `, ${profile.institution}`}
+                    {profile.department}
+                    {profile.institution && `, ${profile.institution}`}
                   </p>
                   <div className="flex gap-2 mt-2">
                     {profile.badges.map((badge) => (
@@ -153,9 +172,9 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </div>
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 className="gap-2"
                 onClick={() => setCurrentTab("settings")}
               >
@@ -227,10 +246,15 @@ export default function DashboardPage() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {activities.map((activity) => (
-                  <Card key={activity.id} className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer">
+                  <Card
+                    key={activity.id}
+                    className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
+                  >
                     <div className="h-32 bg-gradient-to-br from-primary/10 to-primary/5 relative">
                       <Badge className="absolute top-2 right-2 bg-card/80 text-xs">
-                        {activity.nodeCount ? `${activity.nodeCount} Nodes` : `${activity.paperCount} Papers`}
+                        {activity.nodeCount
+                          ? `${activity.nodeCount} Nodes`
+                          : `${activity.paperCount} Papers`}
                       </Badge>
                     </div>
                     <CardContent className="p-4">
@@ -240,7 +264,11 @@ export default function DashboardPage() {
                       </p>
                       <div className="flex gap-1 mt-2">
                         {activity.tags.map((tag) => (
-                          <Badge key={tag} variant="secondary" className="text-[10px]">
+                          <Badge
+                            key={tag}
+                            variant="secondary"
+                            className="text-[10px]"
+                          >
                             {tag}
                           </Badge>
                         ))}
@@ -262,8 +290,12 @@ export default function DashboardPage() {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b text-xs text-muted-foreground uppercase">
-                        <th className="text-left p-4 font-medium">Source Node</th>
-                        <th className="text-left p-4 font-medium">Target Node</th>
+                        <th className="text-left p-4 font-medium">
+                          Source Node
+                        </th>
+                        <th className="text-left p-4 font-medium">
+                          Target Node
+                        </th>
                         <th className="text-left p-4 font-medium">Vote Type</th>
                         <th className="text-left p-4 font-medium">Status</th>
                         <th className="text-left p-4 font-medium">Date</th>
@@ -271,26 +303,36 @@ export default function DashboardPage() {
                     </thead>
                     <tbody>
                       {corrections.map((correction) => (
-                        <tr key={correction.id} className="border-b last:border-0 hover:bg-muted/50">
-                          <td className="p-4 text-sm">{correction.sourceNode}</td>
+                        <tr
+                          key={correction.id}
+                          className="border-b last:border-0 hover:bg-muted/50"
+                        >
+                          <td className="p-4 text-sm">
+                            {correction.sourceNode}
+                          </td>
                           <td className="p-4 text-sm text-muted-foreground">
                             {correction.targetNode}
                           </td>
                           <td className="p-4">
-                            <Badge variant="secondary">{correction.voteType}</Badge>
+                            <Badge variant="secondary">
+                              {correction.voteType}
+                            </Badge>
                           </td>
                           <td className="p-4">
-                            <Badge 
+                            <Badge
                               className={
-                                correction.status === "approved" 
-                                  ? "bg-supports/10 text-supports gap-1" 
+                                correction.status === "approved"
+                                  ? "bg-supports/10 text-supports gap-1"
                                   : correction.status === "rejected"
-                                  ? "bg-contradicts/10 text-contradicts gap-1"
-                                  : "bg-extends/10 text-extends gap-1"
+                                    ? "bg-contradicts/10 text-contradicts gap-1"
+                                    : "bg-extends/10 text-extends gap-1"
                               }
                             >
-                              {correction.status === "approved" && <Check className="h-3 w-3" />}
-                              {correction.status.charAt(0).toUpperCase() + correction.status.slice(1)}
+                              {correction.status === "approved" && (
+                                <Check className="h-3 w-3" />
+                              )}
+                              {correction.status.charAt(0).toUpperCase() +
+                                correction.status.slice(1)}
                             </Badge>
                           </td>
                           <td className="p-4 text-sm text-muted-foreground">
@@ -308,19 +350,26 @@ export default function DashboardPage() {
           {/* Graphs Tab */}
           <TabsContent value="graphs" className="mt-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {activities.filter(a => a.type === "graph").map((graph) => (
-                <Card key={graph.id} className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer">
-                  <div className="h-32 bg-gradient-to-br from-primary/10 to-primary/5 relative">
-                    <Badge className="absolute top-2 right-2 bg-card/80 text-xs">
-                      {graph.nodeCount} Nodes
-                    </Badge>
-                  </div>
-                  <CardContent className="p-4">
-                    <h3 className="font-medium">{graph.title}</h3>
-                    <p className="text-xs text-muted-foreground">Updated {graph.updated}</p>
-                  </CardContent>
-                </Card>
-              ))}
+              {activities
+                .filter((a) => a.type === "graph")
+                .map((graph) => (
+                  <Card
+                    key={graph.id}
+                    className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
+                  >
+                    <div className="h-32 bg-gradient-to-br from-primary/10 to-primary/5 relative">
+                      <Badge className="absolute top-2 right-2 bg-card/80 text-xs">
+                        {graph.nodeCount} Nodes
+                      </Badge>
+                    </div>
+                    <CardContent className="p-4">
+                      <h3 className="font-medium">{graph.title}</h3>
+                      <p className="text-xs text-muted-foreground">
+                        Updated {graph.updated}
+                      </p>
+                    </CardContent>
+                  </Card>
+                ))}
             </div>
           </TabsContent>
 
@@ -328,13 +377,17 @@ export default function DashboardPage() {
           <TabsContent value="collections" className="mt-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {collections.map((collection) => (
-                <Card key={collection.id} className="hover:shadow-md transition-shadow cursor-pointer">
+                <Card
+                  key={collection.id}
+                  className="hover:shadow-md transition-shadow cursor-pointer"
+                >
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between">
                       <div>
                         <h3 className="font-medium">{collection.title}</h3>
                         <p className="text-xs text-muted-foreground">
-                          {collection.paperCount} Papers • Created {collection.createdAt}
+                          {collection.paperCount} Papers • Created{" "}
+                          {collection.createdAt}
                         </p>
                       </div>
                       <Button variant="ghost" size="icon">
@@ -363,16 +416,33 @@ export default function DashboardPage() {
                   </thead>
                   <tbody>
                     {corrections.map((correction) => (
-                      <tr key={correction.id} className="border-b last:border-0 hover:bg-muted/50">
+                      <tr
+                        key={correction.id}
+                        className="border-b last:border-0 hover:bg-muted/50"
+                      >
                         <td className="p-4 text-sm">{correction.sourceNode}</td>
-                        <td className="p-4 text-sm text-muted-foreground">{correction.targetNode}</td>
-                        <td className="p-4"><Badge variant="secondary">{correction.voteType}</Badge></td>
+                        <td className="p-4 text-sm text-muted-foreground">
+                          {correction.targetNode}
+                        </td>
                         <td className="p-4">
-                          <Badge className={correction.status === "approved" ? "bg-supports/10 text-supports" : "bg-extends/10 text-extends"}>
+                          <Badge variant="secondary">
+                            {correction.voteType}
+                          </Badge>
+                        </td>
+                        <td className="p-4">
+                          <Badge
+                            className={
+                              correction.status === "approved"
+                                ? "bg-supports/10 text-supports"
+                                : "bg-extends/10 text-extends"
+                            }
+                          >
                             {correction.status}
                           </Badge>
                         </td>
-                        <td className="p-4 text-sm text-muted-foreground">{correction.date}</td>
+                        <td className="p-4 text-sm text-muted-foreground">
+                          {correction.date}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -381,10 +451,9 @@ export default function DashboardPage() {
             </Card>
           </TabsContent>
 
-
           {/* Settings Tab */}
           <TabsContent value="settings" className="mt-6">
-            <ProfileSettings profile={profile} />
+            <ProfileSettings profile={profile} onUpdate={handleProfileUpdate} />
           </TabsContent>
         </Tabs>
       </div>
@@ -393,12 +462,12 @@ export default function DashboardPage() {
 }
 
 // Stat Card Component
-function StatCard({ 
-  icon: Icon, 
-  label, 
-  value, 
-  change 
-}: { 
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  change,
+}: {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   value: number;

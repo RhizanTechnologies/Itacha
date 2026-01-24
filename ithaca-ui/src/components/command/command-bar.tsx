@@ -50,8 +50,14 @@ export function CommandBar({ onSelectPaper, onAction }: CommandBarProps) {
       }
     };
 
+    const openEvent = () => setOpen(true);
+
     document.addEventListener("keydown", down);
-    return () => document.removeEventListener("keydown", down);
+    window.addEventListener("open-command-bar", openEvent);
+    return () => {
+      document.removeEventListener("keydown", down);
+      window.removeEventListener("open-command-bar", openEvent);
+    };
   }, []);
 
   // Load recent papers on mount

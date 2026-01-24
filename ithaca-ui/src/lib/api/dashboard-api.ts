@@ -52,9 +52,30 @@ export interface Correction {
 
 export interface Collection {
   id: string;
+  projectId?: string; // Updated to be optional and linkable
   title: string;
   paperCount: number;
   createdAt: string;
+}
+
+export interface Project {
+  id: string;
+  title: string;
+  description: string;
+  graphCount: number;
+  collectionCount: number;
+  lastModified: string;
+  isFavorite: boolean;
+  color: string;
+}
+
+export interface SavedGraph {
+  id: string;
+  title: string;
+  nodeCount: number;
+  updated: string;
+  projectId?: string;
+  collectionId?: string;
 }
 
 // =============================================================================
@@ -140,59 +161,223 @@ const MOCK_COLLECTIONS: Collection[] = [
 // API SERVICE
 // =============================================================================
 
+// Storage Keys
+// Storage Keys
+const STORAGE_KEYS = {
+  PROFILE: "ithaca_dashboard_profile",
+  STATS: "ithaca_dashboard_stats", // derived, not stored directly usually, but we can cache
+  ACTIVITY: "ithaca_dashboard_activity", // derived
+  COLLECTIONS: "ithaca_dashboard_collections",
+  CORRECTIONS: "ithaca_dashboard_corrections",
+  PROJECTS: "ithaca_dashboard_projects",
+  GRAPHS: "ithaca_dashboard_graphs",
+};
+
+// =============================================================================
+// API SERVICE
+// =============================================================================
+
 class DashboardAPIService {
-  /**
-   * Get current user profile
-   * TODO: Replace with actual API call
-   */
-  async getUserProfile(): Promise<UserProfile> {
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    return MOCK_USER;
+  private async delay(ms: number = 200): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, ms));
   }
 
-  /**
-   * Get dashboard stats for current user
-   * TODO: Replace with actual API call
-   */
-  async getStats(): Promise<DashboardStats> {
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    return MOCK_STATS;
+  // --- Helpers ---
+
+  private getList<T>(key: string): T[] {
+    if (typeof window === "undefined") return [];
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : [];
   }
 
-  /**
-   * Get recent activity for current user
-   * TODO: Replace with actual API call
-   */
-  async getRecentActivity(): Promise<RecentActivity[]> {
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    return MOCK_ACTIVITIES;
+  private setList<T>(key: string, list: T[]): void {
+    if (typeof window === "undefined") return;
+    localStorage.setItem(key, JSON.stringify(list));
   }
 
-  /**
-   * Get correction history for current user
-   * TODO: Replace with actual API call
-   */
-  async getCorrections(): Promise<Correction[]> {
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    return MOCK_CORRECTIONS;
+  // --- Profile ---
+
+  async getUserProfile(sessionUser?: {
+    name: string;
+    email: string;
+    image?: string;
+  }): Promise<UserProfile> {
+    await this.delay();
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem(STORAGE_KEYS.PROFILE);
+      if (stored) return JSON.parse(stored);
+    }
+
+    const initialProfile: UserProfile = {
+      ...MOCK_USER,
+      name: sessionUser?.name || MOCK_USER.name,
+      email: sessionUser?.email || MOCK_USER.email,
+      avatar: sessionUser?.image || MOCK_USER.avatar,
+    };
+
+    if (typeof window !== "undefined") {
+      localStorage.setItem(
+        STORAGE_KEYS.PROFILE,
+        JSON.stringify(initialProfile),
+      );
+    }
+    return initialProfile;
   }
 
-  /**
-   * Get collections for current user
-   * TODO: Replace with actual API call
-   */
-  async getCollections(): Promise<Collection[]> {
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    return MOCK_COLLECTIONS;
-  }
-
-  /**
-   * Update user profile
-   * TODO: Replace with actual API call
-   */
   async updateProfile(data: Partial<UserProfile>): Promise<UserProfile> {
-    await new Promise((resolve) => setTimeout(resolve, 200));
-    return { ...MOCK_USER, ...data };
+    await this.delay(300);
+    const current = await this.getUserProfile();
+    const updated = { ...current, ...data };
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(updated));
+    }
+    return updated;
+  }
+
+  // --- Projects ---
+
+  async getProjects(): Promise<Project[]> {
+    await this.delay();
+    return this.getList<Project>(STORAGE_KEYS.PROJECTS);
+  }
+
+  async createProject(
+    data: Omit<
+      Project,
+      "id" | "graphCount" | "collectionCount" | "lastModified" | "isFavorite"
+    >,
+  ): Promise<Project> {
+    await this.delay();
+    const projects = this.getList<Project>(STORAGE_KEYS.PROJECTS);
+    const newProject: Project = {
+      ...data,
+      id: crypto.randomUUID(),
+      graphCount: 0,
+      collectionCount: 0,
+      lastModified: "Just now",
+      isFavorite: false,
+    };
+    this.setList(STORAGE_KEYS.PROJECTS, [newProject, ...projects]);
+    return newProject;
+  }
+
+  async deleteProject(id: string): Promise<void> {
+    await this.delay();
+    const projects = this.getList<Project>(STORAGE_KEYS.PROJECTS);
+    this.setList(
+      STORAGE_KEYS.PROJECTS,
+      projects.filter((p) => p.id !== id),
+    );
+  }
+
+  async toggleProjectFavorite(id: string): Promise<void> {
+    await this.delay();
+    const projects = this.getList<Project>(STORAGE_KEYS.PROJECTS);
+    this.setList(
+      STORAGE_KEYS.PROJECTS,
+      projects.map((p) =>
+        p.id === id ? { ...p, isFavorite: !p.isFavorite } : p,
+      ),
+    );
+  }
+
+  // --- Collections ---
+
+  async getCollections(projectId?: string): Promise<Collection[]> {
+    await this.delay();
+    const all = this.getList<Collection & { projectId?: string }>(
+      STORAGE_KEYS.COLLECTIONS,
+    );
+    if (projectId) {
+      return all.filter((c) => c.projectId === projectId);
+    }
+    return all;
+  }
+
+  async createCollection(data: {
+    title: string;
+    projectId?: string;
+  }): Promise<Collection> {
+    await this.delay();
+    const collections = this.getList<Collection & { projectId?: string }>(
+      STORAGE_KEYS.COLLECTIONS,
+    );
+    const newCollection = {
+      id: crypto.randomUUID(),
+      title: data.title,
+      projectId: data.projectId,
+      paperCount: 0,
+      createdAt: new Date().toLocaleDateString("en-US", {
+        month: "short",
+        year: "numeric",
+      }),
+    };
+    this.setList(STORAGE_KEYS.COLLECTIONS, [newCollection, ...collections]);
+
+    // Update project count
+    if (data.projectId) {
+      const projects = this.getList<Project>(STORAGE_KEYS.PROJECTS);
+      this.setList(
+        STORAGE_KEYS.PROJECTS,
+        projects.map((p) =>
+          p.id === data.projectId
+            ? { ...p, collectionCount: (p.collectionCount || 0) + 1 }
+            : p,
+        ),
+      );
+    }
+
+    return newCollection;
+  }
+
+  // --- Stats & Derived Data ---
+
+  async getStats(): Promise<DashboardStats> {
+    await this.delay();
+    const projects = this.getList<Project>(STORAGE_KEYS.PROJECTS);
+    const collections = this.getList<Collection>(STORAGE_KEYS.COLLECTIONS);
+    // For now, mock edges corrected or store if needed
+
+    return {
+      savedGraphs: 0, // Implement saved graphs logic similar to projects if needed
+      collections: collections.length,
+      edgesCorrected: 154, // Keep static or implement separate storage
+      savedGraphsChange: "+0 this week",
+      edgesCorrectedChange: "+15%",
+    };
+  }
+
+  async getRecentActivity(): Promise<RecentActivity[]> {
+    await this.delay();
+    const projects = this.getList<Project>(STORAGE_KEYS.PROJECTS);
+    const collections = this.getList<Collection>(STORAGE_KEYS.COLLECTIONS);
+
+    // Convert to RecentActivity format
+    const projectActivities: RecentActivity[] = projects.map((p) => ({
+      id: p.id,
+      title: `Project: ${p.title}`,
+      type: "collection", // reusing type
+      updated: p.lastModified,
+      tags: ["Project"],
+      paperCount: p.collectionCount, // heuristic
+    }));
+
+    const collectionActivities: RecentActivity[] = collections.map((c) => ({
+      id: c.id,
+      title: `Collection: ${c.title}`,
+      type: "collection",
+      updated: c.createdAt,
+      tags: ["Collection"],
+      paperCount: c.paperCount,
+    }));
+
+    // Merge and simple sort (in real app, use timestamps)
+    return [...projectActivities, ...collectionActivities].slice(0, 10);
+  }
+
+  async getCorrections(): Promise<Correction[]> {
+    await this.delay();
+    return MOCK_CORRECTIONS;
   }
 }
 

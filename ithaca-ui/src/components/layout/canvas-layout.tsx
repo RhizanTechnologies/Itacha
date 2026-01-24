@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { UserButton } from "@/components/auth/user-button";
+import { CommandBar } from "@/components/command/command-bar";
+import { useRouter } from "next/navigation";
 
 interface CanvasLayoutProps {
   children: React.ReactNode;
@@ -23,9 +25,17 @@ interface CanvasLayoutProps {
 export default function CanvasLayout({ children }: CanvasLayoutProps) {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
 
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden">
+      <CommandBar
+        onSelectPaper={(id) => router.push(`/explore?nodeId=${id}`)}
+        onAction={(action) => {
+          if (action === "settings") router.push("/dashboard?tab=settings");
+          // Add other global actions if needed
+        }}
+      />
       {/* Sidebar */}
       <aside
         className={`relative border-r border-border bg-muted/10 transition-[width] duration-300 ease-in-out flex flex-col ${
@@ -108,7 +118,11 @@ export default function CanvasLayout({ children }: CanvasLayoutProps) {
         <div className="p-2 border-t border-border space-y-1">
           <Link href="/dashboard?tab=settings">
             <Button
-              variant="ghost"
+              variant={
+                pathname === "/dashboard" && pathname.includes("settings")
+                  ? "secondary"
+                  : "ghost"
+              }
               className={`w-full justify-start gap-2 ${collapsed ? "px-2 justify-center" : ""}`}
             >
               <Settings className="h-4 w-4 shrink-0" />
@@ -124,12 +138,18 @@ export default function CanvasLayout({ children }: CanvasLayoutProps) {
         <header className="h-14 border-b border-border flex items-center justify-between px-4 bg-background/80 backdrop-blur-sm">
           <div className="w-full max-w-xl">
             {/* Global Search / Command Bar */}
-            <div className="relative">
+            <div
+              className="relative cursor-pointer"
+              onClick={() =>
+                window.dispatchEvent(new Event("open-command-bar"))
+              }
+            >
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <input
+                readOnly
                 type="text"
-                placeholder="Search papers, authors, or topics..."
-                className="w-full h-9 pl-9 pr-4 rounded-md border border-input bg-muted/50 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                placeholder="Search papers, authors, or topics... (⌘K)"
+                className="w-full h-9 pl-9 pr-4 rounded-md border border-input bg-muted/50 text-sm focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer"
               />
             </div>
           </div>
