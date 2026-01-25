@@ -7,6 +7,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -39,7 +40,10 @@ interface ArgumentPath {
   nodes: PathNode[];
   edges: PathEdge[];
   color: string;
+  description?: string;
 }
+
+export type PathMode = "shortest" | "conflict" | "consensus";
 
 // Generate paths from real graph data
 export function generatePathsFromGraph(
@@ -114,12 +118,16 @@ interface PathComparisonViewProps {
   isOpen: boolean;
   onClose: () => void;
   paths?: ArgumentPath[];
+  onModeChange?: (mode: PathMode) => void;
+  currentMode?: PathMode;
 }
 
 export function PathComparisonView({
   isOpen,
   onClose,
   paths = [],
+  onModeChange,
+  currentMode = "shortest",
 }: PathComparisonViewProps) {
   const [selectedPaths, setSelectedPaths] = useState<string[]>(
     paths.slice(0, 2).map((p) => p.id),
@@ -166,6 +174,31 @@ export function PathComparisonView({
             Compare argument paths side by side
           </p>
         </SheetHeader>
+
+        {/* Mode Switcher */}
+        <div className="px-6 pt-6">
+          <Tabs
+            value={currentMode}
+            onValueChange={(val) => onModeChange?.(val as PathMode)}
+            className="w-full"
+          >
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="shortest">Shortest</TabsTrigger>
+              <TabsTrigger
+                value="conflict"
+                className="data-[state=active]:text-contradicts"
+              >
+                Conflict
+              </TabsTrigger>
+              <TabsTrigger
+                value="consensus"
+                className="data-[state=active]:text-supports"
+              >
+                Consensus
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
 
         <div className="py-6 space-y-6">
           {/* No paths message */}
@@ -254,7 +287,14 @@ export function PathComparisonView({
                         className="w-3 h-3 rounded-full"
                         style={{ backgroundColor: path.color }}
                       />
-                      <span className="font-medium">{path.name}</span>
+                      <div>
+                        <span className="font-medium block">{path.name}</span>
+                        {path.description && (
+                          <span className="text-xs text-muted-foreground">
+                            {path.description}
+                          </span>
+                        )}
+                      </div>
                       <Badge variant="secondary" className="ml-auto text-xs">
                         {path.nodes?.length || 0} nodes
                       </Badge>

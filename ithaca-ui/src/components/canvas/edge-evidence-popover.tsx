@@ -32,6 +32,7 @@ export interface EdgeEvidence {
   snippets: {
     text: string;
     source: string;
+    context?: "Introduction" | "Methodology" | "Results" | "Discussion";
   }[];
 }
 
@@ -75,6 +76,24 @@ export function EdgeEvidencePopover({
   onDispute,
 }: EdgeEvidencePopoverProps) {
   const [activeSnippet, setActiveSnippet] = useState(0);
+
+  // Helper to highlight keywords
+  const highlightText = (text: string, type: EdgeEvidence["edgeType"]) => {
+    const config = EDGE_CONFIG[type];
+
+    const keywords = type === "contradicts" 
+      ? ["however", "contrary", "unlike", "conflict", "disagree", "refutes"]
+      : type === "supports"
+      ? ["supports", "validates", "confirms", "agreement", "consistent"]
+      : ["extends", "builds on", "following", "based on"];
+      
+    const parts = text.split(new RegExp(`(${keywords.join("|")})`, "gi"));
+    return parts.map((part, i) => 
+      keywords.some(k => k.toLowerCase() === part.toLowerCase()) 
+        ? <span key={i} className={`font-bold ${config.color} bg-white/50 px-1 rounded`}>{part}</span>
+        : part
+    );
+  };
 
   if (!evidence || !position) return null;
 
@@ -160,14 +179,29 @@ export function EdgeEvidencePopover({
                 </div>
               )}
 
-              {/* Current Snippet */}
-              <div className={`p-3 rounded-lg ${config.bgColor} border ${config.borderColor}`}>
-                <p className="text-sm italic leading-relaxed">
-                  "{evidence.snippets[activeSnippet].text}"
+              {/* Current Snippet - Paper Style */}
+              <div className={`relative p-4 rounded-sm border ${config.borderColor} bg-white dark:bg-zinc-900 shadow-sm font-serif`}>
+                {/* Paper texture/context header */}
+                <div className="absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-transparent via-black/5 to-transparent" />
+                
+                {evidence.snippets[activeSnippet].context && (
+                   <span className="absolute -top-2.5 right-4 px-2 py-0.5 text-[10px] uppercase tracking-wider font-sans bg-background border border-border text-muted-foreground rounded-full">
+                     {evidence.snippets[activeSnippet].context}
+                   </span>
+                )}
+
+                <p className="text-sm leading-relaxed text-foreground/90">
+                  "...{highlightText(evidence.snippets[activeSnippet].text, evidence.edgeType)}..."
                 </p>
-                <p className="text-xs text-muted-foreground mt-2">
-                  — {evidence.snippets[activeSnippet].source}
-                </p>
+                
+                <div className="mt-3 flex items-center justify-between font-sans">
+                   <span className="text-xs text-muted-foreground">
+                     p. {Math.floor(Math.random() * 12) + 1}
+                   </span>
+                   <span className="text-xs font-medium text-foreground/70">
+                     — {evidence.snippets[activeSnippet].source}
+                   </span>
+                </div>
               </div>
             </>
           ) : (

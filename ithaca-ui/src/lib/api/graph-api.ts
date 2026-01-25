@@ -59,6 +59,7 @@ export interface EvidenceItem {
   confidence: number;
   snippet: string;
   source?: string;
+  context?: "Introduction" | "Methodology" | "Results" | "Discussion";
 }
 
 export interface GraphStats {
@@ -271,32 +272,52 @@ class GraphAPIService {
       const otherId = edge.source === paperId ? edge.target : edge.source;
       const otherPaper = this.papers.get(otherId);
 
-      if (otherPaper) {
-        evidence.push({
-          id: edge.id,
-          sourcePaper: {
-            id: otherPaper.paperId,
-            title: otherPaper.title,
-            authors: otherPaper.authors,
-            year: otherPaper.year,
-          },
-          relation: edge.edgeType === "contradicts" ? "refutes" : edge.edgeType,
-          confidence: edge.confidence,
-          snippet: `"${otherPaper.title
-            .split(" ")
-            .slice(0, 8)
-            .join(" ")}..." provides ${
-            edge.edgeType === "supports"
-              ? "supporting"
-              : edge.edgeType === "contradicts"
-                ? "contradicting"
-                : "extending"
-          } evidence for this claim.`,
-          source: `Section ${Math.floor(Math.random() * 5) + 1}, p.${
-            Math.floor(Math.random() * 20) + 1
-          }`,
-        });
-      }
+      if (!otherPaper) continue;
+
+      // Rich mock snippets
+      const SNIPPETS = [
+        {
+          text: `...contrary to the findings of ${otherPaper.authors}, we observe significant deviation in high-noise environments...`,
+          context: "Results",
+          type: "contradicts",
+        },
+        {
+          text: `...our method builds on the architecture proposed by ${otherPaper.authors} by introducing a novel attention mechanism...`,
+          context: "Methodology",
+          type: "extends",
+        },
+        {
+          text: `...this validates the initial hypothesis presented in "${otherPaper.title}" regarding latent space convergence...`,
+          context: "Discussion",
+          type: "supports",
+        },
+        {
+          text: `...however, unlike the approach in ${otherPaper.authors}, we do not rely on pre-training...`,
+          context: "Introduction",
+          type: "contradicts",
+        },
+      ] as const;
+
+      // Select snippet based on edge type
+      const match =
+        SNIPPETS.find((s) => s.type === edge.edgeType) ?? SNIPPETS[0];
+
+      evidence.push({
+        id: edge.id,
+        sourcePaper: {
+          id: otherPaper.paperId,
+          title: otherPaper.title,
+          authors: otherPaper.authors,
+          year: otherPaper.year,
+        },
+        relation: edge.edgeType === "contradicts" ? "refutes" : edge.edgeType,
+        confidence: edge.confidence,
+        snippet: match.text,
+        context: match.context,
+        source: `Section ${Math.floor(Math.random() * 5) + 1}, p.${
+          Math.floor(Math.random() * 20) + 1
+        }`,
+      });
     }
 
     return evidence;
