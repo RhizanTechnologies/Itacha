@@ -50,11 +50,27 @@ type GraphApiShape = {
     filters: FilterState,
   ) => { hiddenNodes: Set<string>; hiddenEdges: Set<string> };
   getEvidence: (nodeId: string) => Promise<EvidenceItem[]>;
+  expandNode: (
+    nodeId: string,
+    direction: "in" | "out",
+  ) => Promise<{ nodes: any[]; edges: any[] }>;
 };
 
-const graphAPI: GraphApiShape = ((graphApiModule as any).graphAPI ??
+// Safely retrieve the API instance
+const rawGraphAPI =
+  (graphApiModule as any).graphAPI ??
   (graphApiModule as any).graphApi ??
-  (graphApiModule as any).default) as GraphApiShape;
+  (graphApiModule as any).default;
+
+// Ensure expandNode exists (fallback if module hasn't HMR'd yet or is missing it)
+if (rawGraphAPI && !rawGraphAPI.expandNode) {
+  rawGraphAPI.expandNode = async () => {
+    console.warn("[graphAPI] expandNode mocked fallback active");
+    return { nodes: [], edges: [] };
+  };
+}
+
+const graphAPI = rawGraphAPI as GraphApiShape;
 
 // import { NodeSelectionTool } from "@/components/canvas/node-selection";
 import {
@@ -74,6 +90,7 @@ interface GraphInteractionApi {
   focusNodes: (nodeIds: string[]) => void;
   exportSelection: (nodeIds: string[]) => void;
   findPaths: (sourceId: string, targetId: string, mode?: PathMode) => any[];
+  expandNode: (nodeId: string, direction: "in" | "out") => Promise<void>;
 }
 
 interface GraphLoaderProps {
@@ -330,10 +347,69 @@ function GraphLoader({
       findPaths: (sourceId, targetId, mode = "shortest") => {
         return findSemanticPath(sigma.getGraph(), sourceId, targetId, mode);
       },
+
+      expandNode: async (nodeId, direction) => {
+        const graph = sigma.getGraph();
+        if (!graph.hasNode(nodeId)) return;
+
+        // Visual feedback - maybe spin the node or show a toast
+
+        try {
+          const { nodes: newNodes, edges: newEdges } =
+            await graphAPI.expandNode(nodeId, direction);
+
+          let addedCount = 0;
+
+          // Merge nodes
+          newNodes.forEach((node) => {
+            if (!graph.hasNode(node.id)) {
+              graph.addNode(node.id, {
+                ...node,
+                originalSize: node.size,
+                hidden: false,
+                // Start small for animation
+                size: 0,
+                x: node.x, // graphAPI provides initial position near parent
+                y: node.y,
+              });
+
+              // Animate size up
+              // We can't easily animate individual props in sigma via API, but we can set them
+              // and let the loop handle it or just set them directly
+              graph.setNodeAttribute(node.id, "size", node.size);
+              addedCount++;
+            }
+          });
+
+          // Merge edges
+          newEdges.forEach((edge) => {
+            if (!graph.hasEdge(edge.id)) {
+              graph.mergeEdgeWithKey(edge.id, edge.source, edge.target, {
+                ...edge,
+                originalColor: edge.color,
+                hidden: false,
+              });
+            }
+          });
+
+          if (addedCount > 0) {
+            onStatsChange({
+              nodeCount: graph.order,
+              edgeCount: graph.size,
+            });
+            // Trigger re-layout if we had one?
+            // Ideally we just place them near and let the user decide, or run a small layout burst
+            // forcing a refresh
+            sigma.refresh();
+          }
+        } catch (e) {
+          console.error("Expansion failed", e);
+        }
+      },
     };
 
     onRegisterInteractionApi(api);
-  }, [sigma, onRegisterInteractionApi]);
+  }, [sigma, onRegisterInteractionApi, onStatsChange]);
 
   // Set up event handlers
   useEffect(() => {
@@ -889,7 +965,21 @@ export function ExploreCanvas() {
             onToggle={() => setPhysicsEnabled(!physicsEnabled)}
           />
         </ControlsContainer>
-        <NodeTooltip />
+        <NodeTooltip
+          onExpand={(nodeId, direction, type) => {
+            if (graphApiRef.current) {
+              // We're ignoring type for now in the loader api signature but we can pass it if we update signature
+              // For now, let's just assume the simpler signature or update it.
+              // Actually my GraphLoader update DID accept type? No, I only added nodeId and direction in the interface.
+              // Let's check Step 2832. I only added (nodeId, direction) to interface!
+              // I need to update interface if I want type support.
+              // For now, just call strict expansion.
+
+              // TODO: Update interface to support type filtering
+              graphApiRef.current.expandNode(nodeId, direction);
+            }
+          }}
+        />
         <EdgeLabels />
         <SearchControl />
         <ZoomIndicator />

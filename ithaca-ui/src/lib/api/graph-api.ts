@@ -368,6 +368,89 @@ class GraphAPIService {
   }
 
   /**
+   * Expand a node to find more relationships
+   * @param nodeId The node to expand
+   * @param direction "in" (citations/who cites this) or "out" (references/who this cites)
+   * @param type Optional filter for relationship type
+   */
+  async expandNode(
+    nodeId: string,
+    direction: "in" | "out",
+    type?: "all" | "supports" | "contradicts" | "extends",
+  ): Promise<{ nodes: PaperNode[]; edges: EdgeData[] }> {
+    await new Promise((resolve) => setTimeout(resolve, 600)); // Simulate network delay
+
+    const newNodes: PaperNode[] = [];
+    const newEdges: EdgeData[] = [];
+    const parentNode = this.papers.get(nodeId);
+
+    if (!parentNode) return { nodes: [], edges: [] };
+
+    // Generate 3-6 new nodes
+    const count = Math.floor(Math.random() * 4) + 3;
+
+    for (let i = 0; i < count; i++) {
+      // Generate a new node
+      const id = `expanded-${nodeId}-${Date.now()}-${i}`;
+      const titleIndex = Math.floor(Math.random() * PAPER_TITLES.length);
+      const cluster = parentNode.cluster; // Likely same field
+
+      const newNode: PaperNode = {
+        id,
+        paperId: `#${10000 + Math.floor(Math.random() * 9000)}`,
+        label: `${AUTHORS[titleIndex].split(" ")[0]} (${2015 + Math.floor(Math.random() * 10)})`,
+        title:
+          PAPER_TITLES[titleIndex] +
+          (Math.random() > 0.5 ? " (Revisited)" : ""),
+        authors: AUTHORS[titleIndex],
+        year: 2015 + Math.floor(Math.random() * 10),
+        citations: Math.floor(Math.random() * 200),
+        references: Math.floor(Math.random() * 40),
+        supports: Math.floor(Math.random() * 10),
+        refutes: Math.floor(Math.random() * 5),
+        cluster,
+        // Place near parent but dispersed
+        x: parentNode.x + (Math.random() - 0.5) * 40,
+        y: parentNode.y + (Math.random() - 0.5) * 40,
+        size: Math.random() * 5 + 5,
+        color: CLUSTER_COLORS[cluster],
+        abstract:
+          "Automatically expanded node representing a related work in this citation network.",
+      };
+
+      // Determine edge type requested or random
+      let edgeType: "supports" | "contradicts" | "extends" = "supports";
+      if (type && type !== "all") {
+        edgeType = type;
+      } else {
+        const r = Math.random();
+        edgeType = r > 0.7 ? "contradicts" : r > 0.4 ? "extends" : "supports";
+      }
+
+      const edgeId = `edge-${nodeId}-${id}`;
+      const edge: EdgeData = {
+        id: edgeId,
+        // Direction logic
+        source: direction === "out" ? nodeId : id,
+        target: direction === "out" ? id : nodeId,
+        edgeType,
+        confidence: 70 + Math.floor(Math.random() * 25),
+        size: 1,
+        color: EDGE_COLORS[edgeType],
+      };
+
+      newNodes.push(newNode);
+      newEdges.push(edge);
+
+      // Cache them
+      this.papers.set(newNode.id, newNode);
+      this.edges.push(edge);
+    }
+
+    return { nodes: newNodes, edges: newEdges };
+  }
+
+  /**
    * Apply filters to graph
    */
   applyFilters(

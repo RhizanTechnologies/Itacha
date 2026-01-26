@@ -33,27 +33,38 @@ const initialState: PaperTooltipState = {
   cluster: 0,
 };
 
-export function NodeTooltip() {
+interface NodeTooltipProps {
+  onExpand?: (
+    nodeId: string,
+    direction: "in" | "out",
+    type?: "all" | "supports" | "contradicts",
+  ) => void;
+}
+
+export function NodeTooltip({ onExpand }: NodeTooltipProps) {
   const registerEvents = useRegisterEvents();
   const sigma = useSigma();
   const [tooltip, setTooltip] = useState<PaperTooltipState>(initialState);
 
-  const handleEnterNode = useCallback((event: { node: string }) => {
-    const nodeData = sigma.getGraph().getNodeAttributes(event.node);
-    setTooltip({
-      visible: true,
-      nodeId: event.node,
-      label: nodeData.label || `Paper ${event.node}`,
-      paperId: nodeData.paperId || `#${event.node}`,
-      authors: nodeData.authors || "Unknown",
-      year: nodeData.year || 2024,
-      citations: nodeData.citations || 0,
-      supports: nodeData.supports || 0,
-      refutes: nodeData.refutes || 0,
-      isHighImpact: nodeData.isHighImpact || false,
-      cluster: nodeData.cluster || 0,
-    });
-  }, [sigma]);
+  const handleEnterNode = useCallback(
+    (event: { node: string }) => {
+      const nodeData = sigma.getGraph().getNodeAttributes(event.node);
+      setTooltip({
+        visible: true,
+        nodeId: event.node,
+        label: nodeData.label || `Paper ${event.node}`,
+        paperId: nodeData.paperId || `#${event.node}`,
+        authors: nodeData.authors || "Unknown",
+        year: nodeData.year || 2024,
+        citations: nodeData.citations || 0,
+        supports: nodeData.supports || 0,
+        refutes: nodeData.refutes || 0,
+        isHighImpact: nodeData.isHighImpact || false,
+        cluster: nodeData.cluster || 0,
+      });
+    },
+    [sigma],
+  );
 
   const handleLeaveNode = useCallback(() => {
     setTooltip((prev) => ({ ...prev, visible: false }));
@@ -80,7 +91,10 @@ export function NodeTooltip() {
         <div className="p-4 pb-3 border-b border-border bg-muted/30">
           <div className="flex justify-between items-start mb-2">
             {tooltip.isHighImpact && (
-              <Badge variant="destructive" className="text-[10px] font-bold uppercase tracking-wider">
+              <Badge
+                variant="destructive"
+                className="text-[10px] font-bold uppercase tracking-wider"
+              >
                 High Impact
               </Badge>
             )}
@@ -99,7 +113,9 @@ export function NodeTooltip() {
         {/* Mini Chart Section */}
         <div className="p-4 bg-card">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-foreground text-xs font-medium">Relationship Overview</p>
+            <p className="text-foreground text-xs font-medium">
+              Relationship Overview
+            </p>
             <div className="flex items-center gap-2">
               <span className="flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-supports" />
@@ -164,6 +180,42 @@ export function NodeTooltip() {
             <ArrowRight className="h-3 w-3" />
           </button>
         </div>
+
+        {/* Quick Expansion Actions */}
+        {onExpand && (
+          <div className="bg-muted/50 px-4 py-2 flex items-center gap-2 border-t border-border/50">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onExpand(tooltip.nodeId, "out");
+              }}
+              className="flex-1 text-[10px] bg-background hover:bg-muted border border-border rounded px-2 py-1 transition-colors flex items-center justify-center gap-1 pointer-events-auto"
+              title="Show papers this paper cites"
+            >
+              + Refs
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onExpand(tooltip.nodeId, "in");
+              }}
+              className="flex-1 text-[10px] bg-background hover:bg-muted border border-border rounded px-2 py-1 transition-colors flex items-center justify-center gap-1 pointer-events-auto"
+              title="Show papers citing this paper"
+            >
+              + Cites
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onExpand(tooltip.nodeId, "in", "contradicts");
+              }}
+              className="flex-1 text-[10px] bg-background hover:bg-destructive/10 border border-destructive/20 text-destructive rounded px-2 py-1 transition-colors flex items-center justify-center gap-1 pointer-events-auto"
+              title="Show contradicting papers"
+            >
+              + Critics
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
