@@ -1,7 +1,7 @@
 "use client";
 
 import { useRegisterEvents, useSigma } from "@react-sigma/core";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, TrendingUp, TrendingDown } from "lucide-react";
 
@@ -45,9 +45,15 @@ export function NodeTooltip({ onExpand }: NodeTooltipProps) {
   const registerEvents = useRegisterEvents();
   const sigma = useSigma();
   const [tooltip, setTooltip] = useState<PaperTooltipState>(initialState);
+  const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleEnterNode = useCallback(
     (event: { node: string }) => {
+      if (hideTimeoutRef.current) {
+        clearTimeout(hideTimeoutRef.current);
+        hideTimeoutRef.current = null;
+      }
+
       const nodeData = sigma.getGraph().getNodeAttributes(event.node);
       setTooltip({
         visible: true,
@@ -67,7 +73,22 @@ export function NodeTooltip({ onExpand }: NodeTooltipProps) {
   );
 
   const handleLeaveNode = useCallback(() => {
-    setTooltip((prev) => ({ ...prev, visible: false }));
+    hideTimeoutRef.current = setTimeout(() => {
+      setTooltip((prev) => ({ ...prev, visible: false }));
+    }, 300);
+  }, []);
+
+  const handleMouseEnter = useCallback(() => {
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current);
+      hideTimeoutRef.current = null;
+    }
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    hideTimeoutRef.current = setTimeout(() => {
+      setTooltip((prev) => ({ ...prev, visible: false }));
+    }, 300);
   }, []);
 
   useEffect(() => {
@@ -75,6 +96,9 @@ export function NodeTooltip({ onExpand }: NodeTooltipProps) {
       enterNode: handleEnterNode,
       leaveNode: handleLeaveNode,
     });
+    return () => {
+      if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+    };
   }, [registerEvents, handleEnterNode, handleLeaveNode]);
 
   if (!tooltip.visible) return null;
@@ -86,7 +110,11 @@ export function NodeTooltip({ onExpand }: NodeTooltipProps) {
   return (
     <div className="absolute top-4 right-4 z-10 w-80 pointer-events-none">
       {/* Card with fade-in animation */}
-      <div className="bg-card/95 backdrop-blur-md border border-border rounded-lg shadow-2xl overflow-hidden animate-in fade-in slide-in-from-right-2 duration-200">
+      <div
+        className="bg-card/95 backdrop-blur-md border border-border rounded-lg shadow-2xl overflow-hidden animate-in fade-in slide-in-from-right-2 duration-200 pointer-events-auto"
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
         {/* Header */}
         <div className="p-4 pb-3 border-b border-border bg-muted/30">
           <div className="flex justify-between items-start mb-2">
@@ -175,7 +203,7 @@ export function NodeTooltip({ onExpand }: NodeTooltipProps) {
           <span className="text-muted-foreground text-[10px] font-mono">
             Cit: {tooltip.citations.toLocaleString()}
           </span>
-          <button className="text-foreground hover:text-primary transition-colors text-xs font-medium flex items-center gap-1 pointer-events-auto">
+          <button className="text-foreground hover:text-primary transition-colors text-xs font-medium flex items-center gap-1">
             View Details
             <ArrowRight className="h-3 w-3" />
           </button>
@@ -187,9 +215,9 @@ export function NodeTooltip({ onExpand }: NodeTooltipProps) {
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onExpand(tooltip.nodeId, "out");
+                onExpand(tooltip.nodeId, "out", "all");
               }}
-              className="flex-1 text-[10px] bg-background hover:bg-muted border border-border rounded px-2 py-1 transition-colors flex items-center justify-center gap-1 pointer-events-auto"
+              className="flex-1 text-[10px] bg-background hover:bg-muted border border-border rounded px-2 py-1 transition-colors flex items-center justify-center gap-1"
               title="Show papers this paper cites"
             >
               + Refs
@@ -197,9 +225,9 @@ export function NodeTooltip({ onExpand }: NodeTooltipProps) {
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onExpand(tooltip.nodeId, "in");
+                onExpand(tooltip.nodeId, "in", "all");
               }}
-              className="flex-1 text-[10px] bg-background hover:bg-muted border border-border rounded px-2 py-1 transition-colors flex items-center justify-center gap-1 pointer-events-auto"
+              className="flex-1 text-[10px] bg-background hover:bg-muted border border-border rounded px-2 py-1 transition-colors flex items-center justify-center gap-1"
               title="Show papers citing this paper"
             >
               + Cites
@@ -209,7 +237,7 @@ export function NodeTooltip({ onExpand }: NodeTooltipProps) {
                 e.stopPropagation();
                 onExpand(tooltip.nodeId, "in", "contradicts");
               }}
-              className="flex-1 text-[10px] bg-background hover:bg-destructive/10 border border-destructive/20 text-destructive rounded px-2 py-1 transition-colors flex items-center justify-center gap-1 pointer-events-auto"
+              className="flex-1 text-[10px] bg-background hover:bg-destructive/10 border border-destructive/20 text-destructive rounded px-2 py-1 transition-colors flex items-center justify-center gap-1"
               title="Show contradicting papers"
             >
               + Critics

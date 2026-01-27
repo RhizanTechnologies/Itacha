@@ -944,19 +944,7 @@ export function ExploreCanvas() {
           }, [])}
         />
         <NodeDragControl />
-        <NodeSelectionTool
-          isActive={selectionMode}
-          onToggle={() => setSelectionMode((prev) => !prev)}
-          selectedNodes={selectedNodes}
-          onClearSelection={() => setSelectedNodes([])}
-          onRemoveNode={(id) =>
-            setSelectedNodes((prev) => prev.filter((n) => n !== id))
-          }
-          onFocusSelection={handleFocusSelection}
-          onCompare={() => calculatePathWithMode(pathMode)}
-          onExport={handleExportSelection}
-          nodeLabels={nodeLabels}
-        />
+
         <ControlsContainer position={"top-right"}>
           <ZoomControl />
           <FullScreenControl />
@@ -1071,14 +1059,8 @@ export function ExploreCanvas() {
           setSelectedNodes((prev) => prev.filter((id) => id !== nodeId))
         }
         onFocusSelection={handleFocusSelection}
-        onCompare={handleComparePaths}
+        onCompare={() => calculatePathWithMode(pathMode)}
         onExport={() => handleExportSelection()}
-      />
-
-      {/* Path Comparison Button */}
-      <PathComparisonButton
-        onClick={() => setPathCompareOpen(true)}
-        pathCount={selectedNodes.length >= 2 ? 2 : 0}
       />
 
       {/* Edge Evidence Popover */}
