@@ -39,9 +39,10 @@ interface NodeTooltipProps {
     direction: "in" | "out",
     type?: "all" | "supports" | "contradicts",
   ) => void;
+  onFocus?: (nodeId: string) => void;
 }
 
-export function NodeTooltip({ onExpand }: NodeTooltipProps) {
+export function NodeTooltip({ onExpand, onFocus }: NodeTooltipProps) {
   const registerEvents = useRegisterEvents();
   const sigma = useSigma();
   const [tooltip, setTooltip] = useState<PaperTooltipState>(initialState);
@@ -212,6 +213,18 @@ export function NodeTooltip({ onExpand }: NodeTooltipProps) {
         {/* Quick Expansion Actions */}
         {onExpand && (
           <div className="bg-muted/50 px-4 py-2 flex items-center gap-2 border-t border-border/50">
+            {onFocus && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onFocus(tooltip.nodeId);
+                }}
+                className="flex-1 text-[10px] bg-background hover:bg-primary/10 border border-primary/20 text-primary rounded px-2 py-1 transition-colors flex items-center justify-center gap-1 font-medium"
+                title="Isolate this paper"
+              >
+                Focus
+              </button>
+            )}
             <button
               onClick={(e) => {
                 e.stopPropagation();

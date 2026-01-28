@@ -37,8 +37,20 @@ import * as graphApiModule from "@/lib/api/graph-api";
 import { Lightbulb, X } from "lucide-react";
 import { NodeDragControl } from "@/components/canvas/node-drag-control";
 import { PaperCountControl } from "@/components/canvas/paper-count-control";
-import { SearchControl } from "@/components/canvas/search-control";
+
 import { ZoomIndicator } from "@/components/canvas/zoom-indicator";
+// import { NodeSelectionTool } from "@/components/canvas/node-selection";
+import {
+  EdgeEvidencePopover,
+  EdgeEvidence,
+} from "@/components/canvas/edge-evidence-popover";
+import {
+  PathComparisonView,
+  PathComparisonButton,
+  PathMode,
+} from "@/components/canvas/path-comparison";
+import { NodeSelectionTool } from "./node-selection";
+import { findSemanticPath } from "@/lib/graph-algorithms";
 // =============================================================================
 // GRAPH LOADER COMPONENT
 // =============================================================================
@@ -72,19 +84,6 @@ if (rawGraphAPI && !rawGraphAPI.expandNode) {
 
 const graphAPI = rawGraphAPI as GraphApiShape;
 
-// import { NodeSelectionTool } from "@/components/canvas/node-selection";
-import {
-  EdgeEvidencePopover,
-  EdgeEvidence,
-} from "@/components/canvas/edge-evidence-popover";
-import {
-  PathComparisonView,
-  PathComparisonButton,
-  PathMode,
-} from "@/components/canvas/path-comparison";
-import { NodeSelectionTool } from "./node-selection";
-import { findSemanticPath } from "@/lib/graph-algorithms";
-
 // Graph Interaction API definition
 interface GraphInteractionApi {
   focusNodes: (nodeIds: string[]) => void;
@@ -103,6 +102,7 @@ interface GraphLoaderProps {
   ) => void;
   selectionMode?: boolean;
   focusNode?: string | null;
+  focusModeNode?: string | null; // New prop for focus mode
   onStatsChange: (stats: { nodeCount: number; edgeCount: number }) => void;
   onFilterStatsChange?: (stats: {
     hiddenNodes: number;
@@ -130,6 +130,7 @@ function GraphLoader({
   filters,
   paperCount,
   refreshTrigger,
+  focusModeNode,
 }: GraphLoaderProps) {
   const loadGraph = useLoadGraph();
   const sigma = useSigma();
@@ -208,13 +209,50 @@ function GraphLoader({
 
     const { hiddenNodes, hiddenEdges } = graphAPI.applyFilters(graph, filters);
 
+    // If Focus Mode is active, override filtering logic
+    let effectiveHiddenNodes = hiddenNodes;
+    let effectiveHiddenEdges = hiddenEdges;
+
+    if (focusModeNode) {
+      const neighbors = graph.neighbors(focusModeNode);
+      const visibleSet = new Set([focusModeNode, ...neighbors]);
+
+      effectiveHiddenNodes = new Set();
+      effectiveHiddenEdges = new Set();
+
+      // Hide all nodes not in the visible set
+      graph.forEachNode((node) => {
+        if (!visibleSet.has(node)) {
+          effectiveHiddenNodes.add(node);
+        }
+      });
+
+      // Hide all edges where at least one endpoint is hidden
+      graph.forEachEdge((edge, _attrs, source, target) => {
+        if (!visibleSet.has(source) || !visibleSet.has(target)) {
+          effectiveHiddenEdges.add(edge);
+        }
+      });
+    }
+
     // Update node visibility
     graph.forEachNode((node, attrs) => {
-      const isHidden = hiddenNodes.has(node);
+      const isHidden = effectiveHiddenNodes.has(node);
       graph.setNodeAttribute(node, "hidden", isHidden);
       // Dim hidden nodes instead of completely hiding for visual feedback
+      // In focus mode, we might want to hide them completely or dim them heavily
       if (isHidden) {
-        graph.setNodeAttribute(node, "color", "rgba(100, 100, 100, 0.2)");
+        graph.setNodeAttribute(
+          node,
+          "color",
+          focusModeNode
+            ? "rgba(240, 240, 240, 0.05)"
+            : "rgba(100, 100, 100, 0.2)",
+        );
+        // If focus mode, maybe make them smaller too
+        if (focusModeNode) {
+          graph.setNodeAttribute(node, "size", 1);
+        }
       } else {
         graph.setNodeAttribute(
           node,
@@ -223,16 +261,22 @@ function GraphLoader({
             ? "#ef4444" // Red for controversial
             : attrs.originalColor || CLUSTER_COLORS[attrs.cluster] || "#3b82f6",
         );
+        // Restore size
+        graph.setNodeAttribute(
+          node,
+          "size",
+          attrs.originalSize || attrs.size || 5,
+        );
       }
     });
 
     // Update edge visibility
     graph.forEachEdge((edge, attrs) => {
-      const isHidden = hiddenEdges.has(edge);
+      const isHidden = effectiveHiddenEdges.has(edge);
       graph.setEdgeAttribute(edge, "hidden", isHidden);
       if (isHidden) {
-        graph.setEdgeAttribute(edge, "color", "rgba(100, 100, 100, 0.1)");
-        graph.setEdgeAttribute(edge, "size", 0.5);
+        graph.setEdgeAttribute(edge, "color", "rgba(100, 100, 100, 0.05)");
+        graph.setEdgeAttribute(edge, "size", 0.1);
       } else {
         graph.setEdgeAttribute(edge, "color", attrs.originalColor || "#e5e7eb");
         graph.setEdgeAttribute(edge, "size", attrs.originalSize || 1);
@@ -242,14 +286,14 @@ function GraphLoader({
     // Report filtering stats
     if (onFilterStatsChange) {
       onFilterStatsChange({
-        hiddenNodes: hiddenNodes.size,
-        hiddenEdges: hiddenEdges.size,
+        hiddenNodes: effectiveHiddenNodes.size,
+        hiddenEdges: effectiveHiddenEdges.size,
       });
     }
 
     // Only refresh ONCE after all updates
     sigma.refresh();
-  }, [filters, sigma, onFilterStatsChange, refreshTrigger]);
+  }, [filters, sigma, onFilterStatsChange, refreshTrigger, focusModeNode]);
 
   // Register Interaction API
   useEffect(() => {
@@ -744,6 +788,9 @@ export function ExploreCanvas() {
   // Search State
   const [searchTarget, setSearchTarget] = useState<string | null>(null);
 
+  // Focus Mode State
+  const [focusModeNode, setFocusModeNode] = useState<string | null>(null);
+
   // Export function ref
   const exportGraphRef = useRef<(() => Promise<string>) | null>(null);
 
@@ -789,6 +836,15 @@ export function ExploreCanvas() {
     if (selectedNodes.length === 0 || !graphApiRef.current) return;
     graphApiRef.current.exportSelection(selectedNodes);
   }, [selectedNodes]);
+
+  // Handle entering focus mode
+  const handleEnterFocusMode = useCallback((nodeId: string) => {
+    setFocusModeNode(nodeId);
+    // Also center camera on this node
+    if (graphApiRef.current) {
+      graphApiRef.current.focusNodes([nodeId]);
+    }
+  }, []);
 
   // Handle path comparison calculation
   const handleComparePaths = useCallback(
@@ -928,6 +984,7 @@ export function ExploreCanvas() {
           refreshTrigger={refreshTrigger}
           selectionMode={selectionMode}
           focusNode={searchTarget}
+          focusModeNode={focusModeNode}
           onRegisterExport={useCallback((fn: any) => {
             exportGraphRef.current = fn;
           }, [])}
@@ -967,18 +1024,37 @@ export function ExploreCanvas() {
               graphApiRef.current.expandNode(nodeId, direction);
             }
           }}
+          onFocus={handleEnterFocusMode}
         />
         <EdgeLabels />
-        <SearchControl />
         <ZoomIndicator />
       </SigmaContainer>
 
-      {/* Status Indicator with real stats */}
       <CanvasStatusIndicator
         status="live"
         nodeCount={graphStats.nodeCount}
         edgeCount={graphStats.edgeCount}
       />
+
+      {/* Focus Mode Banner */}
+      {focusModeNode && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 animate-in slide-in-from-top-2 fade-in duration-300">
+          <div className="bg-primary/90 backdrop-blur-md text-primary-foreground px-4 py-2 rounded-full shadow-lg flex items-center gap-3 border border-primary-foreground/20">
+            <div className="flex flex-col items-center leading-none">
+              <span className="text-[10px] font-medium opacity-80 uppercase tracking-widest">
+                Focus Mode
+              </span>
+            </div>
+            <div className="h-4 w-px bg-primary-foreground/30" />
+            <button
+              onClick={() => setFocusModeNode(null)}
+              className="text-xs font-bold hover:bg-white/20 px-2 py-1 rounded transition-colors"
+            >
+              Exit Focus
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* New Argument Toast */}
       <NewArgumentToast
@@ -1022,6 +1098,7 @@ export function ExploreCanvas() {
       <CommandBar
         onSelectPaper={handleSearchPaper}
         onAction={handleCommandAction}
+        hideTrigger={true}
       />
 
       {/* Share Button */}

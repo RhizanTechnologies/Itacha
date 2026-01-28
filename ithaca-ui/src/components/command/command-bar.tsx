@@ -31,9 +31,14 @@ import { graphAPI, SearchResult } from "@/lib/api/graph-api";
 interface CommandBarProps {
   onSelectPaper?: (paperId: string) => void;
   onAction?: (action: string) => void;
+  hideTrigger?: boolean;
 }
 
-export function CommandBar({ onSelectPaper, onAction }: CommandBarProps) {
+export function CommandBar({
+  onSelectPaper,
+  onAction,
+  hideTrigger = false,
+}: CommandBarProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -113,20 +118,22 @@ export function CommandBar({ onSelectPaper, onAction }: CommandBarProps) {
   return (
     <>
       {/* Trigger Button */}
-      <button
-        onClick={() => setOpen(true)}
-        className="fixed top-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-4 py-2.5 bg-background/95 backdrop-blur-sm border border-border/50 rounded-full shadow-lg hover:bg-muted/80 transition-all hover:scale-[1.02] active:scale-95 group w-full max-w-sm justify-between md:justify-start md:w-auto"
-      >
-        <div className="flex items-center gap-2">
-          <Search className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-          <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
-            Search papers, actions...
-          </span>
-        </div>
-        <kbd className="hidden sm:inline-flex h-5 px-1.5 items-center gap-0.5 rounded border border-border bg-muted/50 font-mono text-[10px] font-medium text-muted-foreground">
-          <span className="text-xs">⌘</span>K
-        </kbd>
-      </button>
+      {!hideTrigger && (
+        <button
+          onClick={() => setOpen(true)}
+          className="fixed top-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-4 py-2.5 bg-background/95 backdrop-blur-sm border border-border/50 rounded-full shadow-lg hover:bg-muted/80 transition-all hover:scale-[1.02] active:scale-95 group w-full max-w-sm justify-between md:justify-start md:w-auto"
+        >
+          <div className="flex items-center gap-2">
+            <Search className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+            <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
+              Search papers, actions...
+            </span>
+          </div>
+          <kbd className="hidden sm:inline-flex h-5 px-1.5 items-center gap-0.5 rounded border border-border bg-muted/50 font-mono text-[10px] font-medium text-muted-foreground">
+            <span className="text-xs">⌘</span>K
+          </kbd>
+        </button>
+      )}
 
       {/* Command Dialog */}
       <CommandDialog open={open} onOpenChange={setOpen}>

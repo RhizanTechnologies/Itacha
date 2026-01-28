@@ -35,6 +35,7 @@ export default function CanvasLayout({ children }: CanvasLayoutProps) {
           if (action === "settings") router.push("/dashboard?tab=settings");
           // Add other global actions if needed
         }}
+        hideTrigger
       />
       {/* Sidebar */}
       <aside
