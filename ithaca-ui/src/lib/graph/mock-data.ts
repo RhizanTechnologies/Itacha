@@ -1,4 +1,5 @@
 import Graph from "graphology";
+import { debug } from "../debug";
 
 // Paper data types for rich tooltips
 export interface PaperNode {
@@ -161,7 +162,7 @@ export function loadMockGraph(graph: Graph) {
     }
   });
 
-  console.log(
+  debug.graph(
     `Graph loaded with ${graph.order} nodes and ${graph.size} edges.`
   );
   return graph;

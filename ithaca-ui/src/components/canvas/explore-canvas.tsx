@@ -17,6 +17,8 @@ import { ForceAtlasControl } from "@/components/canvas/force-atlas-control";
 import { NodeTooltip } from "@/components/canvas/node-tooltip";
 import { CanvasStatusIndicator } from "@/components/canvas/status-indicator";
 import { EdgeLabels } from "@/components/canvas/edge-labels";
+import { CanvasErrorBoundary } from "@/components/canvas/canvas-error-boundary";
+import { CanvasLoadingOverlay } from "@/components/canvas/canvas-loading";
 import { PaperInspector } from "@/components/inspector/paper-inspector";
 import type {
   PaperData,
@@ -39,63 +41,34 @@ import { NodeDragControl } from "@/components/canvas/node-drag-control";
 import { PaperCountControl } from "@/components/canvas/paper-count-control";
 
 import { ZoomIndicator } from "@/components/canvas/zoom-indicator";
-// import { NodeSelectionTool } from "@/components/canvas/node-selection";
 import {
   EdgeEvidencePopover,
   EdgeEvidence,
 } from "@/components/canvas/edge-evidence-popover";
 import {
   PathComparisonView,
-  PathComparisonButton,
   PathMode,
 } from "@/components/canvas/path-comparison";
-import { NodeSelectionTool } from "./node-selection";
+import { NodeSelectionTool } from "@/components/canvas/node-selection";
 import { findSemanticPath } from "@/lib/graph-algorithms";
+import { debug } from "@/lib/debug";
+import { ANIMATION, GRAPH, COLORS, CONTROVERSY, LABELS, FILTERS } from "@/lib/constants";
+import type {
+  GraphApiShape,
+  GraphInteractionApi,
+  CanvasInteractionApi,
+  GraphFetchResult,
+  NodeAttributes,
+  SigmaPositionEventPayload,
+} from "@/types/graph";
+import type { PaperNode, EdgeData } from "@/lib/api/graph-api";
+
 // =============================================================================
 // GRAPH LOADER COMPONENT
 // =============================================================================
 
-type GraphApiShape = {
-  fetchGraph: (paperCount: number) => Promise<{ nodes: any[]; edges: any[] }>;
-  applyFilters: (
-    graph: Graph,
-    filters: FilterState,
-  ) => { hiddenNodes: Set<string>; hiddenEdges: Set<string> };
-  getEvidence: (nodeId: string) => Promise<EvidenceItem[]>;
-  expandNode: (
-    nodeId: string,
-    direction: "in" | "out",
-  ) => Promise<{ nodes: any[]; edges: any[] }>;
-  fetchTopicSlice: (
-    query: string,
-  ) => Promise<{ nodes: any[]; edges: any[]; clusters: any[] }>;
-  fetchPaperContext: (id: string) => Promise<{ nodes: any[]; edges: any[] }>;
-};
-
-// Safely retrieve the API instance
-const rawGraphAPI =
-  (graphApiModule as any).graphAPI ??
-  (graphApiModule as any).graphApi ??
-  (graphApiModule as any).default;
-
-// Ensure expandNode exists (fallback if module hasn't HMR'd yet or is missing it)
-if (rawGraphAPI && !rawGraphAPI.expandNode) {
-  rawGraphAPI.expandNode = async () => {
-    console.warn("[graphAPI] expandNode mocked fallback active");
-    return { nodes: [], edges: [] };
-  };
-}
-
-const graphAPI = rawGraphAPI as GraphApiShape;
-
-// Graph Interaction API definition
-interface GraphInteractionApi {
-  focusNodes: (nodeIds: string[]) => void;
-  exportSelection: (nodeIds: string[]) => void;
-  findPaths: (sourceId: string, targetId: string, mode?: PathMode) => any[];
-  expandNode: (nodeId: string, direction: "in" | "out") => Promise<void>;
-  addGraphData: (nodes: any[], edges: any[], clear?: boolean) => void;
-}
+// Safely retrieve the API instance - graphApiModule exports { graphAPI }
+const graphAPI = graphApiModule.graphAPI;
 
 interface GraphLoaderProps {
   onNodeClick: (paper: PaperData, evidence: EvidenceItem[]) => void;
@@ -109,11 +82,12 @@ interface GraphLoaderProps {
   focusNode?: string | null;
   focusModeNode?: string | null; // New prop for focus mode
   onStatsChange: (stats: { nodeCount: number; edgeCount: number }) => void;
+  onDataRangesChange?: (ranges: { minYear: number; maxYear: number; maxCitations: number }) => void;
   onFilterStatsChange?: (stats: {
     hiddenNodes: number;
     hiddenEdges: number;
   }) => void;
-  onRegisterInteractionApi?: (api: GraphInteractionApi) => void;
+  onRegisterInteractionApi?: (api: CanvasInteractionApi) => void;
   onRegisterExport?: (exportFn: () => Promise<string>) => void;
   onRegisterReset?: (resetFn: () => void) => void;
   filters: FilterState;
@@ -130,6 +104,7 @@ function GraphLoader({
   selectionMode = false,
   focusNode,
   onStatsChange,
+  onDataRangesChange,
   onFilterStatsChange,
   onRegisterInteractionApi,
   onRegisterExport,
@@ -154,6 +129,29 @@ function GraphLoader({
 
       const graph = new Graph();
 
+      // Calculate data ranges for dynamic filters
+      let minYear = Infinity;
+      let maxYear = -Infinity;
+      let maxCitations = 0;
+
+      nodes.forEach((node) => {
+        if (node.year < minYear) minYear = node.year;
+        if (node.year > maxYear) maxYear = node.year;
+        if (node.citations > maxCitations) maxCitations = node.citations;
+      });
+
+      // Fallback values if no data
+      if (minYear === Infinity) minYear = FILTERS.MIN_YEAR;
+      if (maxYear === -Infinity) maxYear = FILTERS.MAX_YEAR;
+      if (maxCitations === 0) maxCitations = FILTERS.DEFAULT_MAX_CITATIONS;
+
+      // Report data ranges
+      onDataRangesChange?.({
+        minYear,
+        maxYear,
+        maxCitations,
+      });
+
       // Calculate controversy metrics
       const controversyScores = new Map<string, number>();
 
@@ -166,15 +164,12 @@ function GraphLoader({
         }
       });
 
-      console.log(
-        "[GraphLoader] Controversy Scores:",
-        Object.fromEntries(controversyScores),
-      );
+      debug.graph("Controversy Scores:", Object.fromEntries(controversyScores));
 
       // Add nodes with all attributes and visual highlights for controversy
       nodes.forEach((node) => {
         const score = controversyScores.get(node.id) || 0;
-        const isControversial = score >= 1; // Threshold for now
+        const isControversial = score >= CONTROVERSY.THRESHOLD;
 
         graph.addNode(node.id, {
           ...node,
@@ -184,8 +179,8 @@ function GraphLoader({
           highlighted: isControversial,
           // Set initial color based on controversy
           color: isControversial
-            ? "#ef4444"
-            : node.color || CLUSTER_COLORS[node.cluster],
+            ? COLORS.CONTRADICTS
+            : node.color || COLORS.CLUSTERS[node.cluster],
         });
       });
 
@@ -209,7 +204,7 @@ function GraphLoader({
     }
 
     loadGraphData();
-  }, [loadGraph, onStatsChange, paperCount, refreshTrigger]);
+  }, [loadGraph, onStatsChange, onDataRangesChange, paperCount, refreshTrigger]);
 
   // Apply filters when they change
   useEffect(() => {
@@ -270,12 +265,12 @@ function GraphLoader({
           node,
           "color",
           attrs.controversyScore > 0 && !attrs.hidden
-            ? "#ef4444" // Red for controversial
+            ? COLORS.CONTRADICTS // Red for controversial
             : isGhost
-              ? `${attrs.color}40` // 25% opacity for ghost (using hex alpha if supported, or transparent fallback)
+              ? `${attrs.color}${COLORS.GHOST_ALPHA}` // 25% opacity for ghost
               : attrs.originalColor ||
-                CLUSTER_COLORS[attrs.cluster] ||
-                "#3b82f6",
+                COLORS.CLUSTERS[attrs.cluster] ||
+                COLORS.CLUSTERS[0],
         );
 
         // Update status attribute in graph for other components (tooltip etc) to see
@@ -289,7 +284,7 @@ function GraphLoader({
         graph.setNodeAttribute(
           node,
           "size",
-          attrs.originalSize || attrs.size || 5,
+          attrs.originalSize || attrs.size || GRAPH.DEFAULT_NODE_SIZE,
         );
       }
     });
@@ -330,8 +325,8 @@ function GraphLoader({
   useEffect(() => {
     if (!onRegisterInteractionApi) return;
 
-    const api: GraphInteractionApi = {
-      focusNodes: (nodeIds) => {
+    const api: CanvasInteractionApi = {
+      focusNodes: (nodeIds: string[]) => {
         const graph = sigma.getGraph();
         let minX = Infinity,
           minY = Infinity,
@@ -340,7 +335,7 @@ function GraphLoader({
 
         let foundNode = false;
 
-        nodeIds.forEach((nodeId) => {
+        nodeIds.forEach((nodeId: string) => {
           // Use display data for safer visual coordinates
           const data = sigma.getNodeDisplayData(nodeId);
           if (!data) return;
@@ -367,13 +362,13 @@ function GraphLoader({
 
         sigma
           .getCamera()
-          .animate({ x: cx, y: cy, ratio: 0.5, angle: 0 }, { duration: 800 });
+          .animate({ x: cx, y: cy, ratio: GRAPH.CAMERA_ZOOM_RATIO, angle: 0 }, { duration: ANIMATION.CAMERA_DURATION_SLOW });
       },
 
-      exportSelection: (nodeIds) => {
+      exportSelection: (nodeIds: string[]) => {
         const graph = sigma.getGraph();
         const data = nodeIds
-          .map((id) => {
+          .map((id: string) => {
             // Fallback to checking existence
             if (!graph.hasNode(id)) return null;
             const attrs = graph.getNodeAttributes(id);
@@ -390,10 +385,7 @@ function GraphLoader({
           .filter(Boolean);
 
         if (data.length === 0) {
-          console.warn(
-            "Export failed: No valid nodes found in selection",
-            nodeIds,
-          );
+          debug.warn("Export failed: No valid nodes found in selection", nodeIds);
           return;
         }
 
@@ -402,7 +394,7 @@ function GraphLoader({
           "ID,Title,Authors,Year,Citations\n" +
           data
             .map(
-              (row) =>
+              (row: { id: string; title: string; authors: string; year: number | string; citations: number } | null) =>
                 `"${row?.id}","${row?.title}","${row?.authors}",${row?.year},${row?.citations}`,
             )
             .join("\n");
@@ -419,11 +411,22 @@ function GraphLoader({
         document.body.removeChild(link);
       },
 
-      findPaths: (sourceId, targetId, mode = "shortest") => {
+      findPaths: (sourceId: string, targetId: string, mode: PathMode = "shortest") => {
         return findSemanticPath(sigma.getGraph(), sourceId, targetId, mode);
       },
 
-      expandNode: async (nodeId, direction) => {
+      clearHighlights: () => {
+        // Clear any highlighted paths or nodes
+        const graph = sigma.getGraph();
+        graph.forEachNode((node, attrs) => {
+          if (attrs.originalColor) {
+            graph.setNodeAttribute(node, "color", attrs.originalColor);
+          }
+        });
+        sigma.refresh();
+      },
+
+      expandNode: async (nodeId: string, direction: "in" | "out") => {
         const graph = sigma.getGraph();
         if (!graph.hasNode(nodeId)) return;
 
@@ -478,16 +481,16 @@ function GraphLoader({
             sigma.refresh();
           }
         } catch (e) {
-          console.error("Expansion failed", e);
+          debug.error("Expansion failed", e);
         }
       },
-      addGraphData: (nodes, edges, clear = false) => {
+      addGraphData: (nodes: PaperNode[], edges: EdgeData[], clear = false) => {
         const graph = sigma.getGraph();
         if (clear) graph.clear();
 
         let addedCount = 0;
 
-        nodes.forEach((node) => {
+        nodes.forEach((node: PaperNode) => {
           if (!graph.hasNode(node.id)) {
             graph.addNode(node.id, {
               ...node,
@@ -495,14 +498,14 @@ function GraphLoader({
               // If focusing on a new slice, maybe force position if provided, else use layout
               x: node.x || Math.random() * 100,
               y: node.y || Math.random() * 100,
-              size: node.size || 5, // Ensure size is set
+              size: node.size || GRAPH.DEFAULT_NODE_SIZE,
               color: node.color,
             });
             addedCount++;
           }
         });
 
-        edges.forEach((edge) => {
+        edges.forEach((edge: EdgeData) => {
           if (
             !graph.hasEdge(edge.id) &&
             graph.hasNode(edge.source) &&
@@ -511,7 +514,7 @@ function GraphLoader({
             graph.mergeEdgeWithKey(edge.id, edge.source, edge.target, {
               ...edge,
               hidden: false,
-              size: edge.size || 1,
+              size: edge.size || GRAPH.DEFAULT_EDGE_SIZE,
               color: edge.color,
             });
           }
@@ -708,13 +711,13 @@ function GraphLoader({
     onRegisterReset(resetView);
   }, [sigma, onRegisterReset]);
 
-  // Apply hover effects
+  // Apply focus to specific node
   useEffect(() => {
     if (!focusNode) return;
 
     const graph = sigma.getGraph();
     if (!graph.hasNode(focusNode)) {
-      console.warn(`Node ${focusNode} not found`);
+      debug.warn(`Node ${focusNode} not found`);
       return;
     }
 
@@ -723,8 +726,8 @@ function GraphLoader({
       sigma
         .getCamera()
         .animate(
-          { x: nodePosition.x, y: nodePosition.y, ratio: 0.1, angle: 0 },
-          { duration: 600 },
+          { x: nodePosition.x, y: nodePosition.y, ratio: GRAPH.FOCUS_ZOOM_RATIO, angle: 0 },
+          { duration: ANIMATION.CAMERA_DURATION },
         );
     }
   }, [focusNode, sigma]);
@@ -742,14 +745,14 @@ function GraphLoader({
           graph.setNodeAttribute(
             node,
             "size",
-            (attrs.originalSize || attrs.size) * 1.4,
+            (attrs.originalSize || attrs.size) * GRAPH.HOVER_SIZE_MULTIPLIER,
           );
-          graph.setNodeAttribute(node, "zIndex", 10);
+          graph.setNodeAttribute(node, "zIndex", GRAPH.HIGHLIGHT_Z_INDEX);
         } else {
           graph.setNodeAttribute(
             node,
             "size",
-            (attrs.originalSize || attrs.size) * 0.8,
+            (attrs.originalSize || attrs.size) * GRAPH.UNHOVER_SIZE_MULTIPLIER,
           );
           graph.setNodeAttribute(node, "zIndex", 0);
         }
@@ -764,14 +767,14 @@ function GraphLoader({
 
       if (hoveredNode) {
         if (source === hoveredNode || target === hoveredNode) {
-          graph.setEdgeAttribute(edge, "size", (attrs.originalSize || 1) * 2.5);
-          graph.setEdgeAttribute(edge, "zIndex", 10);
+          graph.setEdgeAttribute(edge, "size", (attrs.originalSize || GRAPH.DEFAULT_EDGE_SIZE) * GRAPH.HOVER_EDGE_SIZE_MULTIPLIER);
+          graph.setEdgeAttribute(edge, "zIndex", GRAPH.HIGHLIGHT_Z_INDEX);
         } else {
-          graph.setEdgeAttribute(edge, "size", 0.5);
+          graph.setEdgeAttribute(edge, "size", GRAPH.UNHOVER_EDGE_SIZE);
           graph.setEdgeAttribute(edge, "zIndex", 0);
         }
       } else {
-        graph.setEdgeAttribute(edge, "size", attrs.originalSize || 1);
+        graph.setEdgeAttribute(edge, "size", attrs.originalSize || GRAPH.DEFAULT_EDGE_SIZE);
         graph.setEdgeAttribute(edge, "zIndex", 0);
       }
     });
@@ -781,9 +784,6 @@ function GraphLoader({
 
   return null;
 }
-
-// Cluster colors for node coloring
-const CLUSTER_COLORS = ["#3b82f6", "#8b5cf6", "#ec4899", "#f97316", "#14b8a6"];
 
 // =============================================================================
 // TOAST NOTIFICATION
@@ -842,6 +842,15 @@ export function ExploreCanvas() {
   const [paperEvidence, setPaperEvidence] = useState<EvidenceItem[]>([]);
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const [graphStats, setGraphStats] = useState({ nodeCount: 0, edgeCount: 0 });
+  const [dataRanges, setDataRanges] = useState<{
+    minYear: number;
+    maxYear: number;
+    maxCitations: number;
+  }>({
+    minYear: FILTERS.MIN_YEAR,
+    maxYear: FILTERS.MAX_YEAR,
+    maxCitations: FILTERS.DEFAULT_MAX_CITATIONS,
+  });
   const [filterStats, setFilterStats] = useState({
     hiddenNodes: 0,
     hiddenEdges: 0,
@@ -879,14 +888,14 @@ export function ExploreCanvas() {
 
   // Reset function ref
   const resetViewRef = useRef<(() => void) | null>(null);
-  const graphApiRef = useRef<GraphInteractionApi | null>(null);
+  const graphApiRef = useRef<CanvasInteractionApi | null>(null);
 
   // Physics State
   const [physicsEnabled, setPhysicsEnabled] = useState(true); // Default to on
 
   // Show demo toast after a delay
   useEffect(() => {
-    const timer = setTimeout(() => setShowToast(true), 3000);
+    const timer = setTimeout(() => setShowToast(true), ANIMATION.TOAST_SHOW_DELAY);
     return () => clearTimeout(timer);
   }, []);
 
@@ -904,6 +913,27 @@ export function ExploreCanvas() {
   const handleStatsChange = useCallback(
     (stats: { nodeCount: number; edgeCount: number }) => {
       setGraphStats(stats);
+    },
+    [],
+  );
+
+  // Handle data ranges update from GraphLoader
+  const handleDataRangesChange = useCallback(
+    (ranges: { minYear: number; maxYear: number; maxCitations: number }) => {
+      setDataRanges(ranges);
+    },
+    [],
+  );
+
+  // Handle edge click - shows evidence popover for edge relationships
+  const handleEdgeClick = useCallback(
+    (
+      edgeId: string,
+      position: { x: number; y: number },
+      evidence: EdgeEvidence,
+    ) => {
+      setEdgeEvidence(evidence);
+      setEdgeEvidencePos(position);
     },
     [],
   );
@@ -967,31 +997,28 @@ export function ExploreCanvas() {
   // Real implementation of path finding with mode
   const calculatePathWithMode = useCallback(
     (mode: PathMode) => {
-      console.log("[ExploreCanvas] Calculating path...", {
+      debug.graph("Calculating path...", {
         mode,
         selectedNodes,
         api: !!graphApiRef.current,
       });
       if (selectedNodes.length < 2 || !graphApiRef.current) {
-        console.warn(
-          "[ExploreCanvas] Cannot calculate path: missing selection or API",
-        );
+        debug.warn("Cannot calculate path: missing selection or API");
         return;
       }
 
       try {
-        // @ts-ignore - Dynamic dispatch
         const paths = graphApiRef.current.findPaths(
           selectedNodes[0],
           selectedNodes[1],
           mode,
         );
-        console.log("[ExploreCanvas] Paths found:", paths);
+        debug.graph("Paths found:", paths);
         setCalculatedPaths(paths);
         setPathMode(mode);
         setPathCompareOpen(true);
       } catch (err) {
-        console.error("[ExploreCanvas] Error calculating path:", err);
+        debug.error("Error calculating path:", err);
       }
     },
     [selectedNodes],
@@ -1018,13 +1045,13 @@ export function ExploreCanvas() {
         setShowToast(true); // Reusing toast for feedback
         break;
       default:
-        console.log("Action:", action);
+        debug.log("Unhandled action:", action);
     }
   }, []);
 
   // Handle paper search from command bar
   const handleSearchPaper = useCallback(async (paperId: string) => {
-    console.log("Search for paper:", paperId);
+    debug.search("Search for paper:", paperId);
     setSearchTarget(paperId);
     setIsLoading(true);
 
@@ -1064,7 +1091,7 @@ export function ExploreCanvas() {
         }
       }
     } catch (e) {
-      console.error("Search failed", e);
+      debug.error("Search failed", e);
     } finally {
       setIsLoading(false);
     }
@@ -1072,32 +1099,39 @@ export function ExploreCanvas() {
 
   return (
     <div className="h-full w-full relative">
-      <SigmaContainer
-        style={{
-          height: "100%",
-          width: "100%",
-          background: isDark ? "#0B0C10" : "#F6F7F8",
+      <CanvasErrorBoundary
+        onError={(error) => {
+          debug.error("Canvas rendering error:", error);
         }}
-        settings={{
-          allowInvalidContainer: true,
-          renderLabels: true,
+      >
+        <SigmaContainer
+          style={{
+            height: "100%",
+            width: "100%",
+            background: isDark ? "#0B0C10" : "#F6F7F8",
+          }}
+          settings={{
+            allowInvalidContainer: true,
+            renderLabels: true,
           renderEdgeLabels: false,
-          labelRenderedSizeThreshold: 6,
-          labelDensity: 0.07,
-          labelGridCellSize: 60,
+          labelRenderedSizeThreshold: LABELS.SIZE_THRESHOLD,
+          labelDensity: LABELS.DENSITY,
+          labelGridCellSize: LABELS.GRID_CELL_SIZE,
           labelColor: { color: isDark ? "#fff" : "#000" },
           zIndex: true,
           defaultEdgeType: "arrow",
           enableEdgeEvents: true,
-          labelFont: "Inter, system-ui, sans-serif",
-          labelWeight: "500",
+          labelFont: LABELS.FONT,
+          labelWeight: LABELS.WEIGHT,
         }}
       >
         <GraphLoader
           onNodeClick={handleNodeClick}
+          onEdgeClick={handleEdgeClick}
           onStatsChange={handleStatsChange}
+          onDataRangesChange={handleDataRangesChange}
           onFilterStatsChange={setFilterStats}
-          onRegisterInteractionApi={useCallback((api: any) => {
+          onRegisterInteractionApi={useCallback((api: CanvasInteractionApi) => {
             graphApiRef.current = api;
           }, [])}
           filters={filters}
@@ -1114,10 +1148,10 @@ export function ExploreCanvas() {
               return next;
             });
           }, [])}
-          onRegisterExport={useCallback((fn: any) => {
+          onRegisterExport={useCallback((fn: () => Promise<string>) => {
             exportGraphRef.current = fn;
           }, [])}
-          onRegisterReset={useCallback((fn: any) => {
+          onRegisterReset={useCallback((fn: () => void) => {
             resetViewRef.current = fn;
           }, [])}
           onNodeSelect={useCallback((nodeId: string, label: string) => {
@@ -1158,6 +1192,13 @@ export function ExploreCanvas() {
         <EdgeLabels />
         <ZoomIndicator />
       </SigmaContainer>
+      </CanvasErrorBoundary>
+
+      {/* Loading Overlay */}
+      <CanvasLoadingOverlay 
+        isLoading={isLoading} 
+        message="Loading graph data..."
+      />
 
       <CanvasStatusIndicator
         status="live"
@@ -1207,6 +1248,9 @@ export function ExploreCanvas() {
         hiddenEdgeCount={filterStats.hiddenEdges}
         open={filtersOpen}
         onToggle={() => setFiltersOpen(!filtersOpen)}
+        maxCitations={dataRanges.maxCitations}
+        minYear={dataRanges.minYear}
+        maxYear={dataRanges.maxYear}
       />
 
       {/* Paper Count Control */}
@@ -1278,11 +1322,12 @@ export function ExploreCanvas() {
           setEdgeEvidencePos(null);
         }}
         onViewPaper={(paperId) => {
-          // TODO: Use handleSearchPaper to find/focus paper
-          console.log("View paper:", paperId);
+          // Navigate to paper in the graph
+          handleSearchPaper(paperId);
         }}
         onDispute={(edgeId) => {
-          console.log("Dispute edge:", edgeId);
+          // TODO: Implement dispute workflow
+          debug.log("Dispute edge requested:", edgeId);
         }}
       />
 

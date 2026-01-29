@@ -90,7 +90,7 @@ export function EdgeEvidencePopover({
     const parts = text.split(new RegExp(`(${keywords.join("|")})`, "gi"));
     return parts.map((part, i) => 
       keywords.some(k => k.toLowerCase() === part.toLowerCase()) 
-        ? <span key={i} className={`font-bold ${config.color} bg-white/50 px-1 rounded`}>{part}</span>
+        ? <span key={i} className={`font-bold ${config.color} bg-muted/50 px-1 rounded`}>{part}</span>
         : part
     );
   };
@@ -180,7 +180,7 @@ export function EdgeEvidencePopover({
               )}
 
               {/* Current Snippet - Paper Style */}
-              <div className={`relative p-4 rounded-sm border ${config.borderColor} bg-white dark:bg-zinc-900 shadow-sm font-serif`}>
+              <div className={`relative p-4 rounded-sm border ${config.borderColor} bg-card shadow-sm font-serif`}>
                 {/* Paper texture/context header */}
                 <div className="absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-transparent via-black/5 to-transparent" />
                 

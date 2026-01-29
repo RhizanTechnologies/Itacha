@@ -14,6 +14,7 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
+import { FILTERS } from "@/lib/constants";
 
 // Filter state interface
 export interface FilterState {
@@ -32,16 +33,23 @@ interface GlobalFiltersProps {
   hiddenEdgeCount?: number;
   open: boolean;
   onToggle: () => void;
+  /** Optional: actual max citations from data for dynamic range */
+  maxCitations?: number;
+  /** Optional: min year from actual data */
+  minYear?: number;
+  /** Optional: max year from actual data */
+  maxYear?: number;
 }
 
-const DEFAULT_FILTERS: FilterState = {
+// Default filters using constants
+export const DEFAULT_FILTERS: FilterState = {
   relationships: {
     supports: true,
     contradicts: true,
     extends: true,
   },
-  citationRange: [0, 1000],
-  yearRange: [2019, 2026],
+  citationRange: [FILTERS.MIN_CITATIONS, FILTERS.DEFAULT_MAX_CITATIONS],
+  yearRange: [FILTERS.MIN_YEAR, FILTERS.MAX_YEAR],
 };
 
 export function GlobalFilters({
@@ -50,6 +58,9 @@ export function GlobalFilters({
   hiddenEdgeCount = 0,
   open,
   onToggle,
+  maxCitations = FILTERS.DEFAULT_MAX_CITATIONS,
+  minYear = FILTERS.MIN_YEAR,
+  maxYear = FILTERS.MAX_YEAR,
 }: GlobalFiltersProps) {
   const handleRelationshipToggle = useCallback(
     (type: keyof FilterState["relationships"]) => {
@@ -93,8 +104,8 @@ export function GlobalFilters({
     (filters.relationships.supports ? 0 : 1) +
     (filters.relationships.contradicts ? 0 : 1) +
     (filters.relationships.extends ? 0 : 1) +
-    (filters.citationRange[0] > 0 || filters.citationRange[1] < 1000 ? 1 : 0) +
-    (filters.yearRange[0] > 2019 || filters.yearRange[1] < 2026 ? 1 : 0);
+    (filters.citationRange[0] > FILTERS.MIN_CITATIONS || filters.citationRange[1] < maxCitations ? 1 : 0) +
+    (filters.yearRange[0] > minYear || filters.yearRange[1] < maxYear ? 1 : 0);
 
   if (!open) {
     return (
@@ -187,8 +198,8 @@ export function GlobalFilters({
               <Slider
                 value={[filters.citationRange[0], filters.citationRange[1]]}
                 onValueChange={handleCitationChange}
-                min={0}
-                max={1000}
+                min={FILTERS.MIN_CITATIONS}
+                max={maxCitations}
                 step={10}
                 className="w-full"
               />
@@ -205,8 +216,8 @@ export function GlobalFilters({
               <Slider
                 value={[filters.yearRange[0], filters.yearRange[1]]}
                 onValueChange={handleYearChange}
-                min={2019}
-                max={2026}
+                min={minYear}
+                max={maxYear}
                 step={1}
                 className="w-full"
               />
@@ -307,5 +318,3 @@ function LegendItem({
     </div>
   );
 }
-
-export { DEFAULT_FILTERS };

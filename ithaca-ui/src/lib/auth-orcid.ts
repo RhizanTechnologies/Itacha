@@ -9,6 +9,41 @@
 
 import { env } from "./env";
 
+// =============================================================================
+// ORCID API Types
+// =============================================================================
+
+interface OrcidTokens {
+  access_token: string;
+  token_type: string;
+  refresh_token?: string;
+  expires_in?: number;
+  scope?: string;
+  orcid: string; // ORCID includes the ID in token response
+}
+
+interface OrcidName {
+  "given-names"?: { value: string };
+  "family-name"?: { value: string };
+  path?: string;
+}
+
+interface OrcidEmail {
+  email: string;
+  verified: boolean;
+  primary: boolean;
+}
+
+interface OrcidProfile {
+  "orcid-identifier"?: { path: string };
+  name?: OrcidName;
+  emails?: { email?: OrcidEmail[] };
+}
+
+// =============================================================================
+// Provider Configuration
+// =============================================================================
+
 export const orcidProvider = {
   id: "orcid",
   name: "ORCID",
@@ -28,7 +63,7 @@ export const orcidProvider = {
 
   userinfo: {
     url: "https://pub.orcid.org/v3.0/{orcid}/person",
-    async request({ tokens }: { tokens: any }) {
+    async request({ tokens }: { tokens: OrcidTokens }) {
       // Extract ORCID from token response
       const orcid = tokens.orcid;
 
@@ -46,7 +81,7 @@ export const orcidProvider = {
     },
   },
 
-  profile(profile: any) {
+  profile(profile: OrcidProfile) {
     return {
       id: profile.name?.path || profile["orcid-identifier"]?.path,
       name: profile.name?.["given-names"]?.value

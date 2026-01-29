@@ -1,4 +1,6 @@
 import Graph from "graphology";
+import { debug } from "./debug";
+import { COLORS } from "./constants";
 
 export type PathMode = "shortest" | "conflict" | "consensus";
 
@@ -25,11 +27,11 @@ export function findSemanticPath(
   targetId: string,
   mode: PathMode,
 ): SemanticPath[] {
-  console.log(
+  debug.graph(
     `[Pathfinder] Finding path from ${sourceId} to ${targetId} in mode: ${mode}`,
   );
   if (!graph.hasNode(sourceId) || !graph.hasNode(targetId)) {
-    console.warn("[Pathfinder] Source or Target node missing");
+    debug.warn("[Pathfinder] Source or Target node missing");
     return [];
   }
 
@@ -131,7 +133,7 @@ export function findSemanticPath(
 
   // Metadata based on mode
   let name = "Shortest Path";
-  let color = "#3b82f6"; // Blue
+  let color: string = COLORS.PATH.DEFAULT; // Blue
   let description = "The most direct connection found.";
 
   if (mode === "conflict") {
@@ -140,17 +142,17 @@ export function findSemanticPath(
     ).length;
     if (conflictCount > 0) {
       name = "Conflict Trail";
-      color = "#ef4444"; // Red
+      color = COLORS.PATH.CONFLICT; // Red
       description = `Found a path with ${conflictCount} refutations.`;
     } else {
       name = "No Direct Conflict";
-      color = "#94a3b8"; // Grey
+      color = COLORS.PATH.NO_CONFLICT; // Grey
       description =
         "No direct chain of refutations found (showing best alternative).";
     }
   } else if (mode === "consensus") {
     name = "Consensus Lineage";
-    color = "#22c55e"; // Green
+    color = COLORS.PATH.CONSENSUS; // Green
     description = "A path of supporting evidence and extensions.";
   }
 

@@ -3,6 +3,13 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { prisma } from "./prisma";
 import { env } from "./env";
 
+// User type for password reset
+interface ResetPasswordUser {
+  id: string;
+  email: string;
+  name?: string | null;
+}
+
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
@@ -14,7 +21,7 @@ export const auth = betterAuth({
     requireEmailVerification: true,
     minPasswordLength: 8,
     maxPasswordLength: 128,
-    sendResetPassword: async ({ user, url }: { user: any; url: string }) => {
+    sendResetPassword: async ({ user, url }: { user: ResetPasswordUser; url: string }) => {
       // TODO: Implement email sending with Resend/SendGrid
       console.log(`[AUTH] Reset password for ${user.email}: ${url}`);
     },
@@ -27,6 +34,9 @@ export const auth = betterAuth({
       clientSecret: env.GOOGLE_CLIENT_SECRET || "",
       enabled: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET),
     },
+    // NOTE: Better Auth does not ship an ORCID provider in core.
+    // Adding it here causes runtime errors. Keep the custom provider
+    // in src/lib/auth-orcid.ts until a supported custom provider hook is added.
   },
 
   // Session Configuration
