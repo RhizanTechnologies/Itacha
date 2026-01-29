@@ -38,6 +38,7 @@ export interface PaperData {
   refutes: number;
   abstract?: string;
   aiSummary?: string;
+  status?: "solid" | "ghost";
 }
 
 // Evidence item interface
@@ -59,6 +60,7 @@ interface PaperInspectorProps {
   evidence?: EvidenceItem[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onAddToProject?: (id: string) => void;
 }
 
 export function PaperInspector({
@@ -66,6 +68,7 @@ export function PaperInspector({
   evidence = [],
   open,
   onOpenChange,
+  onAddToProject,
 }: PaperInspectorProps) {
   if (!paper) return null;
 
@@ -75,6 +78,15 @@ export function PaperInspector({
         <div className="p-6">
           <SheetHeader className="border-b border-border/40 pb-6 mb-6">
             <div className="flex items-center gap-2 mb-2">
+              {paper.status === "ghost" && (
+                <Badge
+                  variant="outline"
+                  className="bg-primary/5 text-primary border-primary/20 cursor-pointer hover:bg-primary/10 transition-colors"
+                  onClick={() => onAddToProject?.(paper.id)}
+                >
+                  Suggestion (Click to Add)
+                </Badge>
+              )}
               {paper.supports > paper.refutes * 2 && (
                 <Badge className="bg-supports/10 text-supports border-supports/20">
                   Well-Supported
@@ -84,8 +96,13 @@ export function PaperInspector({
                 {paper.id}
               </Badge>
             </div>
-            <SheetTitle className="text-xl font-bold leading-tight">
-              {paper.title}
+            <SheetTitle className="text-xl font-bold leading-tight flex justify-between items-start gap-4">
+              <span>{paper.title}</span>
+              {paper.status === "ghost" && onAddToProject && (
+                <Button size="sm" onClick={() => onAddToProject(paper.id)}>
+                  Add to Project
+                </Button>
+              )}
             </SheetTitle>
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <span>{paper.authors}</span>

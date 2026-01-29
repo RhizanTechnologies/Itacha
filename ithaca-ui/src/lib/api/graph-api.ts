@@ -30,6 +30,7 @@ export interface PaperNode {
   abstract?: string;
   aiSummary?: string;
   isHighImpact?: boolean;
+  status?: "solid" | "ghost"; // Hybrid Workspace status
   cluster: number;
   x: number;
   y: number;
@@ -76,6 +77,12 @@ export interface SearchResult {
   authors: string;
   year: number;
   type: "paper" | "author" | "topic";
+}
+
+export interface TopicCluster {
+  id: string;
+  label: string;
+  color: string;
 }
 
 // =============================================================================
@@ -204,6 +211,7 @@ class GraphAPIService {
         aiSummary:
           "This research advances the field by introducing novel techniques that improve upon existing methods.",
         isHighImpact: Math.random() > 0.8,
+        status: "solid", // Default to solid for initial fetch
         cluster,
         x: Math.cos(angle) * radius,
         y: Math.sin(angle) * radius,
@@ -243,6 +251,198 @@ class GraphAPIService {
     }
 
     this.edges = edges;
+    return { nodes, edges };
+  }
+
+  /**
+   * Fetch a Topic Slice for general/topic search
+   * Returns a cluster of relevant nodes as "Ghosts" (suggestions) or "Solid" if they match high relevance.
+   * For the Hybrid Workspace, these are typically returned to be added.
+   */
+  async fetchTopicSlice(
+    query: string,
+  ): Promise<{
+    nodes: PaperNode[];
+    edges: EdgeData[];
+    clusters: TopicCluster[];
+  }> {
+    await new Promise((resolve) => setTimeout(resolve, 800));
+
+    // For mock purposes, return a new fresh set of nodes
+    // In real app, this would use semantic search
+    const nodes: PaperNode[] = [];
+    const edges: EdgeData[] = [];
+
+    const SLICE_SIZE = 40;
+    const NUM_CLUSTERS = 3;
+
+    const clusters: TopicCluster[] = [
+      { id: "c1", label: `${query} - Core Theory`, color: CLUSTER_COLORS[0] },
+      { id: "c2", label: `${query} - Applications`, color: CLUSTER_COLORS[1] },
+      {
+        id: "c3",
+        label: `${query} - Recent Advances`,
+        color: CLUSTER_COLORS[2],
+      },
+    ];
+
+    for (let i = 0; i < SLICE_SIZE; i++) {
+      const clusterIdx = i % NUM_CLUSTERS;
+      const angle = (Math.PI * 2 * i) / SLICE_SIZE;
+      const radius = 30 + Math.random() * 50;
+
+      // Offset centers for clusters
+      const cx = (clusterIdx - 1) * 150;
+      const cy = (Math.random() - 0.5) * 100;
+
+      const titleIndex = Math.floor(Math.random() * PAPER_TITLES.length);
+      const id = `topic-${query}-${i}`;
+
+      const node: PaperNode = {
+        id,
+        paperId: `#${2000 + i}`,
+        label: `${AUTHORS[titleIndex].split(" ")[0]} (${2020 + (i % 5)})`,
+        title: PAPER_TITLES[titleIndex],
+        authors: AUTHORS[titleIndex],
+        year: 2020 + (i % 5),
+        citations: 100 + Math.floor(Math.random() * 1000),
+        references: 20 + Math.floor(Math.random() * 50),
+        supports: 5,
+        refutes: 2,
+        isHighImpact: true,
+        // These come back as potential additions, so they can be solid or ghost depending on UI choice.
+        // Usually search results are presented as a map to explore, so "solid" in the context of the results view,
+        // but if adding to an existing workspace, they might be "ghosts".
+        // Let's default to "solid" because Scanners want to see this immediately.
+        status: "solid",
+        cluster: clusterIdx,
+        x: cx + Math.cos(angle) * radius,
+        y: cy + Math.sin(angle) * radius,
+        size: 8 + Math.random() * 8, // Prominent nodes
+        color: clusters[clusterIdx].color,
+        abstract: "Topic slice result abstract...",
+      };
+
+      nodes.push(node);
+      this.papers.set(node.id, node);
+    }
+
+    return { nodes, edges: [], clusters };
+  }
+
+  /**
+   * Fetch Context for a specific paper lookup (The "Story View")
+   * Returns the target paper + Roots + Branches + Critiques
+   */
+  async fetchPaperContext(
+    paperId: string,
+  ): Promise<{ nodes: PaperNode[]; edges: EdgeData[] }> {
+    await new Promise((resolve) => setTimeout(resolve, 600));
+
+    // Find or create the ego node
+    let centerNode = this.papers.get(paperId);
+    if (!centerNode) {
+      // Create simplified mock if not found
+      centerNode = {
+        id: paperId,
+        paperId: `#${paperId}`,
+        label: "Selected Paper",
+        title: "Selected Paper Title",
+        authors: "Author et al.",
+        year: 2022,
+        citations: 500,
+        references: 30,
+        supports: 10,
+        refutes: 5,
+        cluster: 0,
+        x: 0,
+        y: 0,
+        size: 20,
+        color: CLUSTER_COLORS[0],
+        status: "solid",
+      };
+      this.papers.set(paperId, centerNode);
+    }
+
+    const nodes: PaperNode[] = [centerNode];
+    const edges: EdgeData[] = [];
+
+    // 1. ROOTS (Previous work / References) - placed on Left
+    for (let i = 0; i < 5; i++) {
+      const id = `root-${paperId}-${i}`;
+      const node: PaperNode = {
+        ...centerNode,
+        id,
+        label: `Ancestor ${i}`,
+        x: -200 - Math.random() * 50,
+        y: (i - 2) * 60,
+        size: 10,
+        year: centerNode.year - 5,
+        status: "solid",
+      };
+      nodes.push(node);
+      edges.push({
+        id: `edge-${id}-${paperId}`,
+        source: id,
+        target: paperId,
+        edgeType: "supports",
+        confidence: 90,
+        size: 2,
+        color: EDGE_COLORS.supports,
+      });
+    }
+
+    // 2. BRANCHES (Derivatives / Citations) - placed on Right
+    for (let i = 0; i < 8; i++) {
+      const id = `branch-${paperId}-${i}`;
+      const node: PaperNode = {
+        ...centerNode,
+        id,
+        label: `Derivative ${i}`,
+        x: 200 + Math.random() * 50,
+        y: (i - 3.5) * 50,
+        size: 8,
+        year: centerNode.year + 2,
+        status: "solid",
+      };
+      nodes.push(node);
+      edges.push({
+        id: `edge-${paperId}-${id}`,
+        source: paperId,
+        target: id,
+        edgeType: i % 4 === 0 ? "extends" : "supports",
+        confidence: 85,
+        size: 1,
+        color: EDGE_COLORS.supports,
+      });
+    }
+
+    // 3. CRITIQUES (Red flags) - placed Below
+    for (let i = 0; i < 3; i++) {
+      const id = `critique-${paperId}-${i}`;
+      const node: PaperNode = {
+        ...centerNode,
+        id,
+        label: `Critic ${i}`,
+        x: (i - 1) * 80,
+        y: 200 + Math.random() * 30,
+        size: 12,
+        year: centerNode.year + 1,
+        color: "#ef4444", // Red
+        status: "solid",
+      };
+      nodes.push(node);
+      edges.push({
+        id: `edge-${id}-${paperId}`,
+        source: id,
+        target: paperId,
+        edgeType: "contradicts",
+        confidence: 95,
+        size: 3,
+        color: EDGE_COLORS.contradicts,
+      });
+    }
+
     return { nodes, edges };
   }
 
@@ -335,6 +535,20 @@ class GraphAPIService {
     const results: SearchResult[] = [];
     const lowerQuery = query.toLowerCase();
 
+    // Default mock response for explicit paper search
+    // We add some "Topic" matches too
+
+    // 1. Topic Match
+    if (query.length > 2) {
+      results.push({
+        id: `topic-${query}`,
+        title: `Exploration of ${query}`,
+        authors: "Topic Cluster",
+        year: 2024,
+        type: "topic",
+      });
+    }
+
     this.papers.forEach((paper) => {
       if (
         paper.title.toLowerCase().includes(lowerQuery) ||
@@ -414,6 +628,7 @@ class GraphAPIService {
         y: parentNode.y + (Math.random() - 0.5) * 40,
         size: Math.random() * 5 + 5,
         color: CLUSTER_COLORS[cluster],
+        status: "ghost", // Expanded nodes are SUGGESTIONS (Ghosts)
         abstract:
           "Automatically expanded node representing a related work in this citation network.",
       };
@@ -449,6 +664,11 @@ class GraphAPIService {
 
     return { nodes: newNodes, edges: newEdges };
   }
+
+  /**
+   * Apply filters to graph
+   * ... existing implementations ...
+   */
 
   /**
    * Apply filters to graph

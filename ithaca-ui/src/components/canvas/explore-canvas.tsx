@@ -66,6 +66,10 @@ type GraphApiShape = {
     nodeId: string,
     direction: "in" | "out",
   ) => Promise<{ nodes: any[]; edges: any[] }>;
+  fetchTopicSlice: (
+    query: string,
+  ) => Promise<{ nodes: any[]; edges: any[]; clusters: any[] }>;
+  fetchPaperContext: (id: string) => Promise<{ nodes: any[]; edges: any[] }>;
 };
 
 // Safely retrieve the API instance
@@ -90,6 +94,7 @@ interface GraphInteractionApi {
   exportSelection: (nodeIds: string[]) => void;
   findPaths: (sourceId: string, targetId: string, mode?: PathMode) => any[];
   expandNode: (nodeId: string, direction: "in" | "out") => Promise<void>;
+  addGraphData: (nodes: any[], edges: any[], clear?: boolean) => void;
 }
 
 interface GraphLoaderProps {
@@ -114,6 +119,8 @@ interface GraphLoaderProps {
   filters: FilterState;
   paperCount: number;
   refreshTrigger: number;
+  solidNodes: Set<string>;
+  onAddToProject: (nodeId: string) => void;
 }
 
 function GraphLoader({
@@ -131,6 +138,8 @@ function GraphLoader({
   paperCount,
   refreshTrigger,
   focusModeNode,
+  solidNodes,
+  onAddToProject,
 }: GraphLoaderProps) {
   const loadGraph = useLoadGraph();
   const sigma = useSigma();
@@ -213,7 +222,7 @@ function GraphLoader({
     let effectiveHiddenNodes = hiddenNodes;
     let effectiveHiddenEdges = hiddenEdges;
 
-    if (focusModeNode) {
+    if (focusModeNode && graph.hasNode(focusModeNode)) {
       const neighbors = graph.neighbors(focusModeNode);
       const visibleSet = new Set([focusModeNode, ...neighbors]);
 
@@ -239,29 +248,44 @@ function GraphLoader({
     graph.forEachNode((node, attrs) => {
       const isHidden = effectiveHiddenNodes.has(node);
       graph.setNodeAttribute(node, "hidden", isHidden);
-      // Dim hidden nodes instead of completely hiding for visual feedback
-      // In focus mode, we might want to hide them completely or dim them heavily
+      // In focus mode, strict hiding (user request: "remove all in all")
       if (isHidden) {
-        graph.setNodeAttribute(
-          node,
-          "color",
-          focusModeNode
-            ? "rgba(240, 240, 240, 0.05)"
-            : "rgba(100, 100, 100, 0.2)",
-        );
-        // If focus mode, maybe make them smaller too
+        // If focus mode, strictly hidden (no opacity override needed as hidden=true handles it)
         if (focusModeNode) {
-          graph.setNodeAttribute(node, "size", 1);
+          // Ensure no residual visual artifacts
+          graph.setNodeAttribute(node, "size", 0);
+        } else {
+          // For standard filters, maybe we want faint ghosts?
+          // Current logic sets hidden=true, so they are gone anyway.
+          // If we wanted dimming, we would set hidden=false and color=faint.
+          // For now, sticking to strict hiding for filters too as per standard Sigma behavior.
         }
       } else {
+        const isSolid = solidNodes?.has(node);
+        // Logic: if in solidNodes, IT IS SOLID, override any 'ghost' status.
+        // If not in solidNodes, respect the attribute status.
+        const isGhost = !isSolid && attrs.status === "ghost";
+
         graph.setNodeAttribute(
           node,
           "color",
           attrs.controversyScore > 0 && !attrs.hidden
             ? "#ef4444" // Red for controversial
-            : attrs.originalColor || CLUSTER_COLORS[attrs.cluster] || "#3b82f6",
+            : isGhost
+              ? `${attrs.color}40` // 25% opacity for ghost (using hex alpha if supported, or transparent fallback)
+              : attrs.originalColor ||
+                CLUSTER_COLORS[attrs.cluster] ||
+                "#3b82f6",
         );
-        // Restore size
+
+        // Update status attribute in graph for other components (tooltip etc) to see
+        if (isSolid && attrs.status !== "solid") {
+          graph.setNodeAttribute(node, "status", "solid");
+        }
+
+        // Explicit visual cue for ghost (e.g. outline or desaturated)?
+        // For now, simpler visual cue: Low opacity color
+        // And reset size
         graph.setNodeAttribute(
           node,
           "size",
@@ -293,7 +317,14 @@ function GraphLoader({
 
     // Only refresh ONCE after all updates
     sigma.refresh();
-  }, [filters, sigma, onFilterStatsChange, refreshTrigger, focusModeNode]);
+  }, [
+    filters,
+    sigma,
+    onFilterStatsChange,
+    refreshTrigger,
+    focusModeNode,
+    solidNodes,
+  ]);
 
   // Register Interaction API
   useEffect(() => {
@@ -450,6 +481,56 @@ function GraphLoader({
           console.error("Expansion failed", e);
         }
       },
+      addGraphData: (nodes, edges, clear = false) => {
+        const graph = sigma.getGraph();
+        if (clear) graph.clear();
+
+        let addedCount = 0;
+
+        nodes.forEach((node) => {
+          if (!graph.hasNode(node.id)) {
+            graph.addNode(node.id, {
+              ...node,
+              hidden: false,
+              // If focusing on a new slice, maybe force position if provided, else use layout
+              x: node.x || Math.random() * 100,
+              y: node.y || Math.random() * 100,
+              size: node.size || 5, // Ensure size is set
+              color: node.color,
+            });
+            addedCount++;
+          }
+        });
+
+        edges.forEach((edge) => {
+          if (
+            !graph.hasEdge(edge.id) &&
+            graph.hasNode(edge.source) &&
+            graph.hasNode(edge.target)
+          ) {
+            graph.mergeEdgeWithKey(edge.id, edge.source, edge.target, {
+              ...edge,
+              hidden: false,
+              size: edge.size || 1,
+              color: edge.color,
+            });
+          }
+        });
+
+        if (addedCount > 0 || clear) {
+          onStatsChange({
+            nodeCount: graph.order,
+            edgeCount: graph.size,
+          });
+          sigma.refresh();
+
+          // If clearing, reset camera potentially?
+          if (clear) {
+            // simple layout/zoom
+            // sigma.getCamera().animatedReset();
+          }
+        }
+      },
     };
 
     onRegisterInteractionApi(api);
@@ -483,6 +564,7 @@ function GraphLoader({
           refutes: attrs.refutes || 0,
           abstract: attrs.abstract,
           aiSummary: attrs.aiSummary,
+          status: attrs.status,
         };
 
         // Fetch evidence from API
@@ -767,6 +849,7 @@ export function ExploreCanvas() {
   const [paperCount, setPaperCount] = useState(25);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [solidNodes, setSolidNodes] = useState<Set<string>>(new Set());
 
   // Selection State
   const [selectionMode, setSelectionMode] = useState(false);
@@ -943,10 +1026,48 @@ export function ExploreCanvas() {
   const handleSearchPaper = useCallback(async (paperId: string) => {
     console.log("Search for paper:", paperId);
     setSearchTarget(paperId);
+    setIsLoading(true);
 
-    // Also try to open inspector if we have data (simulated)
-    // In a real app, we'd fetch data here
-    // For now, let the user click naturally or we assume the search ID is valid
+    try {
+      let nodes: any[] = [];
+      let edges: any[] = [];
+      let isTopic = paperId.startsWith("topic-");
+
+      if (isTopic) {
+        // Scenario A: Topic Slice
+        const query = paperId.replace("topic-", "");
+        const data = await graphAPI.fetchTopicSlice(query);
+        nodes = data.nodes;
+        edges = data.edges;
+        setShowToast(true); // "Topic Slice Loaded" reused toast or new message
+      } else {
+        // Scenario B: Paper Context
+        const data = await graphAPI.fetchPaperContext(paperId);
+        nodes = data.nodes;
+        edges = data.edges;
+      }
+
+      // Inject into graph
+      if (graphApiRef.current) {
+        // For search, we might optionally CLEAR the graph to show just the slice?
+        // "Hybrid Workspace": We keep the Solid nodes, but maybe clear the Ghosts?
+        // For now, let's just MERGE (addGraphData default).
+        // This is safer for "Building a project".
+        graphApiRef.current.addGraphData(nodes, edges, false);
+
+        // Focus on the new nodes
+        if (nodes.length > 0) {
+          // Focus on the first node or center?
+          if (!isTopic) {
+            graphApiRef.current.focusNodes([paperId]);
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Search failed", e);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   return (
@@ -985,6 +1106,14 @@ export function ExploreCanvas() {
           selectionMode={selectionMode}
           focusNode={searchTarget}
           focusModeNode={focusModeNode}
+          solidNodes={solidNodes}
+          onAddToProject={useCallback((nodeId: string) => {
+            setSolidNodes((prev) => {
+              const next = new Set(prev);
+              next.add(nodeId);
+              return next;
+            });
+          }, [])}
           onRegisterExport={useCallback((fn: any) => {
             exportGraphRef.current = fn;
           }, [])}

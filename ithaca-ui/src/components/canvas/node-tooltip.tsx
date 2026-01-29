@@ -17,6 +17,7 @@ interface PaperTooltipState {
   refutes: number;
   isHighImpact: boolean;
   cluster: number;
+  status: "solid" | "ghost";
 }
 
 const initialState: PaperTooltipState = {
@@ -31,6 +32,7 @@ const initialState: PaperTooltipState = {
   refutes: 0,
   isHighImpact: false,
   cluster: 0,
+  status: "solid",
 };
 
 interface NodeTooltipProps {
@@ -40,9 +42,14 @@ interface NodeTooltipProps {
     type?: "all" | "supports" | "contradicts",
   ) => void;
   onFocus?: (nodeId: string) => void;
+  onAddToProject?: (nodeId: string) => void;
 }
 
-export function NodeTooltip({ onExpand, onFocus }: NodeTooltipProps) {
+export function NodeTooltip({
+  onExpand,
+  onFocus,
+  onAddToProject,
+}: NodeTooltipProps) {
   const registerEvents = useRegisterEvents();
   const sigma = useSigma();
   const [tooltip, setTooltip] = useState<PaperTooltipState>(initialState);
@@ -68,12 +75,14 @@ export function NodeTooltip({ onExpand, onFocus }: NodeTooltipProps) {
         refutes: nodeData.refutes || 0,
         isHighImpact: nodeData.isHighImpact || false,
         cluster: nodeData.cluster || 0,
+        status: nodeData.status || "solid",
       });
     },
     [sigma],
   );
 
   const handleLeaveNode = useCallback(() => {
+    // ... existing ...
     hideTimeoutRef.current = setTimeout(() => {
       setTooltip((prev) => ({ ...prev, visible: false }));
     }, 300);
@@ -119,14 +128,24 @@ export function NodeTooltip({ onExpand, onFocus }: NodeTooltipProps) {
         {/* Header */}
         <div className="p-4 pb-3 border-b border-border bg-muted/30">
           <div className="flex justify-between items-start mb-2">
-            {tooltip.isHighImpact && (
-              <Badge
-                variant="destructive"
-                className="text-[10px] font-bold uppercase tracking-wider"
-              >
-                High Impact
-              </Badge>
-            )}
+            <div className="flex gap-2 text-[10px] font-bold uppercase tracking-wider">
+              {tooltip.status === "ghost" && (
+                <Badge
+                  variant="outline"
+                  className="bg-primary/5 text-primary border-primary/20"
+                >
+                  Suggestion
+                </Badge>
+              )}
+              {tooltip.isHighImpact && (
+                <Badge
+                  variant="destructive"
+                  className="text-[10px] font-bold uppercase tracking-wider"
+                >
+                  High Impact
+                </Badge>
+              )}
+            </div>
             <span className="text-muted-foreground text-[10px] font-mono ml-auto">
               {tooltip.paperId}
             </span>
@@ -211,9 +230,21 @@ export function NodeTooltip({ onExpand, onFocus }: NodeTooltipProps) {
         </div>
 
         {/* Quick Expansion Actions */}
-        {onExpand && (
+        {(onExpand || (onAddToProject && tooltip.status === "ghost")) && (
           <div className="bg-muted/50 px-4 py-2 flex items-center gap-2 border-t border-border/50">
-            {onFocus && (
+            {onAddToProject && tooltip.status === "ghost" && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddToProject(tooltip.nodeId);
+                }}
+                className="flex-1 text-[10px] bg-primary text-primary-foreground hover:bg-primary/90 border border-primary rounded px-2 py-1 transition-colors flex items-center justify-center gap-1 font-medium shadow-sm"
+              >
+                Add to Project
+              </button>
+            )}
+
+            {onFocus && tooltip.status === "solid" && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -225,36 +256,40 @@ export function NodeTooltip({ onExpand, onFocus }: NodeTooltipProps) {
                 Focus
               </button>
             )}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onExpand(tooltip.nodeId, "out", "all");
-              }}
-              className="flex-1 text-[10px] bg-background hover:bg-muted border border-border rounded px-2 py-1 transition-colors flex items-center justify-center gap-1"
-              title="Show papers this paper cites"
-            >
-              + Refs
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onExpand(tooltip.nodeId, "in", "all");
-              }}
-              className="flex-1 text-[10px] bg-background hover:bg-muted border border-border rounded px-2 py-1 transition-colors flex items-center justify-center gap-1"
-              title="Show papers citing this paper"
-            >
-              + Cites
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onExpand(tooltip.nodeId, "in", "contradicts");
-              }}
-              className="flex-1 text-[10px] bg-background hover:bg-destructive/10 border border-destructive/20 text-destructive rounded px-2 py-1 transition-colors flex items-center justify-center gap-1"
-              title="Show contradicting papers"
-            >
-              + Critics
-            </button>
+            {tooltip.status === "solid" && onExpand && (
+              <>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onExpand(tooltip.nodeId, "out", "all");
+                  }}
+                  className="flex-1 text-[10px] bg-background hover:bg-muted border border-border rounded px-2 py-1 transition-colors flex items-center justify-center gap-1"
+                  title="Show papers this paper cites"
+                >
+                  + Refs
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onExpand(tooltip.nodeId, "in", "all");
+                  }}
+                  className="flex-1 text-[10px] bg-background hover:bg-muted border border-border rounded px-2 py-1 transition-colors flex items-center justify-center gap-1"
+                  title="Show papers citing this paper"
+                >
+                  + Cites
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onExpand(tooltip.nodeId, "in", "contradicts");
+                  }}
+                  className="flex-1 text-[10px] bg-background hover:bg-destructive/10 border border-destructive/20 text-destructive rounded px-2 py-1 transition-colors flex items-center justify-center gap-1"
+                  title="Show contradicting papers"
+                >
+                  + Critics
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>
