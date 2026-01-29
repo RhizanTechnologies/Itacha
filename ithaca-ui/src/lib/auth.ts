@@ -21,7 +21,13 @@ export const auth = betterAuth({
     requireEmailVerification: true,
     minPasswordLength: 8,
     maxPasswordLength: 128,
-    sendResetPassword: async ({ user, url }: { user: ResetPasswordUser; url: string }) => {
+    sendResetPassword: async ({
+      user,
+      url,
+    }: {
+      user: ResetPasswordUser;
+      url: string;
+    }) => {
       // TODO: Implement email sending with Resend/SendGrid
       console.log(`[AUTH] Reset password for ${user.email}: ${url}`);
     },

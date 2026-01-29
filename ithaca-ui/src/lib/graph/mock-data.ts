@@ -163,7 +163,7 @@ export function loadMockGraph(graph: Graph) {
   });
 
   debug.graph(
-    `Graph loaded with ${graph.order} nodes and ${graph.size} edges.`
+    `Graph loaded with ${graph.order} nodes and ${graph.size} edges.`,
   );
   return graph;
 }

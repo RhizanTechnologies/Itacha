@@ -74,7 +74,7 @@ export const orcidProvider = {
             Authorization: `Bearer ${tokens.access_token}`,
             Accept: "application/json",
           },
-        }
+        },
       );
 
       return response.json();

@@ -1,6 +1,6 @@
 /**
  * Application Constants
- * 
+ *
  * Centralized constants to avoid magic numbers scattered throughout the codebase.
  * Organized by domain for easy discovery and maintenance.
  */
@@ -80,27 +80,27 @@ export const FILTERS = {
 
 export const COLORS = {
   /** Edge color for supporting relationships */
-  SUPPORTS: '#22c55e',
+  SUPPORTS: "#22c55e",
   /** Edge color for contradicting relationships */
-  CONTRADICTS: '#ef4444',
+  CONTRADICTS: "#ef4444",
   /** Edge color for extending relationships */
-  EXTENDS: '#eab308',
+  EXTENDS: "#eab308",
   /** Cluster colors for node grouping */
-  CLUSTERS: ['#3b82f6', '#8b5cf6', '#ec4899', '#f97316', '#14b8a6'] as const,
+  CLUSTERS: ["#3b82f6", "#8b5cf6", "#ec4899", "#f97316", "#14b8a6"] as const,
   /** Ghost node opacity (hex alpha suffix) */
-  GHOST_ALPHA: '40',
+  GHOST_ALPHA: "40",
   /** Dimmed color opacity factor */
   DIM_FACTOR: 0.3,
   /** Path visualization colors */
   PATH: {
     /** Default/shortest path color (blue) */
-    DEFAULT: '#3b82f6',
+    DEFAULT: "#3b82f6",
     /** Conflict trail path color (red) */
-    CONFLICT: '#ef4444',
+    CONFLICT: "#ef4444",
     /** No direct conflict path color (grey) */
-    NO_CONFLICT: '#94a3b8',
+    NO_CONFLICT: "#94a3b8",
     /** Consensus lineage path color (green) */
-    CONSENSUS: '#22c55e',
+    CONSENSUS: "#22c55e",
   },
 } as const;
 
@@ -138,13 +138,13 @@ export const RATE_LIMIT = {
 
 export const UI = {
   /** Maximum width for paper inspector on mobile */
-  INSPECTOR_WIDTH_SM: 'sm:max-w-xl',
+  INSPECTOR_WIDTH_SM: "sm:max-w-xl",
   /** Maximum width for paper inspector on tablet */
-  INSPECTOR_WIDTH_MD: 'md:max-w-2xl',
+  INSPECTOR_WIDTH_MD: "md:max-w-2xl",
   /** Maximum width for paper inspector on desktop */
-  INSPECTOR_WIDTH_LG: 'lg:max-w-4xl',
+  INSPECTOR_WIDTH_LG: "lg:max-w-4xl",
   /** Command bar max width */
-  COMMAND_BAR_MAX_WIDTH: 'max-w-sm',
+  COMMAND_BAR_MAX_WIDTH: "max-w-sm",
   /** Maximum tags to show before overflow */
   MAX_VISIBLE_TAGS: 5,
 } as const;
@@ -161,9 +161,9 @@ export const LABELS = {
   /** Sigma label size threshold */
   SIZE_THRESHOLD: 6,
   /** Sigma label font */
-  FONT: 'Inter, system-ui, sans-serif',
+  FONT: "Inter, system-ui, sans-serif",
   /** Sigma label weight */
-  WEIGHT: '500',
+  WEIGHT: "500",
 } as const;
 
 // =============================================================================

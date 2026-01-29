@@ -1,6 +1,6 @@
 /**
  * Graph Types
- * 
+ *
  * Centralized type definitions for the graph visualization system.
  * Re-exports from graph-api.ts and adds additional UI-specific types.
  */
@@ -52,15 +52,19 @@ export interface GraphApiShape {
   fetchPaperContext: (paperId: string) => Promise<GraphFetchResult>;
   getPaperById: (id: string) => Promise<PaperNode | null>;
   getEvidence: (paperId: string) => Promise<EvidenceItem[]>;
-  searchPapers: (query: string) => Promise<{ id: string; title: string; authors: string; year: number; type: string }[]>;
+  searchPapers: (
+    query: string,
+  ) => Promise<
+    { id: string; title: string; authors: string; year: number; type: string }[]
+  >;
   expandNode: (
     nodeId: string,
     direction?: "in" | "out" | "both",
-    type?: "supports" | "contradicts" | "extends" | "all"
+    type?: "supports" | "contradicts" | "extends" | "all",
   ) => Promise<GraphFetchResult>;
   applyFilters: (
     graph: Graph,
-    filters: FilterState
+    filters: FilterState,
   ) => { hiddenNodes: Set<string>; hiddenEdges: Set<string> };
 }
 
@@ -81,7 +85,11 @@ export interface GraphInteractionApi {
 /** Extended interaction API with internal canvas methods */
 export interface CanvasInteractionApi extends GraphInteractionApi {
   expandNode: (nodeId: string, direction: "in" | "out") => Promise<void>;
-  addGraphData: (nodes: PaperNode[], edges: EdgeData[], clear?: boolean) => void;
+  addGraphData: (
+    nodes: PaperNode[],
+    edges: EdgeData[],
+    clear?: boolean,
+  ) => void;
 }
 
 // =============================================================================
@@ -109,7 +117,10 @@ export interface NodeAttributes extends Omit<PaperNode, "id"> {
 }
 
 /** Edge attributes as stored in Graphology */
-export interface EdgeAttributes extends Omit<EdgeData, "id" | "source" | "target"> {
+export interface EdgeAttributes extends Omit<
+  EdgeData,
+  "id" | "source" | "target"
+> {
   originalColor?: string;
   originalSize?: number;
 }
