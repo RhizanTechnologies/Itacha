@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion";
 import { GraphConstellation } from "@/components/visual/graph-constellation";
+import { AnimatedDemo } from "@/components/landing/animated-demo";
 
 // Mock data for testimonials
 const TESTIMONIALS = [
@@ -221,7 +222,7 @@ export default function Home() {
                   size="lg"
                   variant="outline"
                   className="text-base px-8 gap-2 transition-transform active:scale-[0.98]"
-                  onClick={() => setShowOnboarding(true)}
+                  onClick={() => document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth' })}
                 >
                   <Play className="w-4 h-4" />
                   Watch Demo
@@ -457,7 +458,7 @@ export default function Home() {
       </section>
 
       {/* ===== PRODUCT DEMO / SCREENSHOT ===== */}
-      <section className="py-24 md:py-32">
+      <section id="demo" className="py-24 md:py-32 scroll-mt-20">
         <div className="container mx-auto px-4">
           <div className="max-w-5xl mx-auto">
             <Reveal>
@@ -472,29 +473,26 @@ export default function Home() {
             </Reveal>
 
             <Reveal delay={0.1}>
-              {/* Demo placeholder - would be replaced with actual screenshot or video */}
-              <div className="relative rounded-2xl border border-border bg-card overflow-hidden shadow-2xl">
-                <div className="aspect-video bg-gradient-to-br from-muted via-muted/50 to-background flex items-center justify-center">
-                  <div className="text-center space-y-4">
-                    <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
-                      <Play className="w-10 h-10 text-primary" />
-                    </div>
-                    <p className="text-muted-foreground">
-                      Interactive demo coming soon
-                    </p>
-                    <Button
-                      variant="outline"
-                      onClick={() => setShowOnboarding(true)}
-                    >
-                      Take the tour instead
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Decorative corner badges */}
-                <div className="absolute top-4 left-4 px-3 py-1 rounded-full bg-background/90 border border-border text-xs font-medium backdrop-blur-sm">
+              {/* Animated product demo */}
+              <div className="relative rounded-2xl border border-border overflow-hidden shadow-2xl">
+                <AnimatedDemo />
+                
+                {/* Decorative corner badge */}
+                <div className="absolute top-4 left-4 px-3 py-1 rounded-full bg-slate-900/90 border border-slate-700 text-xs font-medium backdrop-blur-sm text-slate-300">
                   Live Preview
                 </div>
+              </div>
+              
+              {/* CTA below demo */}
+              <div className="text-center mt-6">
+                <Button
+                  variant="outline"
+                  onClick={() => document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth' })}
+                  className="gap-2"
+                >
+                  <Play className="w-4 h-4" />
+                  Take the guided tour
+                </Button>
               </div>
             </Reveal>
           </div>
