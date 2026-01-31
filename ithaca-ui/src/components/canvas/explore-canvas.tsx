@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import {
   SigmaContainer,
   ControlsContainer,
@@ -13,6 +13,7 @@ import {
 import "@react-sigma/core/lib/react-sigma.min.css";
 import { useTheme } from "next-themes";
 import Graph from "graphology";
+import { drawDiscNodeLabel } from "sigma/rendering";
 import { ForceAtlasControl } from "@/components/canvas/force-atlas-control";
 import { NodeTooltip } from "@/components/canvas/node-tooltip";
 import { CanvasStatusIndicator } from "@/components/canvas/status-indicator";
@@ -91,6 +92,7 @@ interface GraphLoaderProps {
   onRegisterInteractionApi?: (api: CanvasInteractionApi) => void;
   onRegisterExport?: (exportFn: () => Promise<string>) => void;
   onRegisterReset?: (resetFn: () => void) => void;
+  onRegisterSigmaGraph?: (sigma: any, graph: Graph) => void;
   filters: FilterState;
   paperCount: number;
   refreshTrigger: number;
@@ -110,6 +112,7 @@ function GraphLoader({
   onRegisterInteractionApi,
   onRegisterExport,
   onRegisterReset,
+  onRegisterSigmaGraph,
   filters,
   paperCount,
   refreshTrigger,
@@ -196,6 +199,11 @@ function GraphLoader({
 
       graphRef.current = graph;
       loadGraph(graph);
+      
+      // Register sigma and graph for export
+      if (onRegisterSigmaGraph) {
+        onRegisterSigmaGraph(sigma, graph);
+      }
 
       // Report stats
       onStatsChange({
@@ -205,7 +213,7 @@ function GraphLoader({
     }
 
     loadGraphData();
-  }, [loadGraph, onStatsChange, onDataRangesChange, paperCount, refreshTrigger]);
+  }, [loadGraph, onStatsChange, onDataRangesChange, paperCount, refreshTrigger, sigma, onRegisterSigmaGraph]);
 
   // Apply filters when they change
   useEffect(() => {
@@ -825,6 +833,73 @@ function NewArgumentToast({
 }
 
 // =============================================================================
+// THEME-AWARE NODE HOVER DRAWER
+// =============================================================================
+
+/**
+ * Custom hover drawer that uses theme-aware colors.
+ * Based on Sigma's drawDiscNodeHover but with configurable background colors.
+ */
+function createThemeAwareHoverDrawer(isDark: boolean) {
+  return function drawNodeHover(
+    context: CanvasRenderingContext2D,
+    data: { x: number; y: number; size: number; label?: string | null; color?: string; [key: string]: unknown },
+    settings: { labelSize: number; labelFont: string; labelWeight: string; labelColor: { color?: string; attribute?: string } }
+  ) {
+    const size = settings.labelSize;
+    const font = settings.labelFont;
+    const weight = settings.labelWeight;
+    
+    context.font = `${weight} ${size}px ${font}`;
+
+    // Theme-aware colors
+    const bgColor = isDark ? "#1f2937" : "#ffffff";
+    const shadowColor = isDark ? "rgba(0,0,0,0.5)" : "#000";
+    
+    // Draw the label background with theme-aware colors
+    context.fillStyle = bgColor;
+    context.shadowOffsetX = 0;
+    context.shadowOffsetY = 0;
+    context.shadowBlur = 8;
+    context.shadowColor = shadowColor;
+
+    const PADDING = 2;
+
+    if (typeof data.label === "string") {
+      const textWidth = context.measureText(data.label).width;
+      const boxWidth = Math.round(textWidth + 5);
+      const boxHeight = Math.round(size + 2 * PADDING);
+      const radius = Math.max(data.size, size / 2) + PADDING;
+
+      const angleRadian = Math.asin(boxHeight / 2 / radius);
+      const xDeltaCoord = Math.sqrt(Math.abs(Math.pow(radius, 2) - Math.pow(boxHeight / 2, 2)));
+
+      context.beginPath();
+      context.moveTo(data.x + xDeltaCoord, data.y + boxHeight / 2);
+      context.lineTo(data.x + radius + boxWidth, data.y + boxHeight / 2);
+      context.lineTo(data.x + radius + boxWidth, data.y - boxHeight / 2);
+      context.lineTo(data.x + xDeltaCoord, data.y - boxHeight / 2);
+      context.arc(data.x, data.y, radius, angleRadian, -angleRadian);
+      context.closePath();
+      context.fill();
+    } else {
+      context.beginPath();
+      context.arc(data.x, data.y, data.size + PADDING, 0, Math.PI * 2);
+      context.closePath();
+      context.fill();
+    }
+
+    // Reset shadow
+    context.shadowOffsetX = 0;
+    context.shadowOffsetY = 0;
+    context.shadowBlur = 0;
+
+    // Draw the label with Sigma's default label drawer
+    drawDiscNodeLabel(context, data as Parameters<typeof drawDiscNodeLabel>[1], settings as Parameters<typeof drawDiscNodeLabel>[2]);
+  };
+}
+
+// =============================================================================
 // MAIN CANVAS COMPONENT
 // =============================================================================
 
@@ -890,6 +965,10 @@ export function ExploreCanvas() {
   // Reset function ref
   const resetViewRef = useRef<(() => void) | null>(null);
   const graphApiRef = useRef<CanvasInteractionApi | null>(null);
+  
+  // Sigma and Graph refs for export
+  const sigmaRef = useRef<any>(null);
+  const graphInstanceRef = useRef<Graph | null>(null);
 
   // Physics State
   const [physicsEnabled, setPhysicsEnabled] = useState(true); // Default to on
@@ -1100,6 +1179,9 @@ export function ExploreCanvas() {
 
   const [chatOpen, setChatOpen] = useState(false);
 
+  // Memoize the theme-aware hover drawer to avoid recreating on every render
+  const themeAwareHoverDrawer = useMemo(() => createThemeAwareHoverDrawer(isDark), [isDark]);
+
   return (
     <div className="h-full w-full flex flex-row">
       {/* Main Canvas Area - contains all overlays */}
@@ -1118,18 +1200,20 @@ export function ExploreCanvas() {
           settings={{
             allowInvalidContainer: true,
             renderLabels: true,
-          renderEdgeLabels: false,
-          labelRenderedSizeThreshold: LABELS.SIZE_THRESHOLD,
-          labelDensity: LABELS.DENSITY,
-          labelGridCellSize: LABELS.GRID_CELL_SIZE,
-          labelColor: { color: isDark ? "#fff" : "#000" },
-          zIndex: true,
-          defaultEdgeType: "arrow",
-          enableEdgeEvents: true,
-          labelFont: LABELS.FONT,
-          labelWeight: LABELS.WEIGHT,
-        }}
-      >
+            renderEdgeLabels: false,
+            labelRenderedSizeThreshold: LABELS.SIZE_THRESHOLD,
+            labelDensity: LABELS.DENSITY,
+            labelGridCellSize: LABELS.GRID_CELL_SIZE,
+            labelColor: { color: isDark ? "#fff" : "#000" },
+            zIndex: true,
+            defaultEdgeType: "arrow",
+            enableEdgeEvents: true,
+            labelFont: LABELS.FONT,
+            labelWeight: LABELS.WEIGHT,
+            // Theme-aware hover styling for dark mode readability
+            defaultDrawNodeHover: themeAwareHoverDrawer,
+          } as const}
+        >
         <GraphLoader
           onNodeClick={handleNodeClick}
           onEdgeClick={handleEdgeClick}
@@ -1138,6 +1222,10 @@ export function ExploreCanvas() {
           onFilterStatsChange={setFilterStats}
           onRegisterInteractionApi={useCallback((api: CanvasInteractionApi) => {
             graphApiRef.current = api;
+          }, [])}
+          onRegisterSigmaGraph={useCallback((sigma: any, graph: Graph) => {
+            sigmaRef.current = sigma;
+            graphInstanceRef.current = graph;
           }, [])}
           filters={filters}
           paperCount={paperCount}
@@ -1289,13 +1377,15 @@ export function ExploreCanvas() {
       {/* Share Button */}
       <ShareButton onClick={() => setShareOpen(true)} />
 
-      {/* Share/Export Dialog with real stats */}
+      {/* Share/Export Dialog with real stats and sigma/graph refs */}
       <ShareExportDialog
         open={shareOpen}
         onOpenChange={setShareOpen}
         graphTitle="Citation Network"
         nodeCount={graphStats.nodeCount}
         edgeCount={graphStats.edgeCount}
+        sigma={sigmaRef.current}
+        graph={graphInstanceRef.current}
       />
 
       {/* Node Selection Tool */}
