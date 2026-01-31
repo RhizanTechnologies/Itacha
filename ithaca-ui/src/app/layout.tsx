@@ -16,6 +16,15 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Ithaca - Scientific Argument Graph Explorer",
   description: "Explore scientific debates through interactive argument graphs",
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+    ],
+    apple: [
+      { url: "/apple-touch-icon.svg", sizes: "180x180", type: "image/svg+xml" },
+    ],
+  },
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({

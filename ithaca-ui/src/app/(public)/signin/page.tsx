@@ -104,21 +104,11 @@ export default function SignInPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 mb-6">
-            <div className="size-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <svg
-                className="size-6 text-primary"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 10V3L4 14h7v7l9-11h-7z"
-                />
-              </svg>
-            </div>
+            <img
+              src="/logo.svg"
+              alt="Ithaca"
+              className="size-10"
+            />
             <span className="text-2xl font-bold">Ithaca</span>
           </Link>
           <h1 className="text-3xl font-bold mb-2">Welcome back</h1>

@@ -50,21 +50,11 @@ export default function CanvasLayout({ children }: CanvasLayoutProps) {
             href="/"
             className="flex items-center gap-2 hover:opacity-80 transition-opacity flex-1 min-w-0"
           >
-            <div className="size-8 shrink-0 rounded-lg bg-primary/10 flex items-center justify-center">
-              <svg
-                className="size-5 text-primary"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 10V3L4 14h7v7l9-11h-7z"
-                />
-              </svg>
-            </div>
+            <img
+              src="/logo.svg"
+              alt="Ithaca"
+              className="size-8 shrink-0"
+            />
             {!collapsed && (
               <span className="font-bold text-lg truncate">Ithaca</span>
             )}
