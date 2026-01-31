@@ -1,6 +1,6 @@
 /**
  * Graph Virtualization System
- * 
+ *
  * Implements viewport-based node/edge rendering to handle large graphs (10k+ nodes).
  * Only renders elements visible in the current viewport plus a buffer zone.
  */
@@ -63,13 +63,13 @@ export class GraphVirtualizer {
   /**
    * Calculate visible nodes and edges based on viewport
    */
-  computeVisibleElements(
-    graph: Graph,
-    viewport: Viewport
-  ): VirtualizedGraph {
+  computeVisibleElements(graph: Graph, viewport: Viewport): VirtualizedGraph {
     // Throttle updates
     const now = Date.now();
-    if (this.cachedResult && now - this.lastUpdate < this.config.updateThrottle) {
+    if (
+      this.cachedResult &&
+      now - this.lastUpdate < this.config.updateThrottle
+    ) {
       return this.cachedResult;
     }
 
@@ -90,7 +90,7 @@ export class GraphVirtualizer {
     // Find visible nodes
     graph.forEachNode((node, attributes) => {
       const attr = attributes as NodeAttributes;
-      
+
       // Check if node is in viewport
       if (
         attr.x >= viewportBounds.minX &&
@@ -134,7 +134,7 @@ export class GraphVirtualizer {
 
     const duration = performance.now() - startTime;
     debug.graph(
-      `Virtualization: ${visibleNodes.size}/${graph.order} nodes, ${visibleEdges.size}/${graph.size} edges (${duration.toFixed(2)}ms)`
+      `Virtualization: ${visibleNodes.size}/${graph.order} nodes, ${visibleEdges.size}/${graph.size} edges (${duration.toFixed(2)}ms)`,
     );
 
     return result;
@@ -146,12 +146,20 @@ export class GraphVirtualizer {
   applyVirtualization(graph: Graph, virtualized: VirtualizedGraph): void {
     // Hide all nodes first
     graph.forEachNode((node, attributes) => {
-      graph.setNodeAttribute(node, "hidden", !virtualized.visibleNodes.has(node));
+      graph.setNodeAttribute(
+        node,
+        "hidden",
+        !virtualized.visibleNodes.has(node),
+      );
     });
 
     // Hide edges not in visible set
     graph.forEachEdge((edge) => {
-      graph.setEdgeAttribute(edge, "hidden", !virtualized.visibleEdges.has(edge));
+      graph.setEdgeAttribute(
+        edge,
+        "hidden",
+        !virtualized.visibleEdges.has(edge),
+      );
     });
   }
 
@@ -187,7 +195,7 @@ export class GraphVirtualizer {
  */
 export function calculateViewport(
   camera: { x: number; y: number; ratio: number },
-  dimensions: { width: number; height: number }
+  dimensions: { width: number; height: number },
 ): Viewport {
   const halfWidth = dimensions.width / 2;
   const halfHeight = dimensions.height / 2;
@@ -204,7 +212,10 @@ export function calculateViewport(
 /**
  * Check if graph size requires virtualization
  */
-export function shouldVirtualize(nodeCount: number, edgeCount: number): boolean {
+export function shouldVirtualize(
+  nodeCount: number,
+  edgeCount: number,
+): boolean {
   // Enable virtualization for graphs with >5k nodes or >20k edges
   return nodeCount > 5000 || edgeCount > 20000;
 }
@@ -214,7 +225,7 @@ export function shouldVirtualize(nodeCount: number, edgeCount: number): boolean 
  */
 export function getRecommendedConfig(
   nodeCount: number,
-  edgeCount: number
+  edgeCount: number,
 ): Partial<VirtualizationConfig> {
   const config: Partial<VirtualizationConfig> = {};
 
@@ -252,7 +263,7 @@ export interface LODSettings {
 
 export function calculateLOD(zoomRatio: number): LODSettings {
   // zoomRatio: lower = zoomed in, higher = zoomed out
-  
+
   return {
     showLabels: zoomRatio < 0.5, // Only show labels when zoomed in
     showEdgeLabels: zoomRatio < 0.3, // Only show edge labels when very zoomed in

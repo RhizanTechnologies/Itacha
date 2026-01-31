@@ -1,6 +1,6 @@
 /**
  * Graph Export Utilities
- * 
+ *
  * Export graph visualizations and data in multiple formats:
  * - PNG/SVG images for presentations
  * - GraphML for network analysis tools
@@ -34,7 +34,7 @@ export interface ExportOptions {
  */
 export async function exportAsPNG(
   sigma: Sigma,
-  options: Partial<ExportOptions> = {}
+  options: Partial<ExportOptions> = {},
 ): Promise<string> {
   const {
     filename = "graph.png",
@@ -107,12 +107,9 @@ export async function exportAsPNG(
 export async function exportAsSVG(
   sigma: Sigma,
   graph: Graph,
-  options: Partial<ExportOptions> = {}
+  options: Partial<ExportOptions> = {},
 ): Promise<string> {
-  const {
-    filename = "graph.svg",
-    includeHidden = false,
-  } = options;
+  const { filename = "graph.svg", includeHidden = false } = options;
 
   try {
     const camera = sigma.getCamera();
@@ -135,7 +132,7 @@ export async function exportAsSVG(
       if (!includeHidden && (sourceNode.hidden || targetNode.hidden)) return;
 
       svg += `    <line x1="${sourceNode.x}" y1="${sourceNode.y}" x2="${targetNode.x}" y2="${targetNode.y}" 
-        stroke="${attributes.color || '#ccc'}" stroke-width="${attributes.size || 1}" opacity="0.5"/>
+        stroke="${attributes.color || "#ccc"}" stroke-width="${attributes.size || 1}" opacity="0.5"/>
 `;
     });
 
@@ -144,7 +141,7 @@ export async function exportAsSVG(
       if (!includeHidden && attributes.hidden) return;
 
       svg += `    <circle cx="${attributes.x}" cy="${attributes.y}" r="${attributes.size || 5}" 
-        fill="${attributes.color || '#999'}"/>
+        fill="${attributes.color || "#999"}"/>
 `;
 
       // Add label
@@ -184,12 +181,9 @@ export async function exportAsSVG(
  */
 export async function exportAsGraphML(
   graph: Graph,
-  options: Partial<ExportOptions> = {}
+  options: Partial<ExportOptions> = {},
 ): Promise<string> {
-  const {
-    filename = "graph.graphml",
-    includeHidden = false,
-  } = options;
+  const { filename = "graph.graphml", includeHidden = false } = options;
 
   try {
     let graphml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -272,12 +266,9 @@ export async function exportAsGraphML(
  */
 export async function exportAsJSON(
   graph: Graph,
-  options: Partial<ExportOptions> = {}
+  options: Partial<ExportOptions> = {},
 ): Promise<string> {
-  const {
-    filename = "graph.json",
-    includeHidden = false,
-  } = options;
+  const { filename = "graph.json", includeHidden = false } = options;
 
   try {
     const nodes: any[] = [];
@@ -318,12 +309,9 @@ export async function exportAsJSON(
  */
 export async function exportAsCSV(
   graph: Graph,
-  options: Partial<ExportOptions> = {}
+  options: Partial<ExportOptions> = {},
 ): Promise<{ nodesUrl: string; edgesUrl: string }> {
-  const {
-    filename = "graph",
-    includeHidden = false,
-  } = options;
+  const { filename = "graph", includeHidden = false } = options;
 
   try {
     // Nodes CSV
@@ -389,7 +377,7 @@ function csvEscape(str: string): string {
 export async function exportGraph(
   sigma: Sigma,
   graph: Graph,
-  options: ExportOptions
+  options: ExportOptions,
 ): Promise<string | { nodesUrl: string; edgesUrl: string }> {
   switch (options.format) {
     case "png":

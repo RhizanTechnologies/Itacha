@@ -1,6 +1,6 @@
 /**
  * Graph Worker Client
- * 
+ *
  * Client-side interface for communicating with the graph calculation worker.
  * Provides type-safe async API for offloading computations.
  */
@@ -42,7 +42,7 @@ export class GraphWorkerClient {
       // Create worker from file
       this.worker = new Worker(
         new URL("@/workers/graph-worker.ts", import.meta.url),
-        { type: "module" }
+        { type: "module" },
       );
 
       // Set up message handler
@@ -103,7 +103,7 @@ export class GraphWorkerClient {
    */
   private async sendMessage<T = any>(
     type: WorkerMessageType,
-    payload: any
+    payload: any,
   ): Promise<T> {
     if (!this.worker) {
       throw new Error("Worker not initialized");
@@ -130,7 +130,10 @@ export class GraphWorkerClient {
   /**
    * Initialize graph data in worker
    */
-  async initGraph(nodes: any[], edges: any[]): Promise<{
+  async initGraph(
+    nodes: any[],
+    edges: any[],
+  ): Promise<{
     nodeCount: number;
     edgeCount: number;
   }> {
@@ -140,7 +143,10 @@ export class GraphWorkerClient {
   /**
    * Calculate layout iteration
    */
-  async calculateLayout(settings: any, iterations: number): Promise<{
+  async calculateLayout(
+    settings: any,
+    iterations: number,
+  ): Promise<{
     positions: Record<string, { x: number; y: number }>;
   }> {
     return this.sendMessage("CALCULATE_LAYOUT", { settings, iterations });
@@ -152,7 +158,7 @@ export class GraphWorkerClient {
   async findPath(
     startId: string,
     endId: string,
-    mode: PathMode
+    mode: PathMode,
   ): Promise<{
     path: Array<{ node: string; edge?: string }> | null;
   }> {
@@ -185,7 +191,7 @@ export class GraphWorkerClient {
    */
   async getSubgraph(
     nodeIds: string[],
-    depth: number
+    depth: number,
   ): Promise<{
     nodes: any[];
     edges: any[];

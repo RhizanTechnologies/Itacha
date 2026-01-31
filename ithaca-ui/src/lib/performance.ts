@@ -1,6 +1,6 @@
 /**
  * Performance Monitoring Utilities
- * 
+ *
  * Provides tools for profiling Sigma.js graph rendering and interactions.
  * Tracks frame rates, render times, and memory usage for large graphs.
  */
@@ -70,11 +70,14 @@ export class GraphPerformanceMonitor {
 
     // Capture initial memory if available
     if ((performance as any).memory) {
-      this.startMemory = (performance as any).memory.usedJSHeapSize / 1024 / 1024;
+      this.startMemory =
+        (performance as any).memory.usedJSHeapSize / 1024 / 1024;
     }
 
-    debug.graph(`Performance monitoring started: ${nodeCount} nodes, ${edgeCount} edges`);
-    
+    debug.graph(
+      `Performance monitoring started: ${nodeCount} nodes, ${edgeCount} edges`,
+    );
+
     this.trackFrames();
   }
 
@@ -95,7 +98,8 @@ export class GraphPerformanceMonitor {
 
     let memoryDelta: number | undefined;
     if ((performance as any).memory) {
-      const endMemory = (performance as any).memory.usedJSHeapSize / 1024 / 1024;
+      const endMemory =
+        (performance as any).memory.usedJSHeapSize / 1024 / 1024;
       memoryDelta = endMemory - this.startMemory;
     }
 
@@ -183,7 +187,9 @@ export class GraphPerformanceMonitor {
     const bottlenecks: string[] = [];
 
     if (avgFps < 30) {
-      bottlenecks.push("Low FPS: Consider reducing node count or enabling virtualization");
+      bottlenecks.push(
+        "Low FPS: Consider reducing node count or enabling virtualization",
+      );
     }
 
     if (avgRenderTime > 16.67) {
@@ -191,7 +197,9 @@ export class GraphPerformanceMonitor {
     }
 
     if (this.nodeCount > 10000) {
-      bottlenecks.push("High node count: Consider implementing data virtualization");
+      bottlenecks.push(
+        "High node count: Consider implementing data virtualization",
+      );
     }
 
     if (this.edgeCount > 50000) {
@@ -200,13 +208,17 @@ export class GraphPerformanceMonitor {
 
     const nodeEdgeRatio = this.edgeCount / this.nodeCount;
     if (nodeEdgeRatio > 10) {
-      bottlenecks.push("High edge density: Graph may be too connected for efficient rendering");
+      bottlenecks.push(
+        "High edge density: Graph may be too connected for efficient rendering",
+      );
     }
 
     if ((performance as any).memory) {
       const memoryMB = (performance as any).memory.usedJSHeapSize / 1024 / 1024;
       if (memoryMB > 500) {
-        bottlenecks.push("High memory usage: Consider memory optimization strategies");
+        bottlenecks.push(
+          "High memory usage: Consider memory optimization strategies",
+        );
       }
     }
 
@@ -223,14 +235,14 @@ export class GraphPerformanceMonitor {
  */
 export async function measureAsync<T>(
   label: string,
-  fn: () => Promise<T>
+  fn: () => Promise<T>,
 ): Promise<{ result: T; duration: number }> {
   const start = performance.now();
   const result = await fn();
   const duration = performance.now() - start;
-  
+
   debug.graph(`${label}: ${duration.toFixed(2)}ms`);
-  
+
   return { result, duration };
 }
 
@@ -239,14 +251,14 @@ export async function measureAsync<T>(
  */
 export function measure<T>(
   label: string,
-  fn: () => T
+  fn: () => T,
 ): { result: T; duration: number } {
   const start = performance.now();
   const result = fn();
   const duration = performance.now() - start;
-  
+
   debug.graph(`${label}: ${duration.toFixed(2)}ms`);
-  
+
   return { result, duration };
 }
 
@@ -255,7 +267,7 @@ export function measure<T>(
  */
 export function throttle<T extends (...args: any[]) => any>(
   fn: T,
-  delay: number
+  delay: number,
 ): (...args: Parameters<T>) => void {
   let lastCall = 0;
   return (...args: Parameters<T>) => {
@@ -272,7 +284,7 @@ export function throttle<T extends (...args: any[]) => any>(
  */
 export function debounce<T extends (...args: any[]) => any>(
   fn: T,
-  delay: number
+  delay: number,
 ): (...args: Parameters<T>) => void {
   let timeoutId: NodeJS.Timeout;
   return (...args: Parameters<T>) => {
@@ -300,7 +312,7 @@ export interface GraphSizeRecommendation {
  */
 export function getGraphSizeRecommendations(
   nodeCount: number,
-  edgeCount: number
+  edgeCount: number,
 ): GraphSizeRecommendation {
   const warnings: string[] = [];
   let recommendVirtualization = false;
@@ -311,27 +323,35 @@ export function getGraphSizeRecommendations(
   // Node count thresholds
   if (nodeCount > 5000) {
     recommendVirtualization = true;
-    warnings.push("Graph has >5k nodes. Consider implementing viewport-based rendering.");
+    warnings.push(
+      "Graph has >5k nodes. Consider implementing viewport-based rendering.",
+    );
     estimatedFps = Math.max(30, 60 - (nodeCount - 5000) / 100);
   }
 
   if (nodeCount > 10000) {
     recommendWebWorker = true;
-    warnings.push("Graph has >10k nodes. Move layout calculations to WebWorker.");
+    warnings.push(
+      "Graph has >10k nodes. Move layout calculations to WebWorker.",
+    );
     estimatedFps = Math.max(15, 30 - (nodeCount - 10000) / 200);
   }
 
   // Edge count thresholds
   if (edgeCount > 20000) {
     recommendEdgeBundling = true;
-    warnings.push("Graph has >20k edges. Consider edge bundling or aggressive filtering.");
+    warnings.push(
+      "Graph has >20k edges. Consider edge bundling or aggressive filtering.",
+    );
     estimatedFps = Math.min(estimatedFps, 30);
   }
 
   // Edge density
   const density = nodeCount > 0 ? edgeCount / nodeCount : 0;
   if (density > 15) {
-    warnings.push("Graph is very dense (avg degree > 15). Consider subgraph extraction.");
+    warnings.push(
+      "Graph is very dense (avg degree > 15). Consider subgraph extraction.",
+    );
     estimatedFps = Math.min(estimatedFps, 20);
   }
 

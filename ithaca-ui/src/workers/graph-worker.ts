@@ -1,6 +1,6 @@
 /**
  * Graph Calculation WebWorker
- * 
+ *
  * Offloads expensive graph computations to a background thread.
  * Handles layout calculations, pathfinding, clustering, and filtering.
  */
@@ -46,17 +46,17 @@ let graph: Graph | null = null;
  */
 function handleInitGraph(payload: { nodes: any[]; edges: any[] }): any {
   graph = new Graph();
-  
+
   // Add nodes
   payload.nodes.forEach((node) => {
     graph!.addNode(node.id, node.attributes);
   });
-  
+
   // Add edges
   payload.edges.forEach((edge) => {
     graph!.addEdge(edge.source, edge.target, edge.attributes);
   });
-  
+
   return {
     nodeCount: graph.order,
     edgeCount: graph.size,
@@ -71,18 +71,18 @@ function handleCalculateLayout(payload: {
   iterations: number;
 }): any {
   if (!graph) throw new Error("Graph not initialized");
-  
+
   // This would use a WebAssembly ForceAtlas2 implementation
   // For now, return current positions
   const positions: Record<string, { x: number; y: number }> = {};
-  
+
   graph.forEachNode((node, attributes) => {
     positions[node] = {
       x: attributes.x || 0,
       y: attributes.y || 0,
     };
   });
-  
+
   return { positions };
 }
 
@@ -95,14 +95,14 @@ function handleFindPath(payload: {
   mode: PathMode;
 }): any {
   if (!graph) throw new Error("Graph not initialized");
-  
+
   const path = findSemanticPath(
     graph,
     payload.startId,
     payload.endId,
-    payload.mode
+    payload.mode,
   );
-  
+
   return { path };
 }
 
@@ -111,29 +111,29 @@ function handleFindPath(payload: {
  */
 function handleApplyFilters(payload: { filters: FilterState }): any {
   if (!graph) throw new Error("Graph not initialized");
-  
+
   const visibleNodes: string[] = [];
   const hiddenNodes: string[] = [];
-  
+
   graph.forEachNode((node, attributes) => {
     const year = attributes.year || 2020;
     const citations = attributes.citations || 0;
-    
+
     const passesYearFilter =
       year >= payload.filters.yearRange[0] &&
       year <= payload.filters.yearRange[1];
-    
+
     const passesCitationFilter =
       citations >= payload.filters.citationRange[0] &&
       citations <= payload.filters.citationRange[1];
-    
+
     if (passesYearFilter && passesCitationFilter) {
       visibleNodes.push(node);
     } else {
       hiddenNodes.push(node);
     }
   });
-  
+
   return {
     visibleNodes,
     hiddenNodes,
@@ -147,15 +147,15 @@ function handleApplyFilters(payload: { filters: FilterState }): any {
  */
 function handleCalculateClusters(payload: { algorithm: string }): any {
   if (!graph) throw new Error("Graph not initialized");
-  
+
   // Would implement clustering algorithm (Louvain, etc.)
   // For now, return mock clusters
   const clusters: Record<string, number> = {};
-  
+
   graph.forEachNode((node) => {
     clusters[node] = Math.floor(Math.random() * 5);
   });
-  
+
   return { clusters };
 }
 
@@ -164,15 +164,15 @@ function handleCalculateClusters(payload: { algorithm: string }): any {
  */
 function handleGetSubgraph(payload: { nodeIds: string[]; depth: number }): any {
   if (!graph) throw new Error("Graph not initialized");
-  
+
   const subgraphNodes = new Set<string>(payload.nodeIds);
-  
+
   // BFS to find neighbors up to depth
   let currentLayer = new Set(payload.nodeIds);
-  
+
   for (let i = 0; i < payload.depth; i++) {
     const nextLayer = new Set<string>();
-    
+
     currentLayer.forEach((nodeId) => {
       if (graph!.hasNode(nodeId)) {
         graph!.forEachNeighbor(nodeId, (neighbor) => {
@@ -181,14 +181,14 @@ function handleGetSubgraph(payload: { nodeIds: string[]; depth: number }): any {
         });
       }
     });
-    
+
     currentLayer = nextLayer;
   }
-  
+
   // Extract subgraph data
   const nodes: any[] = [];
   const edges: any[] = [];
-  
+
   subgraphNodes.forEach((nodeId) => {
     if (graph!.hasNode(nodeId)) {
       nodes.push({
@@ -197,7 +197,7 @@ function handleGetSubgraph(payload: { nodeIds: string[]; depth: number }): any {
       });
     }
   });
-  
+
   graph.forEachEdge((edge, attributes, source, target) => {
     if (subgraphNodes.has(source) && subgraphNodes.has(target)) {
       edges.push({
@@ -207,7 +207,7 @@ function handleGetSubgraph(payload: { nodeIds: string[]; depth: number }): any {
       });
     }
   });
-  
+
   return { nodes, edges };
 }
 
@@ -218,10 +218,10 @@ function handleGetSubgraph(payload: { nodeIds: string[]; depth: number }): any {
 self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
   const { id, type, payload } = event.data;
   const startTime = performance.now();
-  
+
   try {
     let data: any;
-    
+
     switch (type) {
       case "INIT_GRAPH":
         data = handleInitGraph(payload);
@@ -244,16 +244,16 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
       default:
         throw new Error(`Unknown message type: ${type}`);
     }
-    
+
     const duration = performance.now() - startTime;
-    
+
     const response: WorkerResponse = {
       id,
       success: true,
       data,
       duration,
     };
-    
+
     self.postMessage(response);
   } catch (error) {
     const response: WorkerResponse = {
@@ -261,7 +261,7 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",
     };
-    
+
     self.postMessage(response);
   }
 };
