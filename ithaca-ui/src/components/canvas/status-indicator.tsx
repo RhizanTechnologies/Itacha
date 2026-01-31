@@ -34,7 +34,7 @@ export function CanvasStatusIndicator({
   const config = statusConfig[status];
 
   return (
-    <div className="absolute bottom-6 left-4 z-30 flex items-center gap-3 bg-card/80 backdrop-blur px-3 py-1.5 rounded-full border border-border shadow-lg">
+    <div className="flex items-center gap-3 bg-card/80 backdrop-blur px-3 py-1.5 rounded-full border border-border shadow-lg">
       {/* Pulsing Status Dot */}
       <div className="relative flex h-2.5 w-2.5">
         <span

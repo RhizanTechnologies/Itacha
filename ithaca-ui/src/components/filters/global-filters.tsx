@@ -111,7 +111,7 @@ export function GlobalFilters({
     return (
       <button
         onClick={onToggle}
-        className="absolute top-4 left-4 z-30 flex items-center gap-2 bg-card/95 backdrop-blur-sm border border-border rounded-lg px-3 py-2 shadow-lg hover:bg-muted transition-colors"
+        className="flex items-center gap-2 bg-card/95 backdrop-blur-sm border border-border rounded-lg px-3 py-2 shadow-lg hover:bg-muted transition-colors"
       >
         <SlidersHorizontal className="h-4 w-4" />
         <span className="text-sm font-medium">Filters</span>
@@ -125,7 +125,7 @@ export function GlobalFilters({
   }
 
   return (
-    <div className="absolute top-4 left-4 z-30 w-72 bg-card/95 backdrop-blur border border-border rounded-xl shadow-2xl overflow-hidden animate-in slide-in-from-left-2 fade-in duration-200">
+    <div className="w-72 bg-card/95 backdrop-blur border border-border rounded-xl shadow-2xl overflow-hidden animate-in slide-in-from-left-2 fade-in duration-200">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-border bg-muted/30">
         <div>
@@ -283,7 +283,7 @@ function FilterToggle({
 // Graph Legend Component
 export function GraphLegend() {
   return (
-    <div className="absolute bottom-16 left-4 z-30 bg-card/90 backdrop-blur border border-border rounded-lg p-3 shadow-lg">
+    <div className="bg-card/90 backdrop-blur border border-border rounded-lg p-3 shadow-lg">
       <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
         Legend
       </h4>

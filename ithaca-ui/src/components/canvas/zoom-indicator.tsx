@@ -56,7 +56,7 @@ export function ZoomIndicator() {
   const zone = getZoomZone();
 
   return (
-    <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 p-1.5 bg-card/90 backdrop-blur border border-border rounded-full shadow-2xl">
+    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 p-1.5 bg-card/90 backdrop-blur border border-border rounded-full shadow-2xl">
       {/* Zoom Out */}
       <button
         onClick={handleZoomOut}

@@ -30,7 +30,7 @@ export function PaperCountControl({
   isLoading = false,
 }: PaperCountControlProps) {
   return (
-    <div className="absolute top-16 left-4 z-30 flex items-center gap-2">
+    <div className="flex items-center gap-2">
       <div className="flex items-center gap-2 bg-card/90 backdrop-blur border border-border rounded-lg px-3 py-1.5 shadow-lg">
         <FileText className="h-4 w-4 text-muted-foreground" />
         <Select
