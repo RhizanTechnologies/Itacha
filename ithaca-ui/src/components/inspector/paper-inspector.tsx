@@ -2,14 +2,15 @@
 
 import { useState } from "react";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  ContainedPanel,
+  ContainedPanelHeader,
+  ContainedPanelTitle,
+  ContainedPanelContent,
+} from "@/components/ui/contained-panel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import {
   FileText,
   Network,
@@ -22,6 +23,12 @@ import {
   ArrowRightCircle,
   TrendingUp,
   TrendingDown,
+  Sparkles,
+  MessageSquare,
+  BookmarkPlus,
+  Share2,
+  Copy,
+  Check,
 } from "lucide-react";
 
 // Paper data interface
@@ -70,52 +77,70 @@ export function PaperInspector({
   onOpenChange,
   onAddToProject,
 }: PaperInspectorProps) {
+  const [copied, setCopied] = useState(false);
+  const [note, setNote] = useState("");
+  const [savedNotes, setSavedNotes] = useState<string[]>([]);
+
+  const handleCopyTitle = async () => {
+    if (!paper) return;
+    await navigator.clipboard.writeText(paper.title);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleAddNote = () => {
+    if (note.trim()) {
+      setSavedNotes([...savedNotes, note]);
+      setNote("");
+    }
+  };
+
   if (!paper) return null;
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-xl md:max-w-2xl lg:max-w-4xl overflow-y-auto bg-background/95 backdrop-blur-md border-l border-border/50 shadow-2xl p-0">
-        <div className="p-6">
-          <SheetHeader className="border-b border-border/40 pb-6 mb-6">
-            <div className="flex items-center gap-2 mb-2">
-              {paper.status === "ghost" && (
-                <Badge
-                  variant="outline"
-                  className="bg-primary/5 text-primary border-primary/20 cursor-pointer hover:bg-primary/10 transition-colors"
-                  onClick={() => onAddToProject?.(paper.id)}
-                >
-                  Suggestion (Click to Add)
-                </Badge>
-              )}
-              {paper.supports > paper.refutes * 2 && (
-                <Badge className="bg-supports/10 text-supports border-supports/20">
-                  Well-Supported
-                </Badge>
-              )}
-              <Badge variant="outline" className="font-mono text-xs">
-                {paper.id}
+    <ContainedPanel open={open} onOpenChange={onOpenChange} className="max-w-2xl">
+      <ContainedPanelContent className="p-6 overflow-y-auto">
+        {/* Header */}
+        <div className="border-b border-border/40 pb-6 mb-6">
+          <div className="flex items-center gap-2 mb-2">
+            {paper.status === "ghost" && (
+              <Badge
+                variant="outline"
+                className="bg-primary/5 text-primary border-primary/20 cursor-pointer hover:bg-primary/10 transition-colors"
+                onClick={() => onAddToProject?.(paper.id)}
+              >
+                Suggestion (Click to Add)
               </Badge>
-            </div>
-            <SheetTitle className="text-xl font-bold leading-tight flex justify-between items-start gap-4">
-              <span>{paper.title}</span>
-              {paper.status === "ghost" && onAddToProject && (
-                <Button size="sm" onClick={() => onAddToProject(paper.id)}>
-                  Add to Project
-                </Button>
-              )}
-            </SheetTitle>
-            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-              <span>{paper.authors}</span>
-              <span>•</span>
-              <span>{paper.year}</span>
-              {paper.venue && (
-                <>
-                  <span>•</span>
-                  <Badge variant="secondary">{paper.venue}</Badge>
-                </>
-              )}
-            </div>
-          </SheetHeader>
+            )}
+            {paper.supports > paper.refutes * 2 && (
+              <Badge className="bg-supports/10 text-supports border-supports/20">
+                Well-Supported
+              </Badge>
+            )}
+            <Badge variant="outline" className="font-mono text-xs">
+              {paper.id}
+            </Badge>
+          </div>
+          <h2 className="text-xl font-bold leading-tight flex justify-between items-start gap-4">
+            <span>{paper.title}</span>
+            {paper.status === "ghost" && onAddToProject && (
+              <Button size="sm" onClick={() => onAddToProject(paper.id)}>
+                Add to Project
+              </Button>
+            )}
+          </h2>
+          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground mt-2">
+            <span>{paper.authors}</span>
+            <span>•</span>
+            <span>{paper.year}</span>
+            {paper.venue && (
+              <>
+                <span>•</span>
+                <Badge variant="secondary">{paper.venue}</Badge>
+              </>
+            )}
+          </div>
+        </div>
 
           {/* Tabs */}
           <Tabs defaultValue="evidence" className="mt-6">
@@ -241,9 +266,8 @@ export function PaperInspector({
               View Source
             </Button>
           </div>
-        </div>
-      </SheetContent>
-    </Sheet>
+        </ContainedPanelContent>
+    </ContainedPanel>
   );
 }
 

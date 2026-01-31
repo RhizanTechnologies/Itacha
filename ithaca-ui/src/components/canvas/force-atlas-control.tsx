@@ -2,27 +2,63 @@
 
 import { useEffect, useState } from "react";
 import { useWorkerLayoutForceAtlas2 } from "@react-sigma/layout-forceatlas2";
-import { Play, Pause, RefreshCw } from "lucide-react";
+import { Play, Pause, Sliders } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ANIMATION } from "@/lib/constants";
 
 interface ForceAtlasControlProps {
   autoStart?: boolean;
   externalIsRunning?: boolean;
   onToggle?: () => void;
+  nodeCount?: number;
 }
 
 export function ForceAtlasControl({
   autoStart = true,
   externalIsRunning,
   onToggle,
+  nodeCount = 0,
 }: ForceAtlasControlProps) {
+  // Adaptive settings based on graph size
+  const getOptimalSettings = (count: number) => {
+    if (count > 10000) {
+      // Large graphs: prioritize performance
+      return {
+        slowDown: 15,
+        gravity: 0.5,
+        scalingRatio: 3,
+        barnesHutOptimize: true,
+        barnesHutTheta: 0.8, // Lower quality but faster
+        adjustSizes: false,
+        edgeWeightInfluence: 0,
+      };
+    } else if (count > 5000) {
+      // Medium graphs: balance quality and performance
+      return {
+        slowDown: 12,
+        gravity: 0.8,
+        scalingRatio: 2.5,
+        barnesHutOptimize: true,
+        barnesHutTheta: 0.6,
+        adjustSizes: true,
+        edgeWeightInfluence: 0.5,
+      };
+    } else {
+      // Small graphs: prioritize quality
+      return {
+        slowDown: 10,
+        gravity: 1,
+        scalingRatio: 2,
+        barnesHutOptimize: true,
+        barnesHutTheta: 0.5,
+        adjustSizes: true,
+        edgeWeightInfluence: 1,
+      };
+    }
+  };
+
   const { start, stop, kill, isRunning } = useWorkerLayoutForceAtlas2({
-    settings: {
-      slowDown: 10,
-      gravity: 1, // Weak gravity to allow expansion
-      scalingRatio: 2, // Spread out nodes
-      barnesHutOptimize: true, // For performance with large graphs
-    },
+    settings: getOptimalSettings(nodeCount),
   });
 
   const [internalisActive, setInternalIsActive] = useState(autoStart);
@@ -40,13 +76,13 @@ export function ForceAtlasControl({
     }
   }, [isActive, isRunning, start, stop]);
 
-  // Auto-start on mount, auto-stop after 2 seconds to stabilize
+  // Auto-start on mount, auto-stop after stabilization period
   useEffect(() => {
     start();
     const timeout = setTimeout(() => {
       stop();
       setInternalIsActive(false);
-    }, 2000);
+    }, ANIMATION.LAYOUT_STABILIZE);
     return () => {
       kill();
       clearTimeout(timeout);
@@ -63,19 +99,29 @@ export function ForceAtlasControl({
 
   return (
     <div className="react-sigma-control">
-      <Button
-        variant="outline"
-        size="icon"
-        onClick={toggle}
-        className="bg-background/95 backdrop-blur-sm border-border shadow-sm h-[30px] w-[30px]"
-        title={isActive ? "Stop Layout" : "Start Layout"}
-      >
-        {isActive ? (
-          <Pause className="h-4 w-4" />
-        ) : (
-          <Play className="h-4 w-4" />
+      <div className="flex flex-col gap-1">
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={toggle}
+          className="bg-background/95 backdrop-blur-sm border-border shadow-sm h-[30px] w-[30px]"
+          title={isActive ? "Stop Layout" : "Start Layout"}
+        >
+          {isActive ? (
+            <Pause className="h-4 w-4" />
+          ) : (
+            <Play className="h-4 w-4" />
+          )}
+        </Button>
+        
+        {/* Settings indicator */}
+        {nodeCount > 5000 && (
+          <div className="bg-background/95 backdrop-blur-sm border border-border rounded-md px-2 py-1 text-xs text-muted-foreground">
+            <Sliders className="h-3 w-3 inline mr-1" />
+            Optimized
+          </div>
         )}
-      </Button>
+      </div>
     </div>
   );
 }

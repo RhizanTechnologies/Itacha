@@ -10,5 +10,9 @@ const ExploreCanvas = dynamic(
 );
 
 export default function ExplorePage() {
-  return <ExploreCanvas />;
+  return (
+    <div className="h-full w-full relative">
+      <ExploreCanvas />
+    </div>
+  );
 }

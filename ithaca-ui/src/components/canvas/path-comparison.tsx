@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  ContainedPanel,
+  ContainedPanelHeader,
+  ContainedPanelTitle,
+  ContainedPanelContent,
+} from "@/components/ui/contained-panel";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -163,20 +163,21 @@ export function PathComparisonView({
   };
 
   return (
-    <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent className="w-full sm:max-w-xl md:max-w-2xl overflow-y-auto">
-        <SheetHeader className="border-b pb-4">
+    <ContainedPanel open={isOpen} onOpenChange={(open) => !open && onClose()} side="bottom" className="h-[50%]">
+      <ContainedPanelContent className="p-6 overflow-y-auto">
+        {/* Header */}
+        <div className="border-b pb-4 mb-4">
           <div className="flex items-center gap-2">
             <GitCompare className="h-5 w-5 text-primary" />
-            <SheetTitle>Path Comparison</SheetTitle>
+            <h2 className="text-lg font-semibold">Path Comparison</h2>
           </div>
           <p className="text-sm text-muted-foreground">
             Compare argument paths side by side
           </p>
-        </SheetHeader>
+        </div>
 
         {/* Mode Switcher */}
-        <div className="px-6 pt-6">
+        <div className="mb-4">
           <Tabs
             value={currentMode}
             onValueChange={(val) => onModeChange?.(val as PathMode)}
@@ -362,8 +363,8 @@ export function PathComparisonView({
             </>
           )}
         </div>
-      </SheetContent>
-    </Sheet>
+      </ContainedPanelContent>
+    </ContainedPanel>
   );
 }
 

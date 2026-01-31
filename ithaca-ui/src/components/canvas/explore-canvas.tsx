@@ -45,6 +45,7 @@ import {
   EdgeEvidencePopover,
   EdgeEvidence,
 } from "@/components/canvas/edge-evidence-popover";
+import { CanvasChatPanel, ChatToggleButton } from "@/components/canvas/canvas-chat-panel";
 import {
   PathComparisonView,
   PathMode,
@@ -1097,8 +1098,12 @@ export function ExploreCanvas() {
     }
   }, []);
 
+  const [chatOpen, setChatOpen] = useState(false);
+
   return (
-    <div className="h-full w-full relative">
+    <div className="h-full w-full flex flex-row">
+      {/* Main Canvas Area - contains all overlays */}
+      <div className="flex-1 h-full relative overflow-x-auto min-w-[320px]">
       <CanvasErrorBoundary
         onError={(error) => {
           debug.error("Canvas rendering error:", error);
@@ -1171,8 +1176,15 @@ export function ExploreCanvas() {
           <ForceAtlasControl
             externalIsRunning={physicsEnabled}
             onToggle={() => setPhysicsEnabled(!physicsEnabled)}
+            nodeCount={graphStats.nodeCount}
           />
         </ControlsContainer>
+
+        {/* Chat Toggle in a custom position */}
+        <div className="absolute top-4 right-36 z-20">
+          <ChatToggleButton isOpen={chatOpen} onClick={() => setChatOpen(!chatOpen)} />
+        </div>
+
         <NodeTooltip
           onExpand={(nodeId, direction, type) => {
             if (graphApiRef.current) {
@@ -1284,18 +1296,6 @@ export function ExploreCanvas() {
         graphTitle="Citation Network"
         nodeCount={graphStats.nodeCount}
         edgeCount={graphStats.edgeCount}
-        onExportPNG={async () => {
-          if (exportGraphRef.current) {
-            const dataUrl = await exportGraphRef.current();
-            // Helper to download
-            const link = document.createElement("a");
-            link.href = dataUrl;
-            link.download = "citation-network.png";
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-          }
-        }}
       />
 
       {/* Node Selection Tool */}
@@ -1338,6 +1338,24 @@ export function ExploreCanvas() {
         paths={calculatedPaths}
         currentMode={pathMode}
         onModeChange={calculatePathWithMode}
+      />
+      </div>
+
+      {/* Chat Panel - Split View */}
+      <CanvasChatPanel
+        isOpen={chatOpen}
+        onClose={() => setChatOpen(false)}
+        graphContext={{
+          nodeCount: graphStats.nodeCount,
+          edgeCount: graphStats.edgeCount,
+          selectedNode: selectedNodes[0] || null,
+        }}
+        onNavigateToPaper={handleSearchPaper}
+        onFocusNode={(nodeId) => {
+          if (graphApiRef.current) {
+            graphApiRef.current.focusNodes([nodeId]);
+          }
+        }}
       />
     </div>
   );

@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Share2,
   Copy,
@@ -21,7 +22,12 @@ import {
   Twitter,
   Mail,
   Loader2,
+  FileCode,
+  Table,
 } from "lucide-react";
+import { exportGraph, type ExportFormat } from "@/lib/graph-export";
+import type { Sigma } from "sigma";
+import type Graph from "graphology";
 
 interface ShareExportProps {
   open: boolean;
@@ -29,9 +35,8 @@ interface ShareExportProps {
   graphTitle?: string;
   nodeCount?: number;
   edgeCount?: number;
-  // For actual PNG export, pass the function
-  onExportPNG?: () => Promise<void>;
-  sigmaRef?: React.RefObject<any>;
+  sigma?: Sigma | null;
+  graph?: Graph | null;
 }
 
 /**
@@ -165,7 +170,8 @@ export function ShareExportDialog({
   graphTitle = "Argument Graph",
   nodeCount = 100,
   edgeCount = 250,
-  onExportPNG,
+  sigma,
+  graph,
 }: ShareExportProps) {
   const [copied, setCopied] = useState(false);
   const [exporting, setExporting] = useState<string | null>(null);
@@ -201,20 +207,20 @@ export function ShareExportDialog({
   }, [shareUrl]);
 
   const handleExport = useCallback(
-    async (format: "png" | "json") => {
+    async (format: ExportFormat) => {
+      if (!sigma || !graph) {
+        setError("Graph not initialized");
+        return;
+      }
+
       setExporting(format);
       setError(null);
 
       try {
-        if (format === "png") {
-          if (onExportPNG) {
-            await onExportPNG();
-          } else {
-            await exportAsPNG(graphTitle);
-          }
-        } else {
-          await exportAsJSON(graphTitle, nodeCount, edgeCount);
-        }
+        await exportGraph(sigma, graph, {
+          format,
+          filename: sanitizeFilename(graphTitle),
+        });
       } catch (err) {
         setError(
           `Export failed: ${err instanceof Error ? err.message : "Unknown error"}`,
@@ -224,7 +230,7 @@ export function ShareExportDialog({
         setExporting(null);
       }
     },
-    [graphTitle, nodeCount, edgeCount],
+    [graphTitle, sigma, graph],
   );
 
   const handleSocialShare = useCallback(
@@ -334,10 +340,11 @@ export function ShareExportDialog({
             <label className="text-sm font-medium">Export</label>
 
             <div className="grid grid-cols-2 gap-2">
+              {/* PNG Export */}
               <Button
                 variant="outline"
                 className="h-auto p-3 flex-col gap-1"
-                disabled={exporting === "png"}
+                disabled={exporting === "png" || !sigma || !graph}
                 onClick={() => handleExport("png")}
               >
                 {exporting === "png" ? (
@@ -349,14 +356,55 @@ export function ShareExportDialog({
                   {exporting === "png" ? "Exporting..." : "PNG Image"}
                 </span>
                 <span className="text-[10px] text-muted-foreground">
-                  Canvas screenshot
+                  High-res screenshot
                 </span>
               </Button>
 
+              {/* SVG Export */}
               <Button
                 variant="outline"
                 className="h-auto p-3 flex-col gap-1"
-                disabled={exporting === "json"}
+                disabled={exporting === "svg" || !sigma || !graph}
+                onClick={() => handleExport("svg")}
+              >
+                {exporting === "svg" ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <FileCode className="h-5 w-5" />
+                )}
+                <span className="text-xs font-medium">
+                  {exporting === "svg" ? "Exporting..." : "SVG Vector"}
+                </span>
+                <span className="text-[10px] text-muted-foreground">
+                  Scalable format
+                </span>
+              </Button>
+
+              {/* GraphML Export */}
+              <Button
+                variant="outline"
+                className="h-auto p-3 flex-col gap-1"
+                disabled={exporting === "graphml" || !graph}
+                onClick={() => handleExport("graphml")}
+              >
+                {exporting === "graphml" ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <FileCode className="h-5 w-5" />
+                )}
+                <span className="text-xs font-medium">
+                  {exporting === "graphml" ? "Exporting..." : "GraphML"}
+                </span>
+                <span className="text-[10px] text-muted-foreground">
+                  For Gephi/Cytoscape
+                </span>
+              </Button>
+
+              {/* JSON Export */}
+              <Button
+                variant="outline"
+                className="h-auto p-3 flex-col gap-1"
+                disabled={exporting === "json" || !graph}
                 onClick={() => handleExport("json")}
               >
                 {exporting === "json" ? (
@@ -369,6 +417,26 @@ export function ShareExportDialog({
                 </span>
                 <span className="text-[10px] text-muted-foreground">
                   Graph structure
+                </span>
+              </Button>
+
+              {/* CSV Export */}
+              <Button
+                variant="outline"
+                className="h-auto p-3 flex-col gap-1 col-span-2"
+                disabled={exporting === "csv" || !graph}
+                onClick={() => handleExport("csv")}
+              >
+                {exporting === "csv" ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Table className="h-5 w-5" />
+                )}
+                <span className="text-xs font-medium">
+                  {exporting === "csv" ? "Exporting..." : "CSV Tables"}
+                </span>
+                <span className="text-[10px] text-muted-foreground">
+                  Nodes & edges as spreadsheets
                 </span>
               </Button>
             </div>

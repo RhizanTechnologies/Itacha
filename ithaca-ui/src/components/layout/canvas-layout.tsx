@@ -12,6 +12,7 @@ import {
   Plus,
   ChevronLeft,
   LayoutDashboard,
+  Filter,
 } from "lucide-react";
 import { useState } from "react";
 import { UserButton } from "@/components/auth/user-button";
@@ -112,6 +113,17 @@ export default function CanvasLayout({ children }: CanvasLayoutProps) {
             >
               <FolderOpen className="h-4 w-4 shrink-0" />
               {!collapsed && "Projects"}
+            </Button>
+          </Link>
+          <Link href="/query">
+            <Button
+              variant={
+                pathname?.startsWith("/query") ? "secondary" : "ghost"
+              }
+              className={`w-full justify-start gap-2 ${collapsed ? "px-2 justify-center" : ""}`}
+            >
+              <Filter className="h-4 w-4 shrink-0" />
+              {!collapsed && "Query Builder"}
             </Button>
           </Link>
         </nav>
