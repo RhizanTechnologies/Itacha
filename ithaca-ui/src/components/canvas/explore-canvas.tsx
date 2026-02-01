@@ -46,15 +46,31 @@ import {
   EdgeEvidencePopover,
   EdgeEvidence,
 } from "@/components/canvas/edge-evidence-popover";
-import { CanvasChatPanel, ChatToggleButton } from "@/components/canvas/canvas-chat-panel";
+import {
+  CanvasChatPanel,
+  ChatToggleButton,
+} from "@/components/canvas/canvas-chat-panel";
 import {
   PathComparisonView,
   PathMode,
 } from "@/components/canvas/path-comparison";
-import { NodeSelectionTool, SelectionPanel, SelectionInstruction } from "@/components/canvas/node-selection";
+import {
+  NodeSelectionTool,
+  SelectionPanel,
+  SelectionInstruction,
+} from "@/components/canvas/node-selection";
 import { findSemanticPath } from "@/lib/graph-algorithms";
 import { debug } from "@/lib/debug";
-import { ANIMATION, GRAPH, COLORS, CONTROVERSY, LABELS, FILTERS } from "@/lib/constants";
+import { FlowingEdges } from "@/components/canvas/flowing-edges";
+import { FlowingEdgesControl } from "@/components/canvas/flowing-edges-control";
+import {
+  ANIMATION,
+  GRAPH,
+  COLORS,
+  CONTROVERSY,
+  LABELS,
+  FILTERS,
+} from "@/lib/constants";
 import type {
   GraphApiShape,
   GraphInteractionApi,
@@ -84,7 +100,11 @@ interface GraphLoaderProps {
   focusNode?: string | null;
   focusModeNode?: string | null; // New prop for focus mode
   onStatsChange: (stats: { nodeCount: number; edgeCount: number }) => void;
-  onDataRangesChange?: (ranges: { minYear: number; maxYear: number; maxCitations: number }) => void;
+  onDataRangesChange?: (ranges: {
+    minYear: number;
+    maxYear: number;
+    maxCitations: number;
+  }) => void;
   onFilterStatsChange?: (stats: {
     hiddenNodes: number;
     hiddenEdges: number;
@@ -199,7 +219,7 @@ function GraphLoader({
 
       graphRef.current = graph;
       loadGraph(graph);
-      
+
       // Register sigma and graph for export
       if (onRegisterSigmaGraph) {
         onRegisterSigmaGraph(sigma, graph);
@@ -213,7 +233,15 @@ function GraphLoader({
     }
 
     loadGraphData();
-  }, [loadGraph, onStatsChange, onDataRangesChange, paperCount, refreshTrigger, sigma, onRegisterSigmaGraph]);
+  }, [
+    loadGraph,
+    onStatsChange,
+    onDataRangesChange,
+    paperCount,
+    refreshTrigger,
+    sigma,
+    onRegisterSigmaGraph,
+  ]);
 
   // Apply filters when they change
   useEffect(() => {
@@ -371,7 +399,10 @@ function GraphLoader({
 
         sigma
           .getCamera()
-          .animate({ x: cx, y: cy, ratio: GRAPH.CAMERA_ZOOM_RATIO, angle: 0 }, { duration: ANIMATION.CAMERA_DURATION_SLOW });
+          .animate(
+            { x: cx, y: cy, ratio: GRAPH.CAMERA_ZOOM_RATIO, angle: 0 },
+            { duration: ANIMATION.CAMERA_DURATION_SLOW },
+          );
       },
 
       exportSelection: (nodeIds: string[]) => {
@@ -394,7 +425,10 @@ function GraphLoader({
           .filter(Boolean);
 
         if (data.length === 0) {
-          debug.warn("Export failed: No valid nodes found in selection", nodeIds);
+          debug.warn(
+            "Export failed: No valid nodes found in selection",
+            nodeIds,
+          );
           return;
         }
 
@@ -403,7 +437,15 @@ function GraphLoader({
           "ID,Title,Authors,Year,Citations\n" +
           data
             .map(
-              (row: { id: string; title: string; authors: string; year: number | string; citations: number } | null) =>
+              (
+                row: {
+                  id: string;
+                  title: string;
+                  authors: string;
+                  year: number | string;
+                  citations: number;
+                } | null,
+              ) =>
                 `"${row?.id}","${row?.title}","${row?.authors}",${row?.year},${row?.citations}`,
             )
             .join("\n");
@@ -420,7 +462,11 @@ function GraphLoader({
         document.body.removeChild(link);
       },
 
-      findPaths: (sourceId: string, targetId: string, mode: PathMode = "shortest") => {
+      findPaths: (
+        sourceId: string,
+        targetId: string,
+        mode: PathMode = "shortest",
+      ) => {
         return findSemanticPath(sigma.getGraph(), sourceId, targetId, mode);
       },
 
@@ -732,12 +778,15 @@ function GraphLoader({
 
     const nodePosition = sigma.getNodeDisplayData(focusNode);
     if (nodePosition) {
-      sigma
-        .getCamera()
-        .animate(
-          { x: nodePosition.x, y: nodePosition.y, ratio: GRAPH.FOCUS_ZOOM_RATIO, angle: 0 },
-          { duration: ANIMATION.CAMERA_DURATION },
-        );
+      sigma.getCamera().animate(
+        {
+          x: nodePosition.x,
+          y: nodePosition.y,
+          ratio: GRAPH.FOCUS_ZOOM_RATIO,
+          angle: 0,
+        },
+        { duration: ANIMATION.CAMERA_DURATION },
+      );
     }
   }, [focusNode, sigma]);
 
@@ -776,14 +825,23 @@ function GraphLoader({
 
       if (hoveredNode) {
         if (source === hoveredNode || target === hoveredNode) {
-          graph.setEdgeAttribute(edge, "size", (attrs.originalSize || GRAPH.DEFAULT_EDGE_SIZE) * GRAPH.HOVER_EDGE_SIZE_MULTIPLIER);
+          graph.setEdgeAttribute(
+            edge,
+            "size",
+            (attrs.originalSize || GRAPH.DEFAULT_EDGE_SIZE) *
+              GRAPH.HOVER_EDGE_SIZE_MULTIPLIER,
+          );
           graph.setEdgeAttribute(edge, "zIndex", GRAPH.HIGHLIGHT_Z_INDEX);
         } else {
           graph.setEdgeAttribute(edge, "size", GRAPH.UNHOVER_EDGE_SIZE);
           graph.setEdgeAttribute(edge, "zIndex", 0);
         }
       } else {
-        graph.setEdgeAttribute(edge, "size", attrs.originalSize || GRAPH.DEFAULT_EDGE_SIZE);
+        graph.setEdgeAttribute(
+          edge,
+          "size",
+          attrs.originalSize || GRAPH.DEFAULT_EDGE_SIZE,
+        );
         graph.setEdgeAttribute(edge, "zIndex", 0);
       }
     });
@@ -843,19 +901,31 @@ function NewArgumentToast({
 function createThemeAwareHoverDrawer(isDark: boolean) {
   return function drawNodeHover(
     context: CanvasRenderingContext2D,
-    data: { x: number; y: number; size: number; label?: string | null; color?: string; [key: string]: unknown },
-    settings: { labelSize: number; labelFont: string; labelWeight: string; labelColor: { color?: string; attribute?: string } }
+    data: {
+      x: number;
+      y: number;
+      size: number;
+      label?: string | null;
+      color?: string;
+      [key: string]: unknown;
+    },
+    settings: {
+      labelSize: number;
+      labelFont: string;
+      labelWeight: string;
+      labelColor: { color?: string; attribute?: string };
+    },
   ) {
     const size = settings.labelSize;
     const font = settings.labelFont;
     const weight = settings.labelWeight;
-    
+
     context.font = `${weight} ${size}px ${font}`;
 
     // Theme-aware colors
     const bgColor = isDark ? "#1f2937" : "#ffffff";
     const shadowColor = isDark ? "rgba(0,0,0,0.5)" : "#000";
-    
+
     // Draw the label background with theme-aware colors
     context.fillStyle = bgColor;
     context.shadowOffsetX = 0;
@@ -872,7 +942,9 @@ function createThemeAwareHoverDrawer(isDark: boolean) {
       const radius = Math.max(data.size, size / 2) + PADDING;
 
       const angleRadian = Math.asin(boxHeight / 2 / radius);
-      const xDeltaCoord = Math.sqrt(Math.abs(Math.pow(radius, 2) - Math.pow(boxHeight / 2, 2)));
+      const xDeltaCoord = Math.sqrt(
+        Math.abs(Math.pow(radius, 2) - Math.pow(boxHeight / 2, 2)),
+      );
 
       context.beginPath();
       context.moveTo(data.x + xDeltaCoord, data.y + boxHeight / 2);
@@ -895,7 +967,11 @@ function createThemeAwareHoverDrawer(isDark: boolean) {
     context.shadowBlur = 0;
 
     // Draw the label with Sigma's default label drawer
-    drawDiscNodeLabel(context, data as Parameters<typeof drawDiscNodeLabel>[1], settings as Parameters<typeof drawDiscNodeLabel>[2]);
+    drawDiscNodeLabel(
+      context,
+      data as Parameters<typeof drawDiscNodeLabel>[1],
+      settings as Parameters<typeof drawDiscNodeLabel>[2],
+    );
   };
 }
 
@@ -965,7 +1041,7 @@ export function ExploreCanvas() {
   // Reset function ref
   const resetViewRef = useRef<(() => void) | null>(null);
   const graphApiRef = useRef<CanvasInteractionApi | null>(null);
-  
+
   // Sigma and Graph refs for export
   const sigmaRef = useRef<any>(null);
   const graphInstanceRef = useRef<Graph | null>(null);
@@ -973,9 +1049,15 @@ export function ExploreCanvas() {
   // Physics State
   const [physicsEnabled, setPhysicsEnabled] = useState(true); // Default to on
 
+  // Flowing Edges Animation State
+  const [flowingEdgesEnabled, setFlowingEdgesEnabled] = useState(true); // Default to on
+
   // Show demo toast after a delay
   useEffect(() => {
-    const timer = setTimeout(() => setShowToast(true), ANIMATION.TOAST_SHOW_DELAY);
+    const timer = setTimeout(
+      () => setShowToast(true),
+      ANIMATION.TOAST_SHOW_DELAY,
+    );
     return () => clearTimeout(timer);
   }, []);
 
@@ -1180,264 +1262,278 @@ export function ExploreCanvas() {
   const [chatOpen, setChatOpen] = useState(false);
 
   // Memoize the theme-aware hover drawer to avoid recreating on every render
-  const themeAwareHoverDrawer = useMemo(() => createThemeAwareHoverDrawer(isDark), [isDark]);
+  const themeAwareHoverDrawer = useMemo(
+    () => createThemeAwareHoverDrawer(isDark),
+    [isDark],
+  );
 
   return (
     <div className="h-full w-full flex flex-row">
       {/* Main Canvas Area - contains all overlays */}
       <div className="flex-1 h-full relative overflow-x-auto min-w-[320px]">
-      <CanvasErrorBoundary
-        onError={(error) => {
-          debug.error("Canvas rendering error:", error);
-        }}
-      >
-        <SigmaContainer
-          style={{
-            height: "100%",
-            width: "100%",
-            background: isDark ? "#0B0C10" : "#F6F7F8",
+        <CanvasErrorBoundary
+          onError={(error) => {
+            debug.error("Canvas rendering error:", error);
           }}
-          settings={{
-            allowInvalidContainer: true,
-            renderLabels: true,
-            renderEdgeLabels: false,
-            labelRenderedSizeThreshold: LABELS.SIZE_THRESHOLD,
-            labelDensity: LABELS.DENSITY,
-            labelGridCellSize: LABELS.GRID_CELL_SIZE,
-            labelColor: { color: isDark ? "#fff" : "#000" },
-            zIndex: true,
-            defaultEdgeType: "arrow",
-            enableEdgeEvents: true,
-            labelFont: LABELS.FONT,
-            labelWeight: LABELS.WEIGHT,
-            // Theme-aware hover styling for dark mode readability
-            defaultDrawNodeHover: themeAwareHoverDrawer,
-          } as const}
         >
-        <GraphLoader
-          onNodeClick={handleNodeClick}
-          onEdgeClick={handleEdgeClick}
-          onStatsChange={handleStatsChange}
-          onDataRangesChange={handleDataRangesChange}
-          onFilterStatsChange={setFilterStats}
-          onRegisterInteractionApi={useCallback((api: CanvasInteractionApi) => {
-            graphApiRef.current = api;
-          }, [])}
-          onRegisterSigmaGraph={useCallback((sigma: any, graph: Graph) => {
-            sigmaRef.current = sigma;
-            graphInstanceRef.current = graph;
-          }, [])}
-          filters={filters}
-          paperCount={paperCount}
-          refreshTrigger={refreshTrigger}
-          selectionMode={selectionMode}
-          focusNode={searchTarget}
-          focusModeNode={focusModeNode}
-          solidNodes={solidNodes}
-          onAddToProject={useCallback((nodeId: string) => {
-            setSolidNodes((prev) => {
-              const next = new Set(prev);
-              next.add(nodeId);
-              return next;
-            });
-          }, [])}
-          onRegisterExport={useCallback((fn: () => Promise<string>) => {
-            exportGraphRef.current = fn;
-          }, [])}
-          onRegisterReset={useCallback((fn: () => void) => {
-            resetViewRef.current = fn;
-          }, [])}
-          onNodeSelect={useCallback((nodeId: string, label: string) => {
-            setSelectedNodes((prev) =>
-              prev.includes(nodeId)
-                ? prev.filter((id) => id !== nodeId)
-                : [...prev, nodeId],
-            );
-            setNodeLabels((prev) => ({ ...prev, [nodeId]: label }));
-          }, [])}
-        />
-        
-        {/* Sigma-managed internal components (need sigma context) */}
-        <NodeDragControl />
-        <NodeTooltip
-          onExpand={(nodeId, direction, type) => {
-            if (graphApiRef.current) {
-              graphApiRef.current.expandNode(nodeId, direction);
-            }
-          }}
-          onFocus={handleEnterFocusMode}
-        />
-        <EdgeLabels />
-        
-        {/* Canvas Controls - inside SigmaContainer for sigma context */}
-        <ControlsContainer position={"top-right"}>
-          <ZoomControl />
-          <FullScreenControl />
-          <ForceAtlasControl
-            externalIsRunning={physicsEnabled}
-            onToggle={() => setPhysicsEnabled(!physicsEnabled)}
-            nodeCount={graphStats.nodeCount}
-          />
-        </ControlsContainer>
-        
-        {/* Zoom indicator - needs sigma context */}
-        <ZoomIndicator />
-      </SigmaContainer>
-      </CanvasErrorBoundary>
-
-      {/* ========== STRUCTURED OVERLAY SYSTEM ========== */}
-      <div className="absolute inset-0 pointer-events-none z-10">
-        
-        {/* TOP-LEFT ZONE: Filters & Paper Count */}
-        <div className="absolute top-4 left-4 flex flex-col gap-3 pointer-events-auto">
-          <GlobalFilters
-            filters={filters}
-            onFiltersChange={setFilters}
-            hiddenEdgeCount={filterStats.hiddenEdges}
-            open={filtersOpen}
-            onToggle={() => setFiltersOpen(!filtersOpen)}
-            maxCitations={dataRanges.maxCitations}
-            minYear={dataRanges.minYear}
-            maxYear={dataRanges.maxYear}
-          />
-          <PaperCountControl
-            count={paperCount}
-            onChange={(count) => {
-              setPaperCount(count);
-              setRefreshTrigger((t) => t + 1);
+          <SigmaContainer
+            style={{
+              height: "100%",
+              width: "100%",
+              background: isDark ? "#0B0C10" : "#F6F7F8",
             }}
-            onRefresh={() => setRefreshTrigger((t) => t + 1)}
-            isLoading={isLoading}
-          />
-        </div>
-
-        {/* TOP-RIGHT ZONE: AI Chat & Node Selection (alongside Sigma's ControlsContainer) */}
-        <div className="absolute top-4 right-24 flex flex-row items-start gap-3 pointer-events-auto">
-          <ChatToggleButton isOpen={chatOpen} onClick={() => setChatOpen(!chatOpen)} />
-          <NodeSelectionTool
-            isActive={selectionMode}
-            onToggle={() => setSelectionMode(!selectionMode)}
-            selectedNodes={selectedNodes}
-            nodeLabels={nodeLabels}
-          />
-        </div>
-
-        {/* TOP-CENTER ZONE: Focus Mode Banner */}
-        {focusModeNode && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 pointer-events-auto animate-in slide-in-from-top-2 fade-in duration-300">
-            <div className="bg-primary/90 backdrop-blur-md text-primary-foreground px-4 py-2 rounded-full shadow-lg flex items-center gap-3 border border-primary-foreground/20">
-              <div className="flex flex-col items-center leading-none">
-                <span className="text-[10px] font-medium opacity-80 uppercase tracking-widest">
-                  Focus Mode
-                </span>
-              </div>
-              <div className="h-4 w-px bg-primary-foreground/30" />
-              <button
-                onClick={() => setFocusModeNode(null)}
-                className="text-xs font-bold hover:bg-white/20 px-2 py-1 rounded transition-colors"
-              >
-                Exit Focus
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* BOTTOM-LEFT ZONE: Legend & Status */}
-        <div className="absolute bottom-4 left-4 flex flex-col gap-3 pointer-events-auto">
-          <GraphLegend />
-          <CanvasStatusIndicator
-            status="live"
-            nodeCount={graphStats.nodeCount}
-            edgeCount={graphStats.edgeCount}
-          />
-        </div>
-
-        {/* BOTTOM-CENTER ZONE: Selection Panel, Toast (above zoom indicator) */}
-        <div className="absolute bottom-20 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 pointer-events-auto">
-          {/* Selection Panel (appears when nodes are selected) */}
-          <SelectionPanel
-            selectedNodes={selectedNodes}
-            nodeLabels={nodeLabels}
-            onClearSelection={() => setSelectedNodes([])}
-            onRemoveNode={(nodeId: string) =>
-              setSelectedNodes((prev) => prev.filter((id) => id !== nodeId))
+            settings={
+              {
+                allowInvalidContainer: true,
+                renderLabels: true,
+                renderEdgeLabels: false,
+                labelRenderedSizeThreshold: LABELS.SIZE_THRESHOLD,
+                labelDensity: LABELS.DENSITY,
+                labelGridCellSize: LABELS.GRID_CELL_SIZE,
+                labelColor: { color: isDark ? "#fff" : "#000" },
+                zIndex: true,
+                defaultEdgeType: "arrow",
+                enableEdgeEvents: true,
+                labelFont: LABELS.FONT,
+                labelWeight: LABELS.WEIGHT,
+                // Theme-aware hover styling for dark mode readability
+                defaultDrawNodeHover: themeAwareHoverDrawer,
+              } as const
             }
-            onFocusSelection={handleFocusSelection}
-            onCompare={() => calculatePathWithMode(pathMode)}
-            onExport={() => handleExportSelection()}
-          />
-          {/* Selection Instruction (appears when selection mode active but no selection) */}
-          <SelectionInstruction
-            isActive={selectionMode}
-            hasSelection={selectedNodes.length > 0}
-          />
-          <NewArgumentToast
-            show={showToast}
-            message="Photosynthetic Efficiency correlation detected"
-            onClose={() => setShowToast(false)}
-          />
+          >
+            <GraphLoader
+              onNodeClick={handleNodeClick}
+              onEdgeClick={handleEdgeClick}
+              onStatsChange={handleStatsChange}
+              onDataRangesChange={handleDataRangesChange}
+              onFilterStatsChange={setFilterStats}
+              onRegisterInteractionApi={useCallback(
+                (api: CanvasInteractionApi) => {
+                  graphApiRef.current = api;
+                },
+                [],
+              )}
+              onRegisterSigmaGraph={useCallback((sigma: any, graph: Graph) => {
+                sigmaRef.current = sigma;
+                graphInstanceRef.current = graph;
+              }, [])}
+              filters={filters}
+              paperCount={paperCount}
+              refreshTrigger={refreshTrigger}
+              selectionMode={selectionMode}
+              focusNode={searchTarget}
+              focusModeNode={focusModeNode}
+              solidNodes={solidNodes}
+              onAddToProject={useCallback((nodeId: string) => {
+                setSolidNodes((prev) => {
+                  const next = new Set(prev);
+                  next.add(nodeId);
+                  return next;
+                });
+              }, [])}
+              onRegisterExport={useCallback((fn: () => Promise<string>) => {
+                exportGraphRef.current = fn;
+              }, [])}
+              onRegisterReset={useCallback((fn: () => void) => {
+                resetViewRef.current = fn;
+              }, [])}
+              onNodeSelect={useCallback((nodeId: string, label: string) => {
+                setSelectedNodes((prev) =>
+                  prev.includes(nodeId)
+                    ? prev.filter((id) => id !== nodeId)
+                    : [...prev, nodeId],
+                );
+                setNodeLabels((prev) => ({ ...prev, [nodeId]: label }));
+              }, [])}
+            />
+
+            {/* Sigma-managed internal components (need sigma context) */}
+            <NodeDragControl />
+            <NodeTooltip
+              onExpand={(nodeId, direction, type) => {
+                if (graphApiRef.current) {
+                  graphApiRef.current.expandNode(nodeId, direction);
+                }
+              }}
+              onFocus={handleEnterFocusMode}
+            />
+            <EdgeLabels />
+            <FlowingEdges enabled={flowingEdgesEnabled} />
+
+            {/* Canvas Controls - inside SigmaContainer for sigma context */}
+            <ControlsContainer position={"top-right"}>
+              <ZoomControl />
+              <FullScreenControl />
+              <ForceAtlasControl
+                externalIsRunning={physicsEnabled}
+                onToggle={() => setPhysicsEnabled(!physicsEnabled)}
+                nodeCount={graphStats.nodeCount}
+              />
+              <FlowingEdgesControl
+                enabled={flowingEdgesEnabled}
+                onToggle={() => setFlowingEdgesEnabled(!flowingEdgesEnabled)}
+              />
+            </ControlsContainer>
+
+            {/* Zoom indicator - needs sigma context */}
+            <ZoomIndicator />
+          </SigmaContainer>
+        </CanvasErrorBoundary>
+
+        {/* ========== STRUCTURED OVERLAY SYSTEM ========== */}
+        <div className="absolute inset-0 pointer-events-none z-10">
+          {/* TOP-LEFT ZONE: Filters & Paper Count */}
+          <div className="absolute top-4 left-4 flex flex-col gap-3 pointer-events-auto">
+            <GlobalFilters
+              filters={filters}
+              onFiltersChange={setFilters}
+              hiddenEdgeCount={filterStats.hiddenEdges}
+              open={filtersOpen}
+              onToggle={() => setFiltersOpen(!filtersOpen)}
+              maxCitations={dataRanges.maxCitations}
+              minYear={dataRanges.minYear}
+              maxYear={dataRanges.maxYear}
+            />
+            <PaperCountControl
+              count={paperCount}
+              onChange={(count) => {
+                setPaperCount(count);
+                setRefreshTrigger((t) => t + 1);
+              }}
+              onRefresh={() => setRefreshTrigger((t) => t + 1)}
+              isLoading={isLoading}
+            />
+          </div>
+
+          {/* TOP-RIGHT ZONE: AI Chat & Node Selection (alongside Sigma's ControlsContainer) */}
+          <div className="absolute top-4 right-24 flex flex-row items-start gap-3 pointer-events-auto">
+            <ChatToggleButton
+              isOpen={chatOpen}
+              onClick={() => setChatOpen(!chatOpen)}
+            />
+            <NodeSelectionTool
+              isActive={selectionMode}
+              onToggle={() => setSelectionMode(!selectionMode)}
+              selectedNodes={selectedNodes}
+              nodeLabels={nodeLabels}
+            />
+          </div>
+
+          {/* TOP-CENTER ZONE: Focus Mode Banner */}
+          {focusModeNode && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 pointer-events-auto animate-in slide-in-from-top-2 fade-in duration-300">
+              <div className="bg-primary/90 backdrop-blur-md text-primary-foreground px-4 py-2 rounded-full shadow-lg flex items-center gap-3 border border-primary-foreground/20">
+                <div className="flex flex-col items-center leading-none">
+                  <span className="text-[10px] font-medium opacity-80 uppercase tracking-widest">
+                    Focus Mode
+                  </span>
+                </div>
+                <div className="h-4 w-px bg-primary-foreground/30" />
+                <button
+                  onClick={() => setFocusModeNode(null)}
+                  className="text-xs font-bold hover:bg-white/20 px-2 py-1 rounded transition-colors"
+                >
+                  Exit Focus
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* BOTTOM-LEFT ZONE: Legend & Status */}
+          <div className="absolute bottom-4 left-4 flex flex-col gap-3 pointer-events-auto">
+            <GraphLegend />
+            <CanvasStatusIndicator
+              status="live"
+              nodeCount={graphStats.nodeCount}
+              edgeCount={graphStats.edgeCount}
+            />
+          </div>
+
+          {/* BOTTOM-CENTER ZONE: Selection Panel, Toast (above zoom indicator) */}
+          <div className="absolute bottom-20 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 pointer-events-auto">
+            {/* Selection Panel (appears when nodes are selected) */}
+            <SelectionPanel
+              selectedNodes={selectedNodes}
+              nodeLabels={nodeLabels}
+              onClearSelection={() => setSelectedNodes([])}
+              onRemoveNode={(nodeId: string) =>
+                setSelectedNodes((prev) => prev.filter((id) => id !== nodeId))
+              }
+              onFocusSelection={handleFocusSelection}
+              onCompare={() => calculatePathWithMode(pathMode)}
+              onExport={() => handleExportSelection()}
+            />
+            {/* Selection Instruction (appears when selection mode active but no selection) */}
+            <SelectionInstruction
+              isActive={selectionMode}
+              hasSelection={selectedNodes.length > 0}
+            />
+            <NewArgumentToast
+              show={showToast}
+              message="Photosynthetic Efficiency correlation detected"
+              onClose={() => setShowToast(false)}
+            />
+          </div>
+
+          {/* BOTTOM-RIGHT ZONE: Share Button */}
+          <div className="absolute bottom-4 right-4 pointer-events-auto">
+            <ShareButton onClick={() => setShareOpen(true)} />
+          </div>
         </div>
+        {/* ========== END OVERLAY SYSTEM ========== */}
 
-        {/* BOTTOM-RIGHT ZONE: Share Button */}
-        <div className="absolute bottom-4 right-4 pointer-events-auto">
-          <ShareButton onClick={() => setShareOpen(true)} />
-        </div>
+        {/* Loading Overlay (full screen) */}
+        <CanvasLoadingOverlay
+          isLoading={isLoading}
+          message="Loading graph data..."
+        />
 
-      </div>
-      {/* ========== END OVERLAY SYSTEM ========== */}
+        {/* Contextual Overlays & Modals */}
+        <PaperInspector
+          paper={selectedPaper}
+          evidence={paperEvidence}
+          open={inspectorOpen}
+          onOpenChange={setInspectorOpen}
+        />
 
-      {/* Loading Overlay (full screen) */}
-      <CanvasLoadingOverlay 
-        isLoading={isLoading} 
-        message="Loading graph data..."
-      />
+        <CommandBar
+          onSelectPaper={handleSearchPaper}
+          onAction={handleCommandAction}
+          hideTrigger={true}
+        />
 
-      {/* Contextual Overlays & Modals */}
-      <PaperInspector
-        paper={selectedPaper}
-        evidence={paperEvidence}
-        open={inspectorOpen}
-        onOpenChange={setInspectorOpen}
-      />
+        <ShareExportDialog
+          open={shareOpen}
+          onOpenChange={setShareOpen}
+          graphTitle="Citation Network"
+          nodeCount={graphStats.nodeCount}
+          edgeCount={graphStats.edgeCount}
+          sigma={sigmaRef.current}
+          graph={graphInstanceRef.current}
+        />
 
-      <CommandBar
-        onSelectPaper={handleSearchPaper}
-        onAction={handleCommandAction}
-        hideTrigger={true}
-      />
+        <EdgeEvidencePopover
+          evidence={edgeEvidence}
+          position={edgeEvidencePos}
+          onClose={() => {
+            setEdgeEvidence(null);
+            setEdgeEvidencePos(null);
+          }}
+          onViewPaper={(paperId) => {
+            handleSearchPaper(paperId);
+          }}
+          onDispute={(edgeId) => {
+            debug.log("Dispute edge requested:", edgeId);
+          }}
+        />
 
-      <ShareExportDialog
-        open={shareOpen}
-        onOpenChange={setShareOpen}
-        graphTitle="Citation Network"
-        nodeCount={graphStats.nodeCount}
-        edgeCount={graphStats.edgeCount}
-        sigma={sigmaRef.current}
-        graph={graphInstanceRef.current}
-      />
-
-      <EdgeEvidencePopover
-        evidence={edgeEvidence}
-        position={edgeEvidencePos}
-        onClose={() => {
-          setEdgeEvidence(null);
-          setEdgeEvidencePos(null);
-        }}
-        onViewPaper={(paperId) => {
-          handleSearchPaper(paperId);
-        }}
-        onDispute={(edgeId) => {
-          debug.log("Dispute edge requested:", edgeId);
-        }}
-      />
-
-      <PathComparisonView
-        isOpen={pathCompareOpen}
-        onClose={() => setPathCompareOpen(false)}
-        paths={calculatedPaths}
-        currentMode={pathMode}
-        onModeChange={calculatePathWithMode}
-      />
+        <PathComparisonView
+          isOpen={pathCompareOpen}
+          onClose={() => setPathCompareOpen(false)}
+          paths={calculatedPaths}
+          currentMode={pathMode}
+          onModeChange={calculatePathWithMode}
+        />
       </div>
 
       {/* Chat Panel - Split View */}
