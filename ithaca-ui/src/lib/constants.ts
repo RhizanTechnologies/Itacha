@@ -55,6 +55,21 @@ export const GRAPH = {
   DEFAULT_NODE_SIZE: 5,
   /** Default edge size */
   DEFAULT_EDGE_SIZE: 1,
+  /** Edge flow animation settings */
+  EDGE_FLOW: {
+    /** Normal flow animation duration (ms) - subtle slow flow */
+    SPEED_NORMAL: 10000,
+    /** Flow animation duration when edge is hovered (ms) - faster for visibility */
+    SPEED_HOVER: 4000,
+    /** Flow animation for contradict edges (ms) - pulsing effect */
+    SPEED_CONTRADICT: 6000,
+    /** Dash pattern size for flowing animation */
+    DASH_LENGTH: 8,
+    /** Gap between dashes for flowing animation */
+    DASH_GAP: 8,
+    /** Opacity of flowing dashes (subtle) */
+    DASH_OPACITY: 0.6,
+  },
 } as const;
 
 // =============================================================================

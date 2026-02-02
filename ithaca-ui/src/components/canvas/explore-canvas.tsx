@@ -37,6 +37,7 @@ import {
   ShareButton,
 } from "@/components/share/share-export";
 import * as graphApiModule from "@/lib/api/graph-api";
+import { useEdgeFlowAnimation } from "@/hooks/useEdgeFlowAnimation";
 import { Lightbulb, X } from "lucide-react";
 import { NodeDragControl } from "@/components/canvas/node-drag-control";
 import { PaperCountControl } from "@/components/canvas/paper-count-control";
@@ -142,6 +143,7 @@ function GraphLoader({
   const sigma = useSigma();
   const registerEvents = useRegisterEvents();
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
+  const [hoveredEdges, setHoveredEdges] = useState<Set<string>>(new Set());
   const graphRef = useRef<Graph | null>(null);
 
   // Load graph data from API
@@ -793,6 +795,9 @@ function GraphLoader({
     const graph = sigma.getGraph();
     if (!graph || graph.order === 0) return;
 
+    // Track which edges are connected to hovered node for flow animation
+    const connectedEdges = new Set<string>();
+
     graph.forEachNode((node, attrs) => {
       if (attrs.hidden) return; // Skip hidden nodes
 
@@ -810,7 +815,6 @@ function GraphLoader({
             "size",
             (attrs.originalSize || attrs.size) * GRAPH.UNHOVER_SIZE_MULTIPLIER,
           );
-          graph.setNodeAttribute(node, "zIndex", 0);
         }
       } else {
         graph.setNodeAttribute(node, "size", attrs.originalSize || attrs.size);
@@ -823,6 +827,9 @@ function GraphLoader({
 
       if (hoveredNode) {
         if (source === hoveredNode || target === hoveredNode) {
+          // Add to connected edges for flow animation
+          connectedEdges.add(edge);
+          
           graph.setEdgeAttribute(
             edge,
             "size",
@@ -844,8 +851,17 @@ function GraphLoader({
       }
     });
 
+    // Update hovered edges state for flow animation
+    setHoveredEdges(connectedEdges);
+
     sigma.refresh();
   }, [hoveredNode, sigma]);
+
+  // Enable flowing animation on hovered edges
+  useEdgeFlowAnimation({
+    enabled: true,
+    hoveredEdges,
+  });
 
   return null;
 }
