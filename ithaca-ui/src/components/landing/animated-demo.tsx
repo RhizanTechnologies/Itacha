@@ -54,16 +54,116 @@ const SCENARIOS: ResearchScenario[] = [
       "Digital media impact on children",
     ],
     nodes: [
-      { id: 1, x: 50, y: 45, label: "Przybylski 2019", author: "Przybylski, A.K.", year: 2019, journal: "Nature Human Behaviour", size: 32, ring: 0 },
-      { id: 2, x: 25, y: 28, label: "Twenge 2018", author: "Twenge, J.M.", year: 2018, journal: "Clinical Psych Science", size: 24, ring: 1 },
-      { id: 3, x: 75, y: 25, label: "Orben 2019", author: "Orben, A.", year: 2019, journal: "Psychological Science", size: 26, ring: 1 },
-      { id: 4, x: 18, y: 55, label: "Madigan 2019", author: "Madigan, S.", year: 2019, journal: "JAMA Pediatrics", size: 22, ring: 1 },
-      { id: 5, x: 82, y: 52, label: "Stiglic 2019", author: "Stiglic, N.", year: 2019, journal: "BMJ Open", size: 20, ring: 1 },
-      { id: 6, x: 30, y: 72, label: "Radesky 2020", author: "Radesky, J.S.", year: 2020, journal: "Pediatrics", size: 18, ring: 2 },
-      { id: 7, x: 70, y: 75, label: "Anderson 2017", author: "Anderson, D.R.", year: 2017, journal: "Pediatrics", size: 20, ring: 2 },
-      { id: 8, x: 50, y: 18, label: "AAP 2016", author: "AAP Council", year: 2016, journal: "Pediatrics", size: 28, ring: 1 },
-      { id: 9, x: 12, y: 38, label: "Lillard 2015", author: "Lillard, A.S.", year: 2015, journal: "Dev Psychology", size: 16, ring: 2 },
-      { id: 10, x: 88, y: 38, label: "Hutton 2020", author: "Hutton, J.S.", year: 2020, journal: "JAMA Pediatrics", size: 18, ring: 2 },
+      {
+        id: 1,
+        x: 50,
+        y: 45,
+        label: "Przybylski 2019",
+        author: "Przybylski, A.K.",
+        year: 2019,
+        journal: "Nature Human Behaviour",
+        size: 32,
+        ring: 0,
+      },
+      {
+        id: 2,
+        x: 25,
+        y: 28,
+        label: "Twenge 2018",
+        author: "Twenge, J.M.",
+        year: 2018,
+        journal: "Clinical Psych Science",
+        size: 24,
+        ring: 1,
+      },
+      {
+        id: 3,
+        x: 75,
+        y: 25,
+        label: "Orben 2019",
+        author: "Orben, A.",
+        year: 2019,
+        journal: "Psychological Science",
+        size: 26,
+        ring: 1,
+      },
+      {
+        id: 4,
+        x: 18,
+        y: 55,
+        label: "Madigan 2019",
+        author: "Madigan, S.",
+        year: 2019,
+        journal: "JAMA Pediatrics",
+        size: 22,
+        ring: 1,
+      },
+      {
+        id: 5,
+        x: 82,
+        y: 52,
+        label: "Stiglic 2019",
+        author: "Stiglic, N.",
+        year: 2019,
+        journal: "BMJ Open",
+        size: 20,
+        ring: 1,
+      },
+      {
+        id: 6,
+        x: 30,
+        y: 72,
+        label: "Radesky 2020",
+        author: "Radesky, J.S.",
+        year: 2020,
+        journal: "Pediatrics",
+        size: 18,
+        ring: 2,
+      },
+      {
+        id: 7,
+        x: 70,
+        y: 75,
+        label: "Anderson 2017",
+        author: "Anderson, D.R.",
+        year: 2017,
+        journal: "Pediatrics",
+        size: 20,
+        ring: 2,
+      },
+      {
+        id: 8,
+        x: 50,
+        y: 18,
+        label: "AAP 2016",
+        author: "AAP Council",
+        year: 2016,
+        journal: "Pediatrics",
+        size: 28,
+        ring: 1,
+      },
+      {
+        id: 9,
+        x: 12,
+        y: 38,
+        label: "Lillard 2015",
+        author: "Lillard, A.S.",
+        year: 2015,
+        journal: "Dev Psychology",
+        size: 16,
+        ring: 2,
+      },
+      {
+        id: 10,
+        x: 88,
+        y: 38,
+        label: "Hutton 2020",
+        author: "Hutton, J.S.",
+        year: 2020,
+        journal: "JAMA Pediatrics",
+        size: 18,
+        ring: 2,
+      },
     ],
     edges: [
       { from: 1, to: 2, type: "refutes" },
@@ -79,11 +179,14 @@ const SCENARIOS: ResearchScenario[] = [
       { from: 6, to: 7, type: "extends" },
     ],
     centralPaper: {
-      title: "The association between adolescent well-being and digital technology use",
-      abstract: "Using large-scale representative data, we demonstrate that screen time has minimal effects on adolescent well-being, challenging previous assumptions about digital technology harm...",
+      title:
+        "The association between adolescent well-being and digital technology use",
+      abstract:
+        "Using large-scale representative data, we demonstrate that screen time has minimal effects on adolescent well-being, challenging previous assumptions about digital technology harm...",
       citations: { supports: 23, refutes: 8, extends: 15 },
     },
-    aiInsight: "Interesting debate here! Przybylski 2019 directly challenges Twenge's findings, showing screen time effects are minimal. The path reveals a methodological dispute about data analysis approaches.",
+    aiInsight:
+      "Interesting debate here! Przybylski 2019 directly challenges Twenge's findings, showing screen time effects are minimal. The path reveals a methodological dispute about data analysis approaches.",
     pathDescription: "Citation path: methodological debate",
   },
   {
@@ -94,14 +197,94 @@ const SCENARIOS: ResearchScenario[] = [
       "Ocean acidification effects",
     ],
     nodes: [
-      { id: 1, x: 50, y: 45, label: "Hughes 2017", author: "Hughes, T.P.", year: 2017, journal: "Nature", size: 32, ring: 0 },
-      { id: 2, x: 28, y: 25, label: "Hoegh-Guldberg 2007", author: "Hoegh-Guldberg, O.", year: 2007, journal: "Science", size: 28, ring: 1 },
-      { id: 3, x: 72, y: 28, label: "Baker 2008", author: "Baker, A.C.", year: 2008, journal: "Nature", size: 22, ring: 1 },
-      { id: 4, x: 20, y: 55, label: "Pandolfi 2011", author: "Pandolfi, J.M.", year: 2011, journal: "Science", size: 24, ring: 1 },
-      { id: 5, x: 80, y: 55, label: "Anthony 2008", author: "Anthony, K.R.N.", year: 2008, journal: "PNAS", size: 20, ring: 1 },
-      { id: 6, x: 35, y: 75, label: "Fabricius 2011", author: "Fabricius, K.E.", year: 2011, journal: "Nature Clim.", size: 18, ring: 2 },
-      { id: 7, x: 65, y: 78, label: "Veron 2009", author: "Veron, J.E.N.", year: 2009, journal: "Mar. Poll. Bull.", size: 16, ring: 2 },
-      { id: 8, x: 50, y: 15, label: "IPCC 2019", author: "IPCC", year: 2019, journal: "Special Report", size: 26, ring: 1 },
+      {
+        id: 1,
+        x: 50,
+        y: 45,
+        label: "Hughes 2017",
+        author: "Hughes, T.P.",
+        year: 2017,
+        journal: "Nature",
+        size: 32,
+        ring: 0,
+      },
+      {
+        id: 2,
+        x: 28,
+        y: 25,
+        label: "Hoegh-Guldberg 2007",
+        author: "Hoegh-Guldberg, O.",
+        year: 2007,
+        journal: "Science",
+        size: 28,
+        ring: 1,
+      },
+      {
+        id: 3,
+        x: 72,
+        y: 28,
+        label: "Baker 2008",
+        author: "Baker, A.C.",
+        year: 2008,
+        journal: "Nature",
+        size: 22,
+        ring: 1,
+      },
+      {
+        id: 4,
+        x: 20,
+        y: 55,
+        label: "Pandolfi 2011",
+        author: "Pandolfi, J.M.",
+        year: 2011,
+        journal: "Science",
+        size: 24,
+        ring: 1,
+      },
+      {
+        id: 5,
+        x: 80,
+        y: 55,
+        label: "Anthony 2008",
+        author: "Anthony, K.R.N.",
+        year: 2008,
+        journal: "PNAS",
+        size: 20,
+        ring: 1,
+      },
+      {
+        id: 6,
+        x: 35,
+        y: 75,
+        label: "Fabricius 2011",
+        author: "Fabricius, K.E.",
+        year: 2011,
+        journal: "Nature Clim.",
+        size: 18,
+        ring: 2,
+      },
+      {
+        id: 7,
+        x: 65,
+        y: 78,
+        label: "Veron 2009",
+        author: "Veron, J.E.N.",
+        year: 2009,
+        journal: "Mar. Poll. Bull.",
+        size: 16,
+        ring: 2,
+      },
+      {
+        id: 8,
+        x: 50,
+        y: 15,
+        label: "IPCC 2019",
+        author: "IPCC",
+        year: 2019,
+        journal: "Special Report",
+        size: 26,
+        ring: 1,
+      },
     ],
     edges: [
       { from: 1, to: 2, type: "extends" },
@@ -116,10 +299,12 @@ const SCENARIOS: ResearchScenario[] = [
     ],
     centralPaper: {
       title: "Global warming and recurrent mass bleaching of corals",
-      abstract: "We document the third pan-tropical episode of coral bleaching in 2015-2016, demonstrating that global warming is the primary driver of mass bleaching events...",
+      abstract:
+        "We document the third pan-tropical episode of coral bleaching in 2015-2016, demonstrating that global warming is the primary driver of mass bleaching events...",
       citations: { supports: 156, refutes: 12, extends: 89 },
     },
-    aiInsight: "Strong consensus here. Hughes 2017 provides definitive evidence linking warming to bleaching. Baker 2008 offers a contrarian view on coral adaptation, but subsequent research hasn't supported it.",
+    aiInsight:
+      "Strong consensus here. Hughes 2017 provides definitive evidence linking warming to bleaching. Baker 2008 offers a contrarian view on coral adaptation, but subsequent research hasn't supported it.",
     pathDescription: "Citation path: climate consensus",
   },
   {
@@ -130,14 +315,94 @@ const SCENARIOS: ResearchScenario[] = [
       "GPT reasoning capabilities",
     ],
     nodes: [
-      { id: 1, x: 50, y: 45, label: "Wei 2022", author: "Wei, J. et al.", year: 2022, journal: "NeurIPS", size: 32, ring: 0 },
-      { id: 2, x: 25, y: 30, label: "Schaeffer 2023", author: "Schaeffer, R.", year: 2023, journal: "arXiv", size: 26, ring: 1 },
-      { id: 3, x: 75, y: 28, label: "Bubeck 2023", author: "Bubeck, S.", year: 2023, journal: "arXiv", size: 24, ring: 1 },
-      { id: 4, x: 18, y: 58, label: "Kojima 2022", author: "Kojima, T.", year: 2022, journal: "NeurIPS", size: 22, ring: 1 },
-      { id: 5, x: 82, y: 55, label: "Huang 2023", author: "Huang, J.", year: 2023, journal: "ACL", size: 20, ring: 1 },
-      { id: 6, x: 32, y: 75, label: "Srivastava 2023", author: "Srivastava, A.", year: 2023, journal: "TMLR", size: 20, ring: 2 },
-      { id: 7, x: 68, y: 78, label: "Lewkowycz 2022", author: "Lewkowycz, A.", year: 2022, journal: "NeurIPS", size: 18, ring: 2 },
-      { id: 8, x: 50, y: 15, label: "Brown 2020", author: "Brown, T.", year: 2020, journal: "NeurIPS", size: 28, ring: 1 },
+      {
+        id: 1,
+        x: 50,
+        y: 45,
+        label: "Wei 2022",
+        author: "Wei, J. et al.",
+        year: 2022,
+        journal: "NeurIPS",
+        size: 32,
+        ring: 0,
+      },
+      {
+        id: 2,
+        x: 25,
+        y: 30,
+        label: "Schaeffer 2023",
+        author: "Schaeffer, R.",
+        year: 2023,
+        journal: "arXiv",
+        size: 26,
+        ring: 1,
+      },
+      {
+        id: 3,
+        x: 75,
+        y: 28,
+        label: "Bubeck 2023",
+        author: "Bubeck, S.",
+        year: 2023,
+        journal: "arXiv",
+        size: 24,
+        ring: 1,
+      },
+      {
+        id: 4,
+        x: 18,
+        y: 58,
+        label: "Kojima 2022",
+        author: "Kojima, T.",
+        year: 2022,
+        journal: "NeurIPS",
+        size: 22,
+        ring: 1,
+      },
+      {
+        id: 5,
+        x: 82,
+        y: 55,
+        label: "Huang 2023",
+        author: "Huang, J.",
+        year: 2023,
+        journal: "ACL",
+        size: 20,
+        ring: 1,
+      },
+      {
+        id: 6,
+        x: 32,
+        y: 75,
+        label: "Srivastava 2023",
+        author: "Srivastava, A.",
+        year: 2023,
+        journal: "TMLR",
+        size: 20,
+        ring: 2,
+      },
+      {
+        id: 7,
+        x: 68,
+        y: 78,
+        label: "Lewkowycz 2022",
+        author: "Lewkowycz, A.",
+        year: 2022,
+        journal: "NeurIPS",
+        size: 18,
+        ring: 2,
+      },
+      {
+        id: 8,
+        x: 50,
+        y: 15,
+        label: "Brown 2020",
+        author: "Brown, T.",
+        year: 2020,
+        journal: "NeurIPS",
+        size: 28,
+        ring: 1,
+      },
     ],
     edges: [
       { from: 1, to: 2, type: "refutes" },
@@ -152,10 +417,12 @@ const SCENARIOS: ResearchScenario[] = [
     ],
     centralPaper: {
       title: "Emergent Abilities of Large Language Models",
-      abstract: "We analyze the emergence of capabilities in large language models as a function of scale, identifying abilities that appear suddenly at certain parameter thresholds...",
+      abstract:
+        "We analyze the emergence of capabilities in large language models as a function of scale, identifying abilities that appear suddenly at certain parameter thresholds...",
       citations: { supports: 89, refutes: 34, extends: 67 },
     },
-    aiInsight: "Hot debate! Schaeffer 2023 argues emergence is a 'mirage' caused by metric choice. This fundamentally challenges Wei's influential findings. The field is actively divided on this.",
+    aiInsight:
+      "Hot debate! Schaeffer 2023 argues emergence is a 'mirage' caused by metric choice. This fundamentally challenges Wei's influential findings. The field is actively divided on this.",
     pathDescription: "Citation path: emergence debate",
   },
 ];
@@ -231,6 +498,32 @@ export function AnimatedDemo() {
     setVisibleNodes([]);
     setVisibleEdges([]);
   }, []);
+
+  // Animation key to force restart
+  const [animationKey, setAnimationKey] = useState(0);
+
+  // Replay current scenario from the beginning
+  const handleReplay = useCallback(() => {
+    resetState();
+    setPhase("idle");
+    setAnimationKey((k) => k + 1);
+  }, [resetState]);
+
+  // Jump to a specific scenario
+  const handleJumpToScenario = useCallback(
+    (index: number) => {
+      if (index === scenarioIndex) {
+        // If same scenario, just replay
+        handleReplay();
+      } else {
+        resetState();
+        setPhase("idle");
+        setScenarioIndex(index);
+        setAnimationKey((k) => k + 1);
+      }
+    },
+    [scenarioIndex, resetState, handleReplay],
+  );
 
   // Main animation orchestrator
   useEffect(() => {
@@ -363,7 +656,7 @@ export function AnimatedDemo() {
     return () => {
       cancelled = true;
     };
-  }, [scenarioIndex, scenario, prefersReducedMotion, resetState]);
+  }, [scenarioIndex, scenario, prefersReducedMotion, resetState, animationKey]);
 
   // Helper functions
   const getNodePosition = (node: DemoNode) => ({
@@ -383,7 +676,7 @@ export function AnimatedDemo() {
     return scenario.edges.some(
       (e) =>
         (selectedNodes.includes(e.from) && e.to === nodeId) ||
-        (selectedNodes.includes(e.to) && e.from === nodeId)
+        (selectedNodes.includes(e.to) && e.from === nodeId),
     );
   };
 
@@ -470,27 +763,34 @@ export function AnimatedDemo() {
                 exit={{ opacity: 0, y: -10, scaleY: 0.8 }}
                 className="absolute top-full left-0 right-0 mt-1.5 sm:mt-2 bg-slate-800/95 backdrop-blur-md rounded-lg border border-slate-700/80 overflow-hidden shadow-2xl origin-top"
               >
-                {scenario.suggestions.slice(0, typeof window !== 'undefined' && window.innerWidth < 640 ? 1 : 3).map((suggestion, i) => (
-                  <motion.div
-                    key={suggestion}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.1 }}
-                    className={`px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm flex items-center gap-2 sm:gap-3 ${
-                      i === 0
-                        ? "bg-primary/20 text-primary"
-                        : "text-slate-300 hover:bg-slate-700/50"
-                    }`}
-                  >
-                    <SearchIcon small className="hidden sm:block" />
-                    <span className="truncate">{suggestion}</span>
-                    {i === 0 && (
-                      <span className="ml-auto text-[8px] sm:text-[10px] text-primary/70 bg-primary/10 px-1 sm:px-1.5 py-0.5 rounded whitespace-nowrap">
-                        Top result
-                      </span>
-                    )}
-                  </motion.div>
-                ))}
+                {scenario.suggestions
+                  .slice(
+                    0,
+                    typeof window !== "undefined" && window.innerWidth < 640
+                      ? 1
+                      : 3,
+                  )
+                  .map((suggestion, i) => (
+                    <motion.div
+                      key={suggestion}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.1 }}
+                      className={`px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm flex items-center gap-2 sm:gap-3 ${
+                        i === 0
+                          ? "bg-primary/20 text-primary"
+                          : "text-slate-300 hover:bg-slate-700/50"
+                      }`}
+                    >
+                      <SearchIcon small className="hidden sm:block" />
+                      <span className="truncate">{suggestion}</span>
+                      {i === 0 && (
+                        <span className="ml-auto text-[8px] sm:text-[10px] text-primary/70 bg-primary/10 px-1 sm:px-1.5 py-0.5 rounded whitespace-nowrap">
+                          Top result
+                        </span>
+                      )}
+                    </motion.div>
+                  ))}
               </motion.div>
             )}
           </AnimatePresence>
@@ -538,207 +838,219 @@ export function AnimatedDemo() {
         animate={{ scale: graphScale }}
         transition={{ type: "spring", damping: 20 }}
       >
-        {/* Edges SVG layer */}
-        <svg
-          className="absolute inset-0 w-full h-full"
-          style={{ top: "5rem" }}
-        >
-          <defs>
-            {/* Glow filters for edges */}
-            <filter
-              id="glow-green"
-              x="-50%"
-              y="-50%"
-              width="200%"
-              height="200%"
-            >
-              <feGaussianBlur stdDeviation="2" result="blur" />
-              <feMerge>
-                <feMergeNode in="blur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-            <filter id="glow-red" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="2" result="blur" />
-              <feMerge>
-                <feMergeNode in="blur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-            <filter
-              id="glow-blue"
-              x="-50%"
-              y="-50%"
-              width="200%"
-              height="200%"
-            >
-              <feGaussianBlur stdDeviation="2" result="blur" />
-              <feMerge>
-                <feMergeNode in="blur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-          </defs>
-
-          {scenario.edges.map((edge, i) => {
-            const path = getEdgePath(edge);
-            const visible = visibleEdges.includes(i);
-            const connected = isEdgeConnectedToSelected(edge);
-            const onPath = isPathEdge(edge);
-
-            return (
-              <motion.line
-                key={`edge-${i}`}
-                x1={`${path.x1}%`}
-                y1={`${path.y1}%`}
-                x2={`${path.x2}%`}
-                y2={`${path.y2}%`}
-                stroke={EDGE_COLORS[edge.type]}
-                strokeWidth={onPath ? 3 : connected ? 2 : 1.5}
-                strokeDasharray={onPath ? "8 4" : "none"}
-                filter={
-                  onPath
-                    ? `url(#glow-${edge.type === "supports" ? "green" : edge.type === "refutes" ? "red" : "blue"})`
-                    : undefined
-                }
-                initial={{ pathLength: 0, opacity: 0 }}
-                animate={{
-                  pathLength: visible ? 1 : 0,
-                  opacity: visible
-                    ? selectedNodes.length > 0
-                      ? connected
-                        ? 0.9
-                        : 0.15
-                      : 0.7
-                    : 0,
-                }}
-                transition={{ duration: 0.4, ease: "easeOut" }}
-              />
-            );
-          })}
-        </svg>
-
-        {/* Nodes */}
-        <AnimatePresence>
-          {scenario.nodes.map((node) => {
-            const pos = getNodePosition(node);
-            const visible = visibleNodes.includes(node.id);
-            const isSelected = selectedNodes.includes(node.id);
-            const isHovered = hoveredNode === node.id;
-            const connected = isNodeConnectedToSelected(node.id);
-            const onPath = isOnPath(node.id);
-
-            if (!visible) return null;
-
-            return (
-              <motion.div
-                key={node.id}
-                className="absolute -translate-x-1/2 -translate-y-1/2 z-10"
-                style={{ left: pos.left, top: pos.top }}
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{
-                  scale: 1,
-                  opacity: selectedNodes.length > 0 ? (connected ? 1 : 0.25) : 1,
-                }}
-                exit={{ scale: 0, opacity: 0 }}
-                transition={{ type: "spring", damping: 15, stiffness: 300 }}
+        {/* Graph content container - shared coordinate system for nodes AND edges */}
+        <div className="relative w-full h-full">
+          {/* Edges SVG layer */}
+          <svg
+            className="absolute inset-0 w-full h-full pointer-events-none"
+            preserveAspectRatio="none"
+          >
+            <defs>
+              {/* Glow filters for edges */}
+              <filter
+                id="glow-green"
+                x="-50%"
+                y="-50%"
+                width="200%"
+                height="200%"
               >
-                {/* Selection/path ring */}
-                {(isSelected || onPath) && (
-                  <motion.div
-                    className="absolute rounded-full"
-                    style={{
-                      width: node.size + 16,
-                      height: node.size + 16,
-                      left: -8,
-                      top: -8,
-                      background: `radial-gradient(circle, ${isSelected ? "rgba(139, 92, 246, 0.4)" : "rgba(139, 92, 246, 0.2)"} 0%, transparent 70%)`,
-                    }}
-                    animate={{ scale: [1, 1.2, 1] }}
-                    transition={{ duration: 1.5, repeat: Infinity }}
-                  />
-                )}
+                <feGaussianBlur stdDeviation="2" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+              <filter
+                id="glow-red"
+                x="-50%"
+                y="-50%"
+                width="200%"
+                height="200%"
+              >
+                <feGaussianBlur stdDeviation="2" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+              <filter
+                id="glow-blue"
+                x="-50%"
+                y="-50%"
+                width="200%"
+                height="200%"
+              >
+                <feGaussianBlur stdDeviation="2" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
 
-                {/* Hover ring */}
-                {isHovered && !isSelected && (
-                  <motion.div
-                    className="absolute rounded-full border-2 border-primary/50"
-                    style={{
-                      width: node.size + 12,
-                      height: node.size + 12,
-                      left: -6,
-                      top: -6,
-                    }}
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                  />
-                )}
+            {scenario.edges.map((edge, i) => {
+              const path = getEdgePath(edge);
+              const visible = visibleEdges.includes(i);
+              const connected = isEdgeConnectedToSelected(edge);
+              const onPath = isPathEdge(edge);
 
-                {/* Node circle */}
-                <motion.div
-                  className={`rounded-full shadow-lg transition-all duration-200 ${
-                    isSelected
-                      ? "bg-primary ring-2 ring-primary ring-offset-2 ring-offset-slate-900"
-                      : isHovered
-                        ? "bg-slate-600 ring-2 ring-slate-500"
-                        : "bg-slate-700"
-                  }`}
-                  style={{
-                    width: node.size,
-                    height: node.size,
-                    boxShadow: isSelected
-                      ? "0 0 20px rgba(139, 92, 246, 0.5)"
-                      : "0 4px 12px rgba(0,0,0,0.3)",
+              return (
+                <motion.line
+                  key={`edge-${i}`}
+                  x1={`${path.x1}%`}
+                  y1={`${path.y1}%`}
+                  x2={`${path.x2}%`}
+                  y2={`${path.y2}%`}
+                  stroke={EDGE_COLORS[edge.type]}
+                  strokeWidth={onPath ? 3 : connected ? 2 : 1.5}
+                  strokeDasharray={onPath ? "8 4" : "none"}
+                  filter={
+                    onPath
+                      ? `url(#glow-${edge.type === "supports" ? "green" : edge.type === "refutes" ? "red" : "blue"})`
+                      : undefined
+                  }
+                  initial={{ pathLength: 0, opacity: 0 }}
+                  animate={{
+                    pathLength: visible ? 1 : 0,
+                    opacity: visible
+                      ? selectedNodes.length > 0
+                        ? connected
+                          ? 0.9
+                          : 0.15
+                        : 0.7
+                      : 0,
                   }}
-                  whileHover={{ scale: 1.1 }}
+                  transition={{ duration: 0.4, ease: "easeOut" }}
                 />
+              );
+            })}
+          </svg>
 
-                {/* Node label - show selected always, others only on desktop or when nothing selected */}
-                <AnimatePresence>
-                  {(isSelected || isHovered || selectedNodes.length === 0) && (
-                    <motion.div
-                      className={`absolute top-full mt-1 sm:mt-1.5 left-1/2 -translate-x-1/2 whitespace-nowrap ${
-                        !isSelected && !isHovered ? 'hidden sm:block' : ''
-                      }`}
-                      initial={{ opacity: 0, y: -5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -5 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      <div className="text-[8px] sm:text-[10px] text-slate-300 bg-slate-900/90 backdrop-blur-sm px-1.5 sm:px-2 py-0.5 sm:py-1 rounded sm:rounded-md border border-slate-700/50 shadow-lg max-w-[80px] sm:max-w-none truncate">
-                        {node.label}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+          {/* Nodes */}
+          <AnimatePresence>
+            {scenario.nodes.map((node) => {
+              const pos = getNodePosition(node);
+              const visible = visibleNodes.includes(node.id);
+              const isSelected = selectedNodes.includes(node.id);
+              const isHovered = hoveredNode === node.id;
+              const connected = isNodeConnectedToSelected(node.id);
+              const onPath = isOnPath(node.id);
 
-                {/* Hover tooltip with more info - desktop only */}
-                <AnimatePresence>
-                  {isHovered && (
+              if (!visible) return null;
+
+              return (
+                <motion.div
+                  key={node.id}
+                  className="absolute -translate-x-1/2 -translate-y-1/2 z-10"
+                  style={{ left: pos.left, top: pos.top }}
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{
+                    scale: 1,
+                    opacity:
+                      selectedNodes.length > 0 ? (connected ? 1 : 0.25) : 1,
+                  }}
+                  exit={{ scale: 0, opacity: 0 }}
+                  transition={{ type: "spring", damping: 15, stiffness: 300 }}
+                >
+                  {/* Selection/path ring */}
+                  {(isSelected || onPath) && (
                     <motion.div
-                      className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-48 hidden sm:block"
-                      initial={{ opacity: 0, y: 10, scale: 0.9 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 10, scale: 0.9 }}
-                    >
-                      <div className="bg-slate-800/95 backdrop-blur-md rounded-lg border border-slate-700 p-3 shadow-2xl">
-                        <div className="text-[10px] text-slate-500 mb-1">
-                          {node.journal}
-                        </div>
-                        <div className="text-xs text-slate-200 font-medium">
-                          {node.author}
-                        </div>
-                        <div className="text-[10px] text-slate-400 mt-1">
-                          {node.year}
-                        </div>
-                      </div>
-                    </motion.div>
+                      className="absolute rounded-full"
+                      style={{
+                        width: node.size + 16,
+                        height: node.size + 16,
+                        left: -8,
+                        top: -8,
+                        background: `radial-gradient(circle, ${isSelected ? "rgba(139, 92, 246, 0.4)" : "rgba(139, 92, 246, 0.2)"} 0%, transparent 70%)`,
+                      }}
+                      animate={{ scale: [1, 1.2, 1] }}
+                      transition={{ duration: 1.5, repeat: Infinity }}
+                    />
                   )}
-                </AnimatePresence>
-              </motion.div>
-            );
-          })}
-        </AnimatePresence>
+
+                  {/* Hover ring */}
+                  {isHovered && !isSelected && (
+                    <motion.div
+                      className="absolute rounded-full border-2 border-primary/50"
+                      style={{
+                        width: node.size + 12,
+                        height: node.size + 12,
+                        left: -6,
+                        top: -6,
+                      }}
+                      initial={{ scale: 0.8, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                    />
+                  )}
+
+                  {/* Node circle */}
+                  <motion.div
+                    className={`rounded-full shadow-lg transition-all duration-200 ${
+                      isSelected
+                        ? "bg-primary ring-2 ring-primary ring-offset-2 ring-offset-slate-900"
+                        : isHovered
+                          ? "bg-slate-600 ring-2 ring-slate-500"
+                          : "bg-slate-700"
+                    }`}
+                    style={{
+                      width: node.size,
+                      height: node.size,
+                      boxShadow: isSelected
+                        ? "0 0 20px rgba(139, 92, 246, 0.5)"
+                        : "0 4px 12px rgba(0,0,0,0.3)",
+                    }}
+                    whileHover={{ scale: 1.1 }}
+                  />
+
+                  {/* Node label - show selected always, others only on desktop or when nothing selected */}
+                  <AnimatePresence>
+                    {(isSelected ||
+                      isHovered ||
+                      selectedNodes.length === 0) && (
+                      <motion.div
+                        className={`absolute top-full mt-1 sm:mt-1.5 left-1/2 -translate-x-1/2 whitespace-nowrap ${
+                          !isSelected && !isHovered ? "hidden sm:block" : ""
+                        }`}
+                        initial={{ opacity: 0, y: -5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -5 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <div className="text-[8px] sm:text-[10px] text-slate-300 bg-slate-900/90 backdrop-blur-sm px-1.5 sm:px-2 py-0.5 sm:py-1 rounded sm:rounded-md border border-slate-700/50 shadow-lg max-w-[80px] sm:max-w-none truncate">
+                          {node.label}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* Hover tooltip with more info - desktop only */}
+                  <AnimatePresence>
+                    {isHovered && (
+                      <motion.div
+                        className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-48 hidden sm:block"
+                        initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.9 }}
+                      >
+                        <div className="bg-slate-800/95 backdrop-blur-md rounded-lg border border-slate-700 p-3 shadow-2xl">
+                          <div className="text-[10px] text-slate-500 mb-1">
+                            {node.journal}
+                          </div>
+                          <div className="text-xs text-slate-200 font-medium">
+                            {node.author}
+                          </div>
+                          <div className="text-[10px] text-slate-400 mt-1">
+                            {node.year}
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+        </div>
       </motion.div>
 
       {/* Inspector panel - hidden on mobile */}
@@ -897,7 +1209,8 @@ export function AnimatedDemo() {
                   <SparklesIcon />
                 </div>
                 <div className="text-[10px] text-slate-300 leading-relaxed line-clamp-2 flex-1">
-                  {aiTypingText.slice(0, 80)}{aiTypingText.length > 80 ? '...' : ''}
+                  {aiTypingText.slice(0, 80)}
+                  {aiTypingText.length > 80 ? "..." : ""}
                   {aiTypingText.length < scenario.aiInsight.length && (
                     <motion.span
                       className="inline-block w-1 h-2.5 bg-primary/70 ml-0.5"
@@ -926,7 +1239,9 @@ export function AnimatedDemo() {
                 <PathIcon />
               </div>
               <span className="text-[9px] sm:text-[11px] text-slate-300">
-                <span className="hidden sm:inline">{scenario.pathDescription}</span>
+                <span className="hidden sm:inline">
+                  {scenario.pathDescription}
+                </span>
                 <span className="sm:hidden">Comparing papers</span>
               </span>
             </div>
@@ -968,23 +1283,57 @@ export function AnimatedDemo() {
           >
             <div className="px-2 sm:px-3 py-1 sm:py-1.5 rounded-full bg-slate-800/80 border border-slate-700/80 text-[8px] sm:text-[10px] text-slate-400 flex items-center gap-1.5 sm:gap-2 backdrop-blur-sm">
               <span className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-primary animate-pulse" />
-              <span className="hidden sm:inline">{visibleNodes.length} papers · {visibleEdges.length} citations</span>
-              <span className="sm:hidden">{visibleNodes.length} · {visibleEdges.length}</span>
+              <span className="hidden sm:inline">
+                {visibleNodes.length} papers · {visibleEdges.length} citations
+              </span>
+              <span className="sm:hidden">
+                {visibleNodes.length} · {visibleEdges.length}
+              </span>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Scenario indicator */}
-      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
-        {SCENARIOS.map((_, i) => (
-          <div
-            key={i}
-            className={`w-1.5 h-1.5 rounded-full transition-colors ${
-              i === scenarioIndex ? "bg-primary" : "bg-slate-700"
-            }`}
-          />
-        ))}
+      {/* Scenario indicator with replay button */}
+      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-3 z-10">
+        {/* Replay button */}
+        <button
+          onClick={handleReplay}
+          className="p-1.5 rounded-full bg-slate-800/80 border border-slate-700/80 hover:bg-slate-700 hover:border-slate-600 transition-colors backdrop-blur-sm group"
+          aria-label="Replay demo"
+          title="Replay demo"
+        >
+          <svg
+            className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-400 group-hover:text-primary transition-colors"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+            />
+          </svg>
+        </button>
+
+        {/* Scenario dots */}
+        <div className="flex items-center gap-1.5">
+          {SCENARIOS.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => handleJumpToScenario(i)}
+              className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full transition-all hover:scale-125 ${
+                i === scenarioIndex
+                  ? "bg-primary ring-2 ring-primary/30"
+                  : "bg-slate-700 hover:bg-slate-600"
+              }`}
+              aria-label={`Go to scenario ${i + 1}`}
+              title={`Scenario ${i + 1}: ${SCENARIOS[i].query.slice(0, 30)}...`}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -1020,7 +1369,13 @@ function BackgroundParticles() {
   );
 }
 
-function SearchIcon({ small, className }: { small?: boolean; className?: string }) {
+function SearchIcon({
+  small,
+  className,
+}: {
+  small?: boolean;
+  className?: string;
+}) {
   return (
     <svg
       className={`${small ? "w-3.5 h-3.5" : "w-4 h-4"} text-slate-400 ${className || ""}`}
@@ -1040,7 +1395,11 @@ function SearchIcon({ small, className }: { small?: boolean; className?: string 
 
 function SparklesIcon() {
   return (
-    <svg className="w-3 h-3 text-primary" fill="currentColor" viewBox="0 0 20 20">
+    <svg
+      className="w-3 h-3 text-primary"
+      fill="currentColor"
+      viewBox="0 0 20 20"
+    >
       <path d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732l-3.354 1.935-1.18 4.455a1 1 0 01-1.933 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732l3.354-1.935 1.18-4.455A1 1 0 0112 2z" />
     </svg>
   );
@@ -1072,7 +1431,9 @@ function CitationBadge({ type, count }: { type: EdgeType; count: number }) {
   };
 
   return (
-    <span className={`px-2 py-0.5 rounded text-[9px] font-medium ${colors[type]}`}>
+    <span
+      className={`px-2 py-0.5 rounded text-[9px] font-medium ${colors[type]}`}
+    >
       {count} {type}
     </span>
   );
