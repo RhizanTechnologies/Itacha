@@ -26,7 +26,7 @@ export default function Error({ error, reset }: ErrorProps) {
 
       {/* Text Content */}
       <h1 className="text-3xl font-bold text-foreground mb-2 text-center">
-        Our servers are drifting — we're on it.
+        Our servers are drifting   we're on it.
       </h1>
       <p className="text-muted-foreground text-center max-w-md mb-8">
         An unexpected storm has thrown our argument graph off course. 

@@ -199,7 +199,7 @@ export function EdgeEvidencePopover({
                      p. {Math.floor(Math.random() * 12) + 1}
                    </span>
                    <span className="text-xs font-medium text-foreground/70">
-                     — {evidence.snippets[activeSnippet].source}
+                       {evidence.snippets[activeSnippet].source}
                    </span>
                 </div>
               </div>

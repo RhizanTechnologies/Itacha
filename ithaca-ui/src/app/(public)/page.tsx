@@ -202,7 +202,7 @@ export default function Home() {
             <StaggerItem>
               <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
                 Ithaca maps how scientific papers support, contradict, and
-                extend each other—so you see the real conversation, not just
+                extend each other so you see the real conversation, not just
                 references.
               </p>
             </StaggerItem>
@@ -297,7 +297,7 @@ export default function Home() {
                   <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
                     Every PhD student knows the pain. Hundreds of papers,
                     tangled citation networks, and no clear map of what actually
-                    matters. Citation counts tell you what's popular—not what's
+                    matters. Citation counts tell you what's popular not what's
                     true.
                   </p>
                 </div>

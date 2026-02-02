@@ -361,7 +361,7 @@ function EvidenceCard({ item }: { item: EvidenceItem }) {
             </blockquote>
             {item.source && (
               <cite className="block text-xs text-muted-foreground/60 mt-1.5 not-italic font-medium">
-                — {item.source}
+                  {item.source}
               </cite>
             )}
           </div>

@@ -400,11 +400,11 @@ function generateContextualResponse(query: string, context: CanvasChatPanelProps
   const lowerQuery = query.toLowerCase();
   
   if (lowerQuery.includes("influential") || lowerQuery.includes("key papers") || lowerQuery.includes("important")) {
-    return `Based on the ${context.nodeCount} papers in this graph, the most influential nodes are those with high citation counts and central positions.\n\nLook for larger, more connected nodes — they typically represent foundational work in the field. You can click on any node to see its details and citation count.`;
+    return `Based on the ${context.nodeCount} papers in this graph, the most influential nodes are those with high citation counts and central positions.\n\nLook for larger, more connected nodes   they typically represent foundational work in the field. You can click on any node to see its details and citation count.`;
   }
   
   if (lowerQuery.includes("connection") || lowerQuery.includes("path") || lowerQuery.includes("link")) {
-    return `To find connections between papers:\n\n1. Enable selection mode (lasso icon)\n2. Select two or more papers\n3. Click "Compare" to see citation paths\n\nThe graph shows ${context.edgeCount} citation relationships — each edge represents one paper citing another.`;
+    return `To find connections between papers:\n\n1. Enable selection mode (lasso icon)\n2. Select two or more papers\n3. Click "Compare" to see citation paths\n\nThe graph shows ${context.edgeCount} citation relationships   each edge represents one paper citing another.`;
   }
   
   if (lowerQuery.includes("trend") || lowerQuery.includes("evolution") || lowerQuery.includes("over time")) {

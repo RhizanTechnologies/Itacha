@@ -32,8 +32,8 @@ export default function AboutPage() {
               Researchers spend countless hours tracing citations and reconstructing the history of ideas manually.
             </p>
             <p className="text-lg text-muted-foreground leading-relaxed">
-              We believe that by visualizing the relationships between papers—who contradicted whom, 
-              who supported whom—we can make the scientific process transparent and accessible to everyone.
+              We believe that by visualizing the relationships between papers who contradicted whom, 
+              who supported whom we can make the scientific process transparent and accessible to everyone.
             </p>
           </div>
           <div className="relative aspect-square md:aspect-auto md:h-[500px] bg-muted rounded-2xl overflow-hidden border border-border">
