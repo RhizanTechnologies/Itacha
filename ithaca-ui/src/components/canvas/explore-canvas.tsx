@@ -61,8 +61,6 @@ import {
 } from "@/components/canvas/node-selection";
 import { findSemanticPath } from "@/lib/graph-algorithms";
 import { debug } from "@/lib/debug";
-import { FlowingEdges } from "@/components/canvas/flowing-edges";
-import { FlowingEdgesControl } from "@/components/canvas/flowing-edges-control";
 import {
   ANIMATION,
   GRAPH,
@@ -1049,9 +1047,6 @@ export function ExploreCanvas() {
   // Physics State
   const [physicsEnabled, setPhysicsEnabled] = useState(true); // Default to on
 
-  // Flowing Edges Animation State
-  const [flowingEdgesEnabled, setFlowingEdgesEnabled] = useState(true); // Default to on
-
   // Show demo toast after a delay
   useEffect(() => {
     const timer = setTimeout(
@@ -1358,7 +1353,6 @@ export function ExploreCanvas() {
               onFocus={handleEnterFocusMode}
             />
             <EdgeLabels />
-            <FlowingEdges enabled={flowingEdgesEnabled} />
 
             {/* Canvas Controls - inside SigmaContainer for sigma context */}
             <ControlsContainer position={"top-right"}>
@@ -1368,10 +1362,6 @@ export function ExploreCanvas() {
                 externalIsRunning={physicsEnabled}
                 onToggle={() => setPhysicsEnabled(!physicsEnabled)}
                 nodeCount={graphStats.nodeCount}
-              />
-              <FlowingEdgesControl
-                enabled={flowingEdgesEnabled}
-                onToggle={() => setFlowingEdgesEnabled(!flowingEdgesEnabled)}
               />
             </ControlsContainer>
 

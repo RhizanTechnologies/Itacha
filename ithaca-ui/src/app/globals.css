@@ -169,103 +169,6 @@
   animation: edge-dash 30s linear infinite;
 }
 
-/* =================================
-   FLOWING EDGE ANIMATIONS
-   River-like flow effect for graph connections
-   ================================= */
-
-/* Base flowing edge keyframes - creates directional flow effect */
-@keyframes flowing-edge-flow {
-  from {
-    stroke-dashoffset: 0;
-  }
-
-  to {
-    stroke-dashoffset: -50;
-  }
-}
-
-/* Pulsing glow for contradicts edges - draws attention to scientific debates */
-@keyframes flowing-edge-pulse {
-
-  0%,
-  100% {
-    filter: drop-shadow(0 0 1px currentColor);
-    opacity: 0.6;
-  }
-
-  50% {
-    filter: drop-shadow(0 0 4px currentColor);
-    opacity: 1;
-  }
-}
-
-/* Flowing edges overlay container */
-.flowing-edges-overlay {
-  contain: layout style paint;
-  will-change: contents;
-}
-
-/* Base flowing edge styling */
-.flowing-edge {
-  animation: flowing-edge-flow linear infinite;
-  backface-visibility: hidden;
-  transform: translateZ(0);
-}
-
-/* Supports: Slow, subtle flow - background information */
-.flowing-edge-supports {
-  animation-duration: 12s;
-  opacity: 0.35;
-}
-
-/* Contradicts: Fast, pulsing flow - draws attention to debates */
-.flowing-edge-contradicts {
-  animation-name: flowing-edge-flow, flowing-edge-pulse;
-  animation-duration: 3s, 2s;
-  animation-timing-function: linear, ease-in-out;
-  animation-iteration-count: infinite;
-  opacity: 0.7;
-}
-
-/* Extends: Medium flow - builds upon work */
-.flowing-edge-extends {
-  animation-duration: 8s;
-  opacity: 0.45;
-}
-
-/* Hover state - enhanced visibility */
-.flowing-edge.hovered {
-  opacity: 1 !important;
-  filter: drop-shadow(0 0 3px currentColor);
-  animation-duration: 2s !important;
-}
-
-/* Selected edge - strongest emphasis */
-.flowing-edge.selected {
-  opacity: 1 !important;
-  stroke-width: 3 !important;
-  filter: drop-shadow(0 0 6px currentColor);
-}
-
-/* Pause flowing edges when tab hidden */
-:root.tab-hidden .flowing-edge {
-  animation-play-state: paused !important;
-}
-
-/* Respect reduced motion preferences */
-@media (prefers-reduced-motion: reduce) {
-  .flowing-edge {
-    animation: none !important;
-    opacity: 0.6;
-  }
-
-  .flowing-edge-contradicts {
-    opacity: 0.8;
-  }
-}
-
-
 /* Conflict Wiggle Animation */
 @keyframes conflict-wiggle {
 
@@ -387,7 +290,7 @@
 
 /* Focus Indicators - 2px outline for keyboard navigation */
 :focus-visible {
-  outline: 2px solid var(--ring);
+  outline: 2px solid hsl(var(--ring));
   outline-offset: 2px;
 }
 
@@ -396,8 +299,8 @@
   position: absolute;
   top: -40px;
   left: 0;
-  background: var(--primary);
-  color: var(--primary-foreground);
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
   padding: 8px 16px;
   z-index: 100;
   transition: top 0.2s;
@@ -452,27 +355,12 @@
   border-radius: 50%;
   filter: blur(48px);
   transform: translateZ(0);
-  /* Light mode: keep highlights subtle and avoid "washed out" hero */
-  mix-blend-mode: multiply;
-  opacity: 0.35;
+  mix-blend-mode: screen;
+  opacity: 0.9;
   will-change: transform;
   animation: blob-float 8s ease-in-out infinite;
   contain: layout style paint;
   backface-visibility: hidden;
-}
-
-.blob--primary {
-  background: var(--primary);
-}
-
-.blob--accent {
-  background: var(--accent);
-}
-
-.dark .blob {
-  /* Dark mode: add depth and glow */
-  mix-blend-mode: screen;
-  opacity: 0.9;
 }
 
 .blob:nth-child(2) {
@@ -502,16 +390,10 @@
   position: absolute;
   inset: auto 0 0 0;
   margin: 0 auto;
-  /* Light mode: keep this very subtle (avoid overpowering white background) */
-  opacity: 0.22;
-  color: var(--foreground);
+  opacity: 0.9;
+  color: hsl(var(--primary));
   contain: layout style paint;
   overflow: visible;
-}
-
-.dark .constellation {
-  opacity: 0.55;
-  color: var(--primary);
 }
 
 .constellation-edges {
