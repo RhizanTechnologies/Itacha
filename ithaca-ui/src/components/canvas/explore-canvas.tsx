@@ -20,6 +20,7 @@ import { CanvasStatusIndicator } from "@/components/canvas/status-indicator";
 import { EdgeLabels } from "@/components/canvas/edge-labels";
 import { CanvasErrorBoundary } from "@/components/canvas/canvas-error-boundary";
 import { CanvasLoadingOverlay } from "@/components/canvas/canvas-loading";
+import { CanvasEmptyState } from "@/components/canvas/canvas-empty-state";
 import { PaperInspector } from "@/components/inspector/paper-inspector";
 import type {
   PaperData,
@@ -62,6 +63,16 @@ import {
 } from "@/components/canvas/node-selection";
 import { findSemanticPath } from "@/lib/graph-algorithms";
 import { debug } from "@/lib/debug";
+import { useCanvasKeyboard } from "@/hooks/useCanvasKeyboard";
+import {
+  KeyboardShortcutsHelp,
+  KeyboardShortcutsButton,
+} from "@/components/canvas/keyboard-shortcuts-help";
+import { useTutorial, CANVAS_TUTORIAL } from "@/hooks/useTutorial";
+import {
+  TutorialOverlay,
+  TutorialStartButton,
+} from "@/components/canvas/canvas-tutorial";
 import {
   ANIMATION,
   GRAPH,
@@ -829,7 +840,7 @@ function GraphLoader({
         if (source === hoveredNode || target === hoveredNode) {
           // Add to connected edges for flow animation
           connectedEdges.add(edge);
-          
+
           graph.setEdgeAttribute(
             edge,
             "size",
@@ -1062,6 +1073,46 @@ export function ExploreCanvas() {
 
   // Physics State
   const [physicsEnabled, setPhysicsEnabled] = useState(true); // Default to on
+
+  // Keyboard Shortcuts State
+  const [keyboardHelpOpen, setKeyboardHelpOpen] = useState(false);
+
+  // Initialize keyboard shortcuts
+  useCanvasKeyboard({
+    sigma: sigmaRef.current,
+    enabled: true,
+    onEscape: () => {
+      // Close all panels, deselect nodes
+      setInspectorOpen(false);
+      setFiltersOpen(false);
+      setChatOpen(false);
+      setShareOpen(false);
+      setEdgeEvidence(null);
+      setFocusModeNode(null);
+      setSelectedNodes([]);
+      setSelectionMode(false);
+    },
+    onShowHelp: () => setKeyboardHelpOpen(true),
+    onResetView: () => resetViewRef.current?.(),
+    onToggleFullscreen: () => {
+      // Delegate to Sigma's fullscreen control behavior
+      const container = document.querySelector(".react-sigma");
+      if (container) {
+        if (document.fullscreenElement) {
+          document.exitFullscreen();
+        } else {
+          container.requestFullscreen?.();
+        }
+      }
+    },
+    onToggleSelection: () => setSelectionMode(!selectionMode),
+    onToggleChat: () => setChatOpen(!chatOpen),
+    onTogglePhysics: () => setPhysicsEnabled(!physicsEnabled),
+    onExport: () => setShareOpen(true),
+  });
+
+  // Initialize tutorial
+  const tutorial = useTutorial(CANVAS_TUTORIAL);
 
   // Show demo toast after a delay
   useEffect(() => {
@@ -1386,6 +1437,30 @@ export function ExploreCanvas() {
           </SigmaContainer>
         </CanvasErrorBoundary>
 
+        {/* Empty State - shown when no graph data */}
+        {!isLoading && graphStats.nodeCount === 0 && (
+          <CanvasEmptyState
+            message="Search for a research topic to explore its citation network"
+            onSearchClick={() => {
+              // Focus the command bar - it's already rendered and listens for Cmd+K
+              // We can dispatch a keyboard event to trigger it
+              const event = new KeyboardEvent("keydown", {
+                key: "k",
+                metaKey: true,
+                ctrlKey: true,
+                bubbles: true,
+              });
+              document.dispatchEvent(event);
+            }}
+          />
+        )}
+
+        {/* Loading Overlay */}
+        <CanvasLoadingOverlay
+          isLoading={isLoading}
+          message="Loading graph..."
+        />
+
         {/* ========== STRUCTURED OVERLAY SYSTEM ========== */}
         <div className="absolute inset-0 pointer-events-none z-10">
           {/* TOP-LEFT ZONE: Filters & Paper Count */}
@@ -1485,6 +1560,17 @@ export function ExploreCanvas() {
           <div className="absolute bottom-4 right-4 pointer-events-auto">
             <ShareButton onClick={() => setShareOpen(true)} />
           </div>
+
+          {/* BOTTOM-LEFT ZONE: Keyboard Shortcuts & Tutorial */}
+          <div className="absolute bottom-4 left-4 pointer-events-auto flex items-center gap-2">
+            <KeyboardShortcutsButton
+              onClick={() => setKeyboardHelpOpen(true)}
+            />
+            <TutorialStartButton
+              onClick={tutorial.start}
+              hasSeenTutorial={tutorial.hasSeenTutorial}
+            />
+          </div>
         </div>
         {/* ========== END OVERLAY SYSTEM ========== */}
 
@@ -1539,6 +1625,26 @@ export function ExploreCanvas() {
           paths={calculatedPaths}
           currentMode={pathMode}
           onModeChange={calculatePathWithMode}
+        />
+
+        <KeyboardShortcutsHelp
+          open={keyboardHelpOpen}
+          onOpenChange={setKeyboardHelpOpen}
+        />
+
+        {/* Interactive Tutorial Overlay */}
+        <TutorialOverlay
+          isActive={tutorial.isActive}
+          step={tutorial.currentStep}
+          stepIndex={tutorial.currentStepIndex}
+          totalSteps={tutorial.totalSteps}
+          progress={tutorial.progress}
+          isLastStep={tutorial.isLastStep}
+          showSkip={true}
+          showProgress={true}
+          onNext={tutorial.next}
+          onPrevious={tutorial.previous}
+          onSkip={tutorial.skip}
         />
       </div>
 

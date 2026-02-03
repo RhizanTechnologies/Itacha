@@ -12,12 +12,13 @@
 import Graph from "graphology";
 import type { Sigma } from "sigma";
 import { debug } from "./debug";
+import { jsPDF } from "jspdf";
 
 // =============================================================================
 // TYPES
 // =============================================================================
 
-export type ExportFormat = "png" | "svg" | "graphml" | "json" | "csv";
+export type ExportFormat = "png" | "svg" | "graphml" | "json" | "csv" | "pdf";
 
 export interface ExportMetadata {
   title: string;
@@ -992,6 +993,196 @@ function csvEscape(str: string): string {
 }
 
 /**
+ * Export Sigma canvas as PDF with full context (header, legend, footer)
+ * Uses jsPDF to generate a multi-page PDF with the graph visualization
+ */
+export async function exportAsPDF(
+  sigma: Sigma,
+  options: Partial<ExportOptions> = {},
+  graph?: Graph,
+): Promise<string> {
+  const {
+    filename = "graph.pdf",
+    quality = "standard",
+    metadata = { title: "Citation Network", nodeCount: 0, edgeCount: 0 },
+    includeLegend = true,
+    includeHeader = true,
+    includeFooter = true,
+  } = options;
+
+  const isDark = document.documentElement.classList.contains("dark");
+
+  try {
+    // First export as PNG to get the graph image
+    const scale = quality === "print" ? 3 : quality === "compressed" ? 1 : 2;
+    const { width: sigmaWidth, height: sigmaHeight } = sigma.getDimensions();
+
+    // Create a temporary canvas with the graph
+    const graphWidth = sigmaWidth;
+    const graphHeight = sigmaHeight;
+    const headerHeight = includeHeader ? 80 * scale : 0;
+    const footerHeight = includeFooter ? 40 * scale : 0;
+
+    const exportWidth = graphWidth * scale;
+    const exportHeight = graphHeight * scale + headerHeight + footerHeight;
+
+    // Create export canvas (same as PNG)
+    const exportCanvas = document.createElement("canvas");
+    exportCanvas.width = exportWidth;
+    exportCanvas.height = exportHeight;
+
+    const ctx = exportCanvas.getContext("2d");
+    if (!ctx) {
+      throw new Error("Failed to get canvas context");
+    }
+
+    const bgColor = isDark
+      ? BRAND.colors.background.dark
+      : BRAND.colors.background.light;
+
+    // Fill background
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0, 0, exportWidth, exportHeight);
+
+    // Draw header
+    if (includeHeader) {
+      drawHeader(ctx, metadata, exportWidth, isDark, scale);
+    }
+
+    // Draw graph content
+    ctx.save();
+    ctx.translate(0, headerHeight);
+    ctx.scale(scale, scale);
+
+    const graphData = graph || sigma.getGraph();
+
+    if (graphData) {
+      // Draw edges
+      graphData.forEachEdge((edge, attributes, source, target) => {
+        const sourceAttrs = graphData.getNodeAttributes(source);
+        const targetAttrs = graphData.getNodeAttributes(target);
+
+        if (attributes.hidden || sourceAttrs.hidden || targetAttrs.hidden)
+          return;
+
+        const sourceViewport = sigma.graphToViewport({
+          x: sourceAttrs.x,
+          y: sourceAttrs.y,
+        });
+        const targetViewport = sigma.graphToViewport({
+          x: targetAttrs.x,
+          y: targetAttrs.y,
+        });
+
+        const edgeType = attributes.edgeType || attributes.type || "default";
+        let edgeColor = attributes.color || "#999999";
+
+        if (edgeType === "supports") edgeColor = "#22c55e";
+        else if (edgeType === "contradicts") edgeColor = "#ef4444";
+        else if (edgeType === "extends") edgeColor = "#3b82f6";
+        else edgeColor = isDark ? "#6b7280" : "#9ca3af";
+
+        ctx.strokeStyle = edgeColor;
+        ctx.lineWidth = (attributes.size || 1) * 1.5;
+        ctx.globalAlpha = 0.7;
+
+        if (edgeType === "contradicts") {
+          ctx.setLineDash([6, 3]);
+        } else {
+          ctx.setLineDash([]);
+        }
+
+        ctx.beginPath();
+        ctx.moveTo(sourceViewport.x, sourceViewport.y);
+        ctx.lineTo(targetViewport.x, targetViewport.y);
+        ctx.stroke();
+      });
+
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 1;
+
+      // Draw nodes
+      graphData.forEachNode((node, attributes) => {
+        if (attributes.hidden) return;
+
+        const viewport = sigma.graphToViewport({
+          x: attributes.x,
+          y: attributes.y,
+        });
+        const size = attributes.size || 5;
+
+        ctx.beginPath();
+        ctx.arc(viewport.x, viewport.y, size, 0, Math.PI * 2);
+        ctx.fillStyle = attributes.color || "#999999";
+        ctx.fill();
+
+        // Draw label
+        if (attributes.label) {
+          ctx.font = `11px system-ui, -apple-system, sans-serif`;
+          ctx.fillStyle = isDark ? "#f9fafb" : "#1f2937";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(attributes.label, viewport.x, viewport.y - size - 8);
+        }
+      });
+    }
+
+    ctx.restore();
+
+    // Draw legend
+    if (includeLegend) {
+      const legendX = 16 * scale;
+      const legendY = headerHeight + graphHeight * scale - 180 * scale;
+      drawLegend(ctx, legendX, legendY, isDark, scale);
+    }
+
+    // Draw footer
+    if (includeFooter) {
+      drawFooter(ctx, metadata, exportWidth, exportHeight, isDark, scale);
+    }
+
+    // Create PDF
+    // Determine orientation based on aspect ratio
+    const isLandscape = exportWidth > exportHeight;
+    const pdf = new jsPDF({
+      orientation: isLandscape ? "landscape" : "portrait",
+      unit: "px",
+      format: [exportWidth / scale, exportHeight / scale],
+    });
+
+    // Add the canvas as an image
+    const imgData = exportCanvas.toDataURL("image/png", 0.95);
+    pdf.addImage(
+      imgData,
+      "PNG",
+      0,
+      0,
+      exportWidth / scale,
+      exportHeight / scale,
+    );
+
+    // Add PDF metadata
+    pdf.setProperties({
+      title: metadata.title,
+      subject: `Citation network with ${metadata.nodeCount} papers and ${metadata.edgeCount} citations`,
+      author: BRAND.name,
+      keywords: "citation, network, research, graph",
+      creator: BRAND.watermark,
+    });
+
+    // Save PDF
+    pdf.save(filename);
+
+    debug.graph(`Exported PDF: ${filename} (${quality} quality)`);
+
+    return filename;
+  } catch (error) {
+    debug.error("PDF export failed:", error);
+    throw error;
+  }
+}
+
+/**
  * Main export function - routes to appropriate exporter
  */
 export async function exportGraph(
@@ -1010,6 +1201,8 @@ export async function exportGraph(
       return exportAsJSON(graph, options);
     case "csv":
       return exportAsCSV(graph, options);
+    case "pdf":
+      return exportAsPDF(sigma, options, graph);
     default:
       throw new Error(`Unsupported export format: ${options.format}`);
   }

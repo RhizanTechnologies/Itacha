@@ -28,7 +28,11 @@ import {
   X,
   Sparkles,
 } from "lucide-react";
-import { exportGraph, type ExportFormat, type ExportMetadata } from "@/lib/graph-export";
+import {
+  exportGraph,
+  type ExportFormat,
+  type ExportMetadata,
+} from "@/lib/graph-export";
 import type { Sigma } from "sigma";
 import type Graph from "graphology";
 import { cn } from "@/lib/utils";
@@ -189,7 +193,7 @@ export function ShareExportDialog({
   const [showPreview, setShowPreview] = useState(false);
   const [previewFormat, setPreviewFormat] = useState<ExportFormat>("png");
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
-  
+
   // Build metadata for exports
   const exportMetadata: ExportMetadata = {
     title: graphTitle,
@@ -257,28 +261,28 @@ export function ShareExportDialog({
     },
     [graphTitle, sigma, graph, exportMetadata],
   );
-  
+
   // Generate preview for visual exports - matches actual export
   const generatePreview = useCallback(async () => {
     if (!sigma || !graph || !previewCanvasRef.current) return;
-    
+
     const ctx = previewCanvasRef.current.getContext("2d");
     if (!ctx) return;
-    
+
     const isDark = document.documentElement.classList.contains("dark");
     const previewWidth = 400;
     const previewHeight = 260;
     const headerHeight = 32;
     const footerHeight = 20;
     const graphAreaHeight = previewHeight - headerHeight - footerHeight;
-    
+
     previewCanvasRef.current.width = previewWidth;
     previewCanvasRef.current.height = previewHeight;
-    
+
     // Background
     ctx.fillStyle = isDark ? "#0B0C10" : "#F6F7F8";
     ctx.fillRect(0, 0, previewWidth, previewHeight);
-    
+
     // Mini header
     ctx.fillStyle = isDark ? "#111827" : "#ffffff";
     ctx.fillRect(0, 0, previewWidth, headerHeight);
@@ -288,11 +292,11 @@ export function ShareExportDialog({
     ctx.moveTo(0, headerHeight);
     ctx.lineTo(previewWidth, headerHeight);
     ctx.stroke();
-    
+
     ctx.fillStyle = isDark ? "#f9fafb" : "#1f2937";
     ctx.font = "bold 11px system-ui";
     ctx.fillText(graphTitle, 10, 21);
-    
+
     // Stats badge
     ctx.fillStyle = isDark ? "#374151" : "#f3f4f6";
     const statsText = `${nodeCount} · ${edgeCount}`;
@@ -302,7 +306,7 @@ export function ShareExportDialog({
     ctx.fillStyle = isDark ? "#9ca3af" : "#6b7280";
     ctx.font = "9px system-ui";
     ctx.fillText(statsText, previewWidth - 65, 20);
-    
+
     // Draw edges from graph data
     ctx.save();
     graph.forEachEdge((edge, attributes, source, target) => {
@@ -310,10 +314,10 @@ export function ShareExportDialog({
       const sourceAttrs = graph.getNodeAttributes(source);
       const targetAttrs = graph.getNodeAttributes(target);
       if (sourceAttrs.hidden || targetAttrs.hidden) return;
-      
+
       const sv = sigma.graphToViewport({ x: sourceAttrs.x, y: sourceAttrs.y });
       const tv = sigma.graphToViewport({ x: targetAttrs.x, y: targetAttrs.y });
-      
+
       // Scale to preview size
       const { width: sigmaW, height: sigmaH } = sigma.getDimensions();
       const scaleX = previewWidth / sigmaW;
@@ -321,24 +325,24 @@ export function ShareExportDialog({
       const scale = Math.min(scaleX, scaleY) * 0.9;
       const offsetX = (previewWidth - sigmaW * scale) / 2;
       const offsetY = headerHeight + (graphAreaHeight - sigmaH * scale) / 2;
-      
+
       const sx = sv.x * scale + offsetX;
       const sy = sv.y * scale + offsetY;
       const tx = tv.x * scale + offsetX;
       const ty = tv.y * scale + offsetY;
-      
+
       const edgeType = attributes.edgeType || attributes.type || "default";
       let edgeColor = isDark ? "#6b7280" : "#9ca3af";
       if (edgeType === "supports") edgeColor = "#22c55e";
       else if (edgeType === "contradicts") edgeColor = "#ef4444";
       else if (edgeType === "extends") edgeColor = "#3b82f6";
-      
+
       ctx.strokeStyle = edgeColor;
       ctx.lineWidth = 1;
       ctx.globalAlpha = 0.6;
       if (edgeType === "contradicts") ctx.setLineDash([3, 2]);
       else ctx.setLineDash([]);
-      
+
       ctx.beginPath();
       ctx.moveTo(sx, sy);
       ctx.lineTo(tx, ty);
@@ -346,30 +350,30 @@ export function ShareExportDialog({
     });
     ctx.setLineDash([]);
     ctx.globalAlpha = 1;
-    
+
     // Draw nodes from graph data
     graph.forEachNode((node, attributes) => {
       if (attributes.hidden) return;
       const v = sigma.graphToViewport({ x: attributes.x, y: attributes.y });
-      
+
       const { width: sigmaW, height: sigmaH } = sigma.getDimensions();
       const scaleX = previewWidth / sigmaW;
       const scaleY = graphAreaHeight / sigmaH;
       const scale = Math.min(scaleX, scaleY) * 0.9;
       const offsetX = (previewWidth - sigmaW * scale) / 2;
       const offsetY = headerHeight + (graphAreaHeight - sigmaH * scale) / 2;
-      
+
       const cx = v.x * scale + offsetX;
       const cy = v.y * scale + offsetY;
       const size = Math.max((attributes.size || 5) * scale * 0.8, 2);
-      
+
       ctx.beginPath();
       ctx.arc(cx, cy, size, 0, Math.PI * 2);
       ctx.fillStyle = attributes.color || "#999";
       ctx.fill();
     });
     ctx.restore();
-    
+
     // Mini legend
     const legendX = 8;
     const legendY = headerHeight + graphAreaHeight - 50;
@@ -380,11 +384,11 @@ export function ShareExportDialog({
     ctx.roundRect(legendX, legendY, 65, 45, 4);
     ctx.fill();
     ctx.stroke();
-    
+
     ctx.font = "bold 7px system-ui";
     ctx.fillStyle = isDark ? "#9ca3af" : "#6b7280";
     ctx.fillText("LEGEND", legendX + 5, legendY + 10);
-    
+
     const legendItems = [
       { color: "#22c55e", label: "Supports" },
       { color: "#ef4444", label: "Refutes" },
@@ -402,7 +406,7 @@ export function ShareExportDialog({
       ctx.font = "7px system-ui";
       ctx.fillText(item.label, legendX + 18, y + 3);
     });
-    
+
     // Mini footer
     ctx.fillStyle = isDark ? "#111827" : "#ffffff";
     ctx.fillRect(0, previewHeight - footerHeight, previewWidth, footerHeight);
@@ -412,17 +416,20 @@ export function ShareExportDialog({
     ctx.moveTo(0, previewHeight - footerHeight);
     ctx.lineTo(previewWidth, previewHeight - footerHeight);
     ctx.stroke();
-    
+
     ctx.fillStyle = "#8b5cf6";
     ctx.font = "bold 8px system-ui";
     ctx.fillText("ithaca.app", previewWidth - 55, previewHeight - 6);
-    
+
     ctx.fillStyle = isDark ? "#9ca3af" : "#6b7280";
     ctx.font = "7px system-ui";
-    ctx.fillText("Exported: " + new Date().toLocaleDateString(), 8, previewHeight - 6);
-    
+    ctx.fillText(
+      "Exported: " + new Date().toLocaleDateString(),
+      8,
+      previewHeight - 6,
+    );
   }, [sigma, graph, graphTitle, nodeCount, edgeCount]);
-  
+
   // Generate preview when dialog opens
   useEffect(() => {
     if (open && sigma) {
@@ -488,7 +495,7 @@ export function ShareExportDialog({
                 </Badge>
               </div>
               <div className="relative rounded-lg border border-border overflow-hidden bg-muted/30">
-                <canvas 
+                <canvas
                   ref={previewCanvasRef}
                   className="w-full h-auto"
                   style={{ maxHeight: 200 }}
@@ -501,7 +508,7 @@ export function ShareExportDialog({
               </div>
             </div>
           )}
-          
+
           {/* Share Link */}
           <div className="space-y-2">
             <label className="text-sm font-medium">Share Link</label>
@@ -648,7 +655,7 @@ export function ShareExportDialog({
               {/* CSV Export */}
               <Button
                 variant="outline"
-                className="h-auto p-3 flex-col gap-1 col-span-2"
+                className="h-auto p-3 flex-col gap-1"
                 disabled={exporting === "csv" || !graph}
                 onClick={() => handleExport("csv")}
               >
@@ -661,7 +668,27 @@ export function ShareExportDialog({
                   {exporting === "csv" ? "Exporting..." : "CSV Tables"}
                 </span>
                 <span className="text-[10px] text-muted-foreground">
-                  Nodes & edges as spreadsheets
+                  Nodes & edges sheets
+                </span>
+              </Button>
+
+              {/* PDF Export */}
+              <Button
+                variant="outline"
+                className="h-auto p-3 flex-col gap-1"
+                disabled={exporting === "pdf" || !sigma || !graph}
+                onClick={() => handleExport("pdf")}
+              >
+                {exporting === "pdf" ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Download className="h-5 w-5" />
+                )}
+                <span className="text-xs font-medium">
+                  {exporting === "pdf" ? "Exporting..." : "PDF Document"}
+                </span>
+                <span className="text-[10px] text-muted-foreground">
+                  Print-ready file
                 </span>
               </Button>
             </div>
