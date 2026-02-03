@@ -333,33 +333,64 @@ export function TutorialOverlay({
 }
 
 /**
- * Tutorial start button - shown when user hasn't completed tutorial
+ * Tutorial start/restart button
+ * - First-time users: Prominent "Take a Tour" button
+ * - Returning users: Subtle icon button to restart
  */
 export function TutorialStartButton({
   onClick,
+  onRestart,
   hasSeenTutorial,
 }: {
   onClick: () => void;
+  onRestart?: () => void;
   hasSeenTutorial: boolean;
 }) {
-  if (hasSeenTutorial) return null;
+  const handleClick = () => {
+    if (hasSeenTutorial && onRestart) {
+      // Reset tutorial state first, then start
+      onRestart();
+    }
+    onClick();
+  };
 
+  // First-time user: Prominent button
+  if (!hasSeenTutorial) {
+    return (
+      <motion.button
+        onClick={handleClick}
+        className={cn(
+          "flex items-center gap-2 px-3 py-2",
+          "bg-primary text-primary-foreground",
+          "rounded-lg shadow-lg",
+          "text-sm font-medium",
+          "hover:bg-primary/90 transition-colors",
+        )}
+        initial={{ opacity: 0, scale: 0.9, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ delay: 1, duration: 0.3 }}
+      >
+        <Sparkles className="w-4 h-4" />
+        Take a Tour
+      </motion.button>
+    );
+  }
+
+  // Returning user: Subtle restart button
   return (
-    <motion.button
-      onClick={onClick}
+    <button
+      onClick={handleClick}
       className={cn(
-        "flex items-center gap-2 px-3 py-2",
-        "bg-primary text-primary-foreground",
+        "flex items-center justify-center w-8 h-8",
+        "bg-card/90 backdrop-blur-sm border border-border",
         "rounded-lg shadow-lg",
-        "text-sm font-medium",
-        "hover:bg-primary/90 transition-colors",
+        "hover:bg-muted transition-colors",
+        "group",
       )}
-      initial={{ opacity: 0, scale: 0.9, y: 10 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      transition={{ delay: 1, duration: 0.3 }}
+      title="Restart tutorial"
+      aria-label="Restart tutorial"
     >
-      <Sparkles className="w-4 h-4" />
-      Take a Tour
-    </motion.button>
+      <Sparkles className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+    </button>
   );
 }

@@ -1520,7 +1520,7 @@ export function ExploreCanvas() {
             </div>
           )}
 
-          {/* BOTTOM-LEFT ZONE: Legend & Status */}
+          {/* BOTTOM-LEFT ZONE: Legend, Status & Help */}
           <div className="absolute bottom-4 left-4 flex flex-col gap-3 pointer-events-auto">
             <GraphLegend />
             <CanvasStatusIndicator
@@ -1528,6 +1528,17 @@ export function ExploreCanvas() {
               nodeCount={graphStats.nodeCount}
               edgeCount={graphStats.edgeCount}
             />
+            {/* Keyboard & Tutorial buttons */}
+            <div className="flex items-center gap-2">
+              <KeyboardShortcutsButton
+                onClick={() => setKeyboardHelpOpen(true)}
+              />
+              <TutorialStartButton
+                onClick={tutorial.start}
+                onRestart={tutorial.reset}
+                hasSeenTutorial={tutorial.hasSeenTutorial}
+              />
+            </div>
           </div>
 
           {/* BOTTOM-CENTER ZONE: Selection Panel, Toast (above zoom indicator) */}
@@ -1559,17 +1570,6 @@ export function ExploreCanvas() {
           {/* BOTTOM-RIGHT ZONE: Share Button */}
           <div className="absolute bottom-4 right-4 pointer-events-auto">
             <ShareButton onClick={() => setShareOpen(true)} />
-          </div>
-
-          {/* BOTTOM-LEFT ZONE: Keyboard Shortcuts & Tutorial */}
-          <div className="absolute bottom-4 left-4 pointer-events-auto flex items-center gap-2">
-            <KeyboardShortcutsButton
-              onClick={() => setKeyboardHelpOpen(true)}
-            />
-            <TutorialStartButton
-              onClick={tutorial.start}
-              hasSeenTutorial={tutorial.hasSeenTutorial}
-            />
           </div>
         </div>
         {/* ========== END OVERLAY SYSTEM ========== */}
