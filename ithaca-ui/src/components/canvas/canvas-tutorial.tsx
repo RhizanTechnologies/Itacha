@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { X, ChevronRight, ChevronLeft, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 import type { TutorialStep } from "@/hooks/useTutorial";
 import { getTutorialTarget } from "@/hooks/useTutorial";
 
@@ -60,6 +61,7 @@ export function TutorialOverlay({
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState<TooltipPosition>({});
   const tooltipRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
 
   // Find and track target element
   useEffect(() => {
@@ -93,6 +95,17 @@ export function TutorialOverlay({
   // Calculate tooltip position
   useEffect(() => {
     if (!isActive || !step) return;
+
+    // Mobile: Always force bottom-center position context-style
+    if (isMobile) {
+      setTooltipPosition({
+        bottom: 24,
+        left: 16,
+        right: 16,
+        transform: "none",
+      });
+      return;
+    }
 
     const position = step.position || "center";
     const padding = step.spotlightPadding || 8;
@@ -222,7 +235,7 @@ export function TutorialOverlay({
         <motion.div
           ref={tooltipRef}
           className={cn(
-            "absolute z-[101] w-[360px] max-w-[calc(100vw-32px)]",
+            "absolute z-[101] w-full md:w-[360px] max-w-[calc(100vw-32px)]",
             "bg-card border border-border rounded-xl shadow-2xl",
             "p-5",
           )}

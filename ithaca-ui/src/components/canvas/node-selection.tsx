@@ -51,7 +51,10 @@ export function NodeSelectionTool({
   onToggle,
   selectedNodes,
   nodeLabels = {},
-}: Pick<NodeSelectionToolProps, 'isActive' | 'onToggle' | 'selectedNodes' | 'nodeLabels'>) {
+}: Pick<
+  NodeSelectionToolProps,
+  "isActive" | "onToggle" | "selectedNodes" | "nodeLabels"
+>) {
   return (
     <button
       onClick={onToggle}
@@ -62,14 +65,11 @@ export function NodeSelectionTool({
       }`}
     >
       <MousePointer className="h-4 w-4" />
-      <span className="text-sm font-medium">
+      <span className="text-sm font-medium hidden md:inline">
         {isActive ? "Selecting..." : "Select Nodes"}
       </span>
       {selectedNodes.length > 0 && (
-        <Badge
-          variant={isActive ? "secondary" : "default"}
-          className="text-xs"
-        >
+        <Badge variant={isActive ? "secondary" : "default"} className="text-xs">
           {selectedNodes.length}
         </Badge>
       )}
@@ -171,7 +171,10 @@ export function SelectionPanel({
 /**
  * SelectionInstruction - Shows instruction when selection mode is active
  */
-export function SelectionInstruction({ isActive, hasSelection }: SelectionInstructionProps) {
+export function SelectionInstruction({
+  isActive,
+  hasSelection,
+}: SelectionInstructionProps) {
   if (!isActive || hasSelection) return null;
 
   return (

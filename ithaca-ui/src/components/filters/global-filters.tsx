@@ -104,7 +104,10 @@ export function GlobalFilters({
     (filters.relationships.supports ? 0 : 1) +
     (filters.relationships.contradicts ? 0 : 1) +
     (filters.relationships.extends ? 0 : 1) +
-    (filters.citationRange[0] > FILTERS.MIN_CITATIONS || filters.citationRange[1] < maxCitations ? 1 : 0) +
+    (filters.citationRange[0] > FILTERS.MIN_CITATIONS ||
+    filters.citationRange[1] < maxCitations
+      ? 1
+      : 0) +
     (filters.yearRange[0] > minYear || filters.yearRange[1] < maxYear ? 1 : 0);
 
   if (!open) {
@@ -114,7 +117,7 @@ export function GlobalFilters({
         className="flex items-center gap-2 bg-card/95 backdrop-blur-sm border border-border rounded-lg px-3 py-2 shadow-lg hover:bg-muted transition-colors"
       >
         <SlidersHorizontal className="h-4 w-4" />
-        <span className="text-sm font-medium">Filters</span>
+        <span className="text-sm font-medium hidden md:inline">Filters</span>
         {activeFilterCount > 0 && (
           <Badge variant="secondary" className="text-xs">
             {activeFilterCount}
@@ -125,7 +128,7 @@ export function GlobalFilters({
   }
 
   return (
-    <div className="w-72 bg-card/95 backdrop-blur border border-border rounded-xl shadow-2xl overflow-hidden animate-in slide-in-from-left-2 fade-in duration-200">
+    <div className="w-72 max-w-[calc(100vw-32px)] bg-card/95 backdrop-blur border border-border rounded-xl shadow-2xl overflow-hidden animate-in slide-in-from-left-2 fade-in duration-200">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-border bg-muted/30">
         <div>
