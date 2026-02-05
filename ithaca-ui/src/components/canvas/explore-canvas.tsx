@@ -473,11 +473,14 @@ export function ExploreCanvas() {
               {
                 allowInvalidContainer: true,
                 renderLabels: true,
-                renderEdgeLabels: false,
                 labelRenderedSizeThreshold: LABELS.SIZE_THRESHOLD,
                 labelDensity: LABELS.DENSITY,
                 labelGridCellSize: LABELS.GRID_CELL_SIZE,
                 labelColor: { color: isDark ? "#fff" : "#000" },
+                // Performance settings for large graphs (2000+ nodes)
+                hideEdgesOnMove: true,
+                hideLabelsOnMove: true,
+                renderEdgeLabels: false, // Explicitly keep disabled for perf
                 zIndex: true,
                 defaultEdgeType: "arrow",
                 defaultNodeType: "circle",

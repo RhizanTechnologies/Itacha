@@ -131,10 +131,10 @@ export function EdgeEvidencePopover({
 
       {/* Popover */}
       <div
-        className={`fixed z-50 w-96 bg-card/95 backdrop-blur border ${config.borderColor} rounded-xl shadow-2xl overflow-hidden animate-in zoom-in-95 fade-in duration-200`}
+        className={`fixed z-50 w-96 bg-card/95 backdrop-blur border ${config.borderColor} rounded-xl shadow-2xl overflow-hidden animate-in zoom-in-95 fade-in duration-200 flex flex-col max-h-[85vh]`}
         style={{
-          left: Math.min(position.x, window.innerWidth - 420),
-          top: Math.min(position.y, window.innerHeight - 400),
+          left: Math.min(position.x, window.innerWidth - 400),
+          top: Math.min(position.y, window.innerHeight - 500),
         }}
       >
         {isEditing ? (
@@ -146,7 +146,7 @@ export function EdgeEvidencePopover({
                 Correct Relationship
               </h3>
             </div>
-            <div className="p-4 space-y-4">
+            <div className="p-4 space-y-4 overflow-y-auto max-h-[60vh]">
               <div className="space-y-2">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Relationship Type

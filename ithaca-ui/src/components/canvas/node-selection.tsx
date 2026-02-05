@@ -98,7 +98,7 @@ export function SelectionPanel({
   if (selectedNodes.length === 0) return null;
 
   return (
-    <div className="bg-card/95 backdrop-blur border border-border rounded-xl shadow-2xl p-4 min-w-80 max-w-md animate-in slide-in-from-bottom-4 fade-in">
+    <div className="bg-card/95 backdrop-blur border border-border rounded-xl shadow-2xl p-4 w-[90vw] md:w-auto md:min-w-80 max-w-md animate-in slide-in-from-bottom-4 fade-in">
       <div className="flex items-center justify-between mb-3">
         <div>
           <h3 className="font-bold text-sm">Selected Nodes</h3>

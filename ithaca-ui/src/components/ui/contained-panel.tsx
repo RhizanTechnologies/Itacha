@@ -1,6 +1,6 @@
 /**
  * Contained Panel Component
- * 
+ *
  * A slide-over panel that stays WITHIN its parent container,
  * rather than using fixed positioning on the viewport.
  * Used for canvas overlays that shouldn't overlap the chat panel.
@@ -59,12 +59,20 @@ export function ContainedPanel({
         className={cn(
           "absolute z-50 bg-background shadow-2xl flex flex-col",
           "animate-in duration-300 ease-out",
-          side === "right" && "inset-y-0 right-0 w-full max-w-xl border-l slide-in-from-right",
-          side === "left" && "inset-y-0 left-0 w-full max-w-xl border-r slide-in-from-left",
-          side === "bottom" && "inset-x-0 bottom-0 h-[60%] border-t slide-in-from-bottom",
-          className
+          side === "right" &&
+            "inset-y-0 right-0 w-full max-w-xl border-l slide-in-from-right",
+          side === "left" &&
+            "inset-y-0 left-0 w-full max-w-xl border-r slide-in-from-left",
+          side === "bottom" &&
+            "inset-x-0 bottom-0 h-[60%] border-t slide-in-from-bottom",
+          className,
         )}
       >
+        {/* Mobile Drag Handle Visual */}
+        {side === "bottom" && (
+          <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-muted shrink-0" />
+        )}
+
         {/* Close button */}
         <button
           onClick={() => onOpenChange(false)}
@@ -89,7 +97,10 @@ interface ContainedPanelHeaderProps {
   className?: string;
 }
 
-export function ContainedPanelHeader({ children, className }: ContainedPanelHeaderProps) {
+export function ContainedPanelHeader({
+  children,
+  className,
+}: ContainedPanelHeaderProps) {
   return (
     <div className={cn("flex flex-col gap-1.5 p-6 pb-4", className)}>
       {children}
@@ -106,12 +117,11 @@ interface ContainedPanelTitleProps {
   className?: string;
 }
 
-export function ContainedPanelTitle({ children, className }: ContainedPanelTitleProps) {
-  return (
-    <h2 className={cn("text-lg font-semibold", className)}>
-      {children}
-    </h2>
-  );
+export function ContainedPanelTitle({
+  children,
+  className,
+}: ContainedPanelTitleProps) {
+  return <h2 className={cn("text-lg font-semibold", className)}>{children}</h2>;
 }
 
 // =============================================================================
@@ -123,11 +133,12 @@ interface ContainedPanelDescriptionProps {
   className?: string;
 }
 
-export function ContainedPanelDescription({ children, className }: ContainedPanelDescriptionProps) {
+export function ContainedPanelDescription({
+  children,
+  className,
+}: ContainedPanelDescriptionProps) {
   return (
-    <p className={cn("text-sm text-muted-foreground", className)}>
-      {children}
-    </p>
+    <p className={cn("text-sm text-muted-foreground", className)}>{children}</p>
   );
 }
 
@@ -140,7 +151,10 @@ interface ContainedPanelContentProps {
   className?: string;
 }
 
-export function ContainedPanelContent({ children, className }: ContainedPanelContentProps) {
+export function ContainedPanelContent({
+  children,
+  className,
+}: ContainedPanelContentProps) {
   return (
     <div className={cn("flex-1 overflow-y-auto p-6 pt-0", className)}>
       {children}
@@ -157,9 +171,14 @@ interface ContainedPanelFooterProps {
   className?: string;
 }
 
-export function ContainedPanelFooter({ children, className }: ContainedPanelFooterProps) {
+export function ContainedPanelFooter({
+  children,
+  className,
+}: ContainedPanelFooterProps) {
   return (
-    <div className={cn("mt-auto border-t p-4 flex gap-2 justify-end", className)}>
+    <div
+      className={cn("mt-auto border-t p-4 flex gap-2 justify-end", className)}
+    >
       {children}
     </div>
   );
