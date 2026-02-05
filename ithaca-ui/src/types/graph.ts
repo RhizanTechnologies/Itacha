@@ -77,7 +77,7 @@ import type { PathMode } from "@/components/canvas/path-comparison";
 /** Graph interaction API exposed to parent components */
 export interface GraphInteractionApi {
   focusNodes: (nodeIds: string[]) => void;
-  exportSelection: (nodeIds: string[]) => void;
+  exportSelection: (nodeIds: string[], format?: "csv" | "bibtex") => void;
   findPaths: (sourceId: string, targetId: string, mode?: PathMode) => unknown[];
   clearHighlights: () => void;
 }

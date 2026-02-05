@@ -10,6 +10,12 @@ import {
   Eye,
   GitCompare,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface NodeSelectionToolProps {
   isActive: boolean;
@@ -19,7 +25,7 @@ interface NodeSelectionToolProps {
   onRemoveNode: (nodeId: string) => void;
   onFocusSelection: () => void;
   onCompare: () => void;
-  onExport: () => void;
+  onExport: (format: "csv" | "bibtex") => void;
   nodeLabels?: Record<string, string>; // Map of nodeId to label
 }
 
@@ -30,7 +36,7 @@ interface SelectionPanelProps {
   onRemoveNode: (nodeId: string) => void;
   onFocusSelection: () => void;
   onCompare: () => void;
-  onExport: () => void;
+  onExport: (format: "csv" | "bibtex") => void;
 }
 
 interface SelectionInstructionProps {
@@ -154,15 +160,27 @@ export function SelectionPanel({
           <GitCompare className="h-4 w-4" />
           <span className="text-[10px]">Compare</span>
         </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="flex-col h-auto py-2 gap-1"
-          onClick={onExport}
-        >
-          <Download className="h-4 w-4" />
-          <span className="text-[10px]">Export</span>
-        </Button>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-col h-auto py-2 gap-1"
+            >
+              <Download className="h-4 w-4" />
+              <span className="text-[10px]">Export</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => onExport("csv")}>
+              Export as CSV
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onExport("bibtex")}>
+              Export as BibTeX
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );

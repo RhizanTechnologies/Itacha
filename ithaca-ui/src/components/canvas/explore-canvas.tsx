@@ -123,6 +123,9 @@ export function ExploreCanvas() {
 
   // UI State
   const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState(
+    "Photosynthetic Efficiency correlation detected",
+  );
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
@@ -287,10 +290,14 @@ export function ExploreCanvas() {
   }, [selectedNodes]);
 
   // Handle export selection
-  const handleExportSelection = useCallback(() => {
-    if (selectedNodes.length === 0 || !graphApiRef.current) return;
-    graphApiRef.current.exportSelection(selectedNodes);
-  }, [selectedNodes]);
+  // Handle export selection
+  const handleExportSelection = useCallback(
+    (format: "csv" | "bibtex" = "csv") => {
+      if (selectedNodes.length === 0 || !graphApiRef.current) return;
+      graphApiRef.current.exportSelection(selectedNodes, format);
+    },
+    [selectedNodes],
+  );
 
   // Handle entering focus mode
   const handleEnterFocusMode = useCallback((nodeId: string) => {
@@ -686,7 +693,7 @@ export function ExploreCanvas() {
               }
               onFocusSelection={handleFocusSelection}
               onCompare={() => calculatePathWithMode(pathMode)}
-              onExport={() => handleExportSelection()}
+              onExport={(format) => handleExportSelection(format)}
             />
             <SelectionInstruction
               isActive={selectionMode}
@@ -694,7 +701,7 @@ export function ExploreCanvas() {
             />
             <NewArgumentToast
               show={showToast}
-              message="Photosynthetic Efficiency correlation detected"
+              message={toastMessage}
               onClose={() => setShowToast(false)}
             />
           </BottomCenterZone>
@@ -772,6 +779,13 @@ export function ExploreCanvas() {
           }}
           onDispute={(edgeId) => {
             debug.log("Dispute edge requested:", edgeId);
+            setToastMessage("Dispute flagged for review");
+            setShowToast(true);
+          }}
+          onCorrect={(edgeId, type, comment) => {
+            debug.log("Correction submitted:", { edgeId, type, comment });
+            setToastMessage(`Relationship corrected to ${type}`);
+            setShowToast(true);
           }}
         />
 

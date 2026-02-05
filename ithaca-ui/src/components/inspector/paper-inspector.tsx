@@ -30,6 +30,7 @@ import {
   Share2,
   Copy,
   Check,
+  Upload,
 } from "lucide-react";
 
 // Paper data interface
@@ -168,6 +169,10 @@ export function PaperInspector({
               <BookOpen className="h-3.5 w-3.5" />
               Cite
             </TabsTrigger>
+            <TabsTrigger value="context" className="gap-1.5">
+              <Upload className="h-3.5 w-3.5" />
+              Context
+            </TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
@@ -263,6 +268,44 @@ export function PaperInspector({
               <Download className="h-4 w-4" />
               Export BibTeX
             </Button>
+          </TabsContent>
+
+          {/* Context/Upload Tab */}
+          <TabsContent value="context" className="mt-6 space-y-6">
+            <div className="p-6 border-2 border-dashed border-border rounded-xl bg-card/50 hover:bg-card/80 transition-all text-center group cursor-pointer">
+              <div className="bg-primary/10 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-primary/20 transition-colors">
+                <Upload className="h-6 w-6 text-primary" />
+              </div>
+              <h3 className="font-semibold text-lg mb-2">Upload PDF Context</h3>
+              <p className="text-sm text-muted-foreground mb-4 max-w-xs mx-auto">
+                Drag and drop the full text PDF to enable deep AI analysis and
+                extraction.
+              </p>
+              <Button>Select File</Button>
+            </div>
+
+            <div className="bg-muted/30 rounded-xl p-4">
+              <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                <Sparkles className="h-3.5 w-3.5 text-sky-500" />
+                Analysis Capabilities (Locked)
+              </h4>
+              <ul className="space-y-2.5">
+                {[
+                  "Full-text extraction",
+                  "Methodology analysis",
+                  "Figure interpretation",
+                  "Citation graph expansion",
+                ].map((feature, i) => (
+                  <li
+                    key={i}
+                    className="flex items-center gap-2 text-sm text-muted-foreground"
+                  >
+                    <div className="h-1.5 w-1.5 rounded-full bg-border" />
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+            </div>
           </TabsContent>
         </Tabs>
 
