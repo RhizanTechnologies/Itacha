@@ -61,6 +61,10 @@ export interface GraphLoaderProps {
   refreshTrigger: number;
   solidNodes: Set<string>;
   onAddToProject: (nodeId: string) => void;
+  // Hoisted state for List View integration
+  hoveredNode: string | null;
+  onHoverNode: (nodeId: string | null) => void;
+  onGraphLoaded?: (nodes: PaperData[]) => void;
 }
 
 /**
@@ -86,11 +90,14 @@ export function GraphLoader({
   focusModeNode,
   solidNodes,
   onAddToProject,
+  hoveredNode,
+  onHoverNode,
+  onGraphLoaded,
 }: GraphLoaderProps) {
   const loadGraph = useLoadGraph();
   const sigma = useSigma();
   const registerEvents = useRegisterEvents();
-  const [hoveredNode, setHoveredNode] = useState<string | null>(null);
+  // hoveredNode state hoisted to parent
   const [hoveredEdges, setHoveredEdges] = useState<Set<string>>(new Set());
   const graphRef = useRef<Graph | null>(null);
 
@@ -98,6 +105,11 @@ export function GraphLoader({
   useEffect(() => {
     async function loadGraphData() {
       const { nodes, edges } = await graphAPI.fetchGraph(paperCount);
+
+      // Notify parent of loaded nodes (for List View)
+      if (onGraphLoaded) {
+        onGraphLoaded(nodes);
+      }
 
       const graph = new Graph();
 
@@ -545,8 +557,8 @@ export function GraphLoader({
   // Set up event handlers
   useEffect(() => {
     registerEvents({
-      enterNode: (event) => setHoveredNode(event.node),
-      leaveNode: () => setHoveredNode(null),
+      enterNode: (event) => onHoverNode(event.node),
+      leaveNode: () => onHoverNode(null),
       clickNode: async (event) => {
         const attrs = sigma.getGraph().getNodeAttributes(event.node);
 

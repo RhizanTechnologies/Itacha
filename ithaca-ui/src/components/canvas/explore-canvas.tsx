@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import {
+  useEffect,
+  useState,
+  useCallback,
+  useRef,
+  useMemo,
+  SetStateAction,
+} from "react";
 import {
   SigmaContainer,
   ControlsContainer,
@@ -23,6 +30,8 @@ import type {
   PaperData,
   EvidenceItem,
 } from "@/components/inspector/paper-inspector";
+import { PaperListPanel } from "@/components/canvas/paper-list-panel";
+import { List } from "lucide-react";
 import {
   GlobalFilters,
   GraphLegend,
@@ -101,6 +110,7 @@ import type {
   SigmaPositionEventPayload,
 } from "@/types/graph";
 import type { PaperNode, EdgeData } from "@/lib/api/graph-api";
+import { Button } from "../ui/button";
 
 // =============================================================================
 // MAIN CANVAS COMPONENT
@@ -139,6 +149,11 @@ export function ExploreCanvas() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [solidNodes, setSolidNodes] = useState<Set<string>>(new Set());
+
+  // List View State
+  const [listPanelOpen, setListPanelOpen] = useState(false);
+  const [visiblePapers, setVisiblePapers] = useState<PaperData[]>([]);
+  const [hoveredNode, setHoveredNode] = useState<string | null>(null);
 
   // Selection State
   const [selectionMode, setSelectionMode] = useState(false);
@@ -514,6 +529,12 @@ export function ExploreCanvas() {
                 );
                 setNodeLabels((prev) => ({ ...prev, [nodeId]: label }));
               }, [])}
+              hoveredNode={hoveredNode}
+              onHoverNode={setHoveredNode}
+              onGraphLoaded={useCallback(
+                (nodes: SetStateAction<PaperData[]>) => setVisiblePapers(nodes),
+                [],
+              )}
             />
 
             {/* Sigma-managed internal components (need sigma context) */}
@@ -596,17 +617,29 @@ export function ExploreCanvas() {
           </TopLeftZone>
 
           {/* TOP-RIGHT ZONE: AI Chat & Node Selection */}
+          {/* TOP-RIGHT ZONE: AI Chat & Node Selection & List View */}
           <TopRightZone>
-            <ChatToggleButton
-              isOpen={chatOpen}
-              onClick={() => setChatOpen(!chatOpen)}
-            />
-            <NodeSelectionTool
-              isActive={selectionMode}
-              onToggle={() => setSelectionMode(!selectionMode)}
-              selectedNodes={selectedNodes}
-              nodeLabels={nodeLabels}
-            />
+            <div className="flex flex-col gap-2">
+              <Button
+                variant={listPanelOpen ? "default" : "outline"}
+                size="icon"
+                className="h-9 w-9 rounded-full shadow-md z-30 pointer-events-auto"
+                onClick={() => setListPanelOpen(!listPanelOpen)}
+                title="Toggle List View"
+              >
+                <List className="h-4 w-4" />
+              </Button>
+              <ChatToggleButton
+                isOpen={chatOpen}
+                onClick={() => setChatOpen(!chatOpen)}
+              />
+              <NodeSelectionTool
+                isActive={selectionMode}
+                onToggle={() => setSelectionMode(!selectionMode)}
+                selectedNodes={selectedNodes}
+                nodeLabels={nodeLabels}
+              />
+            </div>
           </TopRightZone>
 
           {/* TOP-CENTER ZONE: Focus Mode Banner */}
@@ -673,10 +706,32 @@ export function ExploreCanvas() {
         </OverlayManager>
         {/* ========== END OVERLAY SYSTEM ========== */}
 
-        {/* Loading Overlay (full screen) */}
-        <CanvasLoadingOverlay
-          isLoading={isLoading}
-          message="Loading graph data..."
+        {/* List Panel - Slides in from Right */}
+        <PaperListPanel
+          open={listPanelOpen}
+          onOpenChange={setListPanelOpen}
+          papers={visiblePapers}
+          hoveredNode={hoveredNode}
+          onHoverNode={setHoveredNode}
+          onSelectNode={(nodeId) => {
+            // Simulate click to open inspector
+            const paper = visiblePapers.find((p) => p.id === nodeId);
+            if (paper) {
+              setSelectedPaper(paper);
+              setInspectorOpen(true);
+              // Center camera on node? Optional polish
+              const graph = graphInstanceRef.current;
+              if (graph && graph.hasNode(nodeId)) {
+                const pos = graph.getNodeAttributes(nodeId);
+                sigmaRef.current?.getCamera().animate({
+                  x: pos.x,
+                  y: pos.y,
+                  ratio: 0.5,
+                  duration: 600,
+                });
+              }
+            }
+          }}
         />
 
         {/* Contextual Overlays & Modals */}
