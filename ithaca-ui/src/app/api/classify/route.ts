@@ -64,7 +64,8 @@ export async function POST(request: NextRequest) {
     const stats = {
       total: results.length,
       cached: results.filter((r) => r.cached).length,
-      classified: results.filter((r) => !r.cached && r.provider !== "fallback").length,
+      classified: results.filter((r) => !r.cached && r.provider !== "fallback")
+        .length,
       failed: results.filter((r) => r.provider === "fallback").length,
     };
 

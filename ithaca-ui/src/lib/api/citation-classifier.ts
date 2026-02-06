@@ -100,14 +100,17 @@ Abstract: ${input.citedAbstract || "No abstract available."}`,
     result = {
       edgeType: "extends",
       confidence: 0.3,
-      snippet: "Citation relationship could not be determined from available abstracts.",
+      snippet:
+        "Citation relationship could not be determined from available abstracts.",
     };
   }
 
   // Validate edgeType
   const validTypes = ["supports", "contradicts", "extends"] as const;
-  const edgeType = validTypes.includes(result.edgeType as typeof validTypes[number])
-    ? (result.edgeType as typeof validTypes[number])
+  const edgeType = validTypes.includes(
+    result.edgeType as (typeof validTypes)[number],
+  )
+    ? (result.edgeType as (typeof validTypes)[number])
     : "extends";
 
   // Clamp confidence to [0, 1]
@@ -233,7 +236,9 @@ async function cacheClassification(
     });
   } catch {
     // Cache write failure is non-fatal — next time it'll re-classify
-    console.warn("[Citation Cache] Failed to write cache, will retry next time");
+    console.warn(
+      "[Citation Cache] Failed to write cache, will retry next time",
+    );
   }
 }
 

@@ -1,12 +1,15 @@
 /**
  * Graph API Service (Adapter Pattern Implementation)
  *
- * This layer abstracts the data source (Mock vs. Semantic Scholar vs. User DB).
+ * This layer abstracts the data source (Mock vs. OpenAlex real data).
  * It exports a Singleton `graphAPI` that delegates to a specific Provider.
+ *
+ * Set NEXT_PUBLIC_USE_REAL_DATA=true to use OpenAlex + LLM classification.
  */
 
 import Graph from "graphology";
 import { FilterState } from "@/components/filters/global-filters";
+import { OpenAlexProvider } from "./openalex-provider";
 
 // =============================================================================
 // TYPES
@@ -168,9 +171,9 @@ const ABSTRACTS = [
   "We present methods for learning representations of text that can be used for a wide range of downstream NLP tasks with minimal task-specific architecture modifications.",
 ];
 const EDGE_COLORS = {
-  supports: "#22c55e",
-  contradicts: "#ef4444",
-  extends: "#eab308",
+  supports: "#22c55e",    // green
+  contradicts: "#ef4444",  // red
+  extends: "#3b82f6",      // blue — matches --extends CSS var
 };
 const CLUSTER_COLORS = ["#3b82f6", "#8b5cf6", "#ec4899", "#f97316", "#14b8a6"];
 
@@ -458,41 +461,8 @@ class MockGraphProvider implements IGraphProvider {
 }
 
 // =============================================================================
-// REAL DATA PROVIDER (Semantic Scholar) - STUB
+// REAL DATA PROVIDER (OpenAlex) — see openalex-provider.ts
 // =============================================================================
-
-class SemanticScholarProvider implements IGraphProvider {
-  async fetchGraph(nodeCount?: number) {
-    return { nodes: [], edges: [] };
-  }
-  async fetchTopicSlice(query: string) {
-    return { nodes: [], edges: [], clusters: [] };
-  }
-  async fetchPaperContext(paperId: string) {
-    return { nodes: [], edges: [] };
-  }
-  async getPaperById(id: string) {
-    return null;
-  }
-  async getEvidence(paperId: string) {
-    return [];
-  }
-  async searchPapers(query: string) {
-    return [];
-  }
-  async expandNode(nodeId: string) {
-    return { nodes: [], edges: [] };
-  }
-  getStats(): GraphStats {
-    return {
-      nodeCount: 0,
-      edgeCount: 0,
-      supportsCount: 0,
-      contradictsCount: 0,
-      extendsCount: 0,
-    };
-  }
-}
 
 // =============================================================================
 // MAIN SERVICE WRAPPER
@@ -502,13 +472,13 @@ class GraphAPIService {
   private provider: IGraphProvider;
 
   constructor() {
-    // Adapter Selection Logic
+    // Adapter Selection Logic:
+    //   NEXT_PUBLIC_USE_REAL_DATA=true  → OpenAlex (real papers) + LLM classification
+    //   NEXT_PUBLIC_USE_REAL_DATA=false → MockGraphProvider (hardcoded test data)
     const useRealData = process.env.NEXT_PUBLIC_USE_REAL_DATA === "true";
     this.provider = useRealData
-      ? new SemanticScholarProvider()
+      ? new OpenAlexProvider()
       : new MockGraphProvider();
-
-    //console.log("GraphAPI initialized with provider:", useRealData ? "Semantic Scholar" : "Mock Data");
   }
 
   // Delegators

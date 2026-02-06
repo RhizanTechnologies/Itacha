@@ -164,8 +164,7 @@ export class GeminiProvider implements ILLMProvider {
     }
 
     const data = await response.json();
-    const content =
-      data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    const content = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
     this.rateLimiter.record();
 
@@ -274,8 +273,7 @@ export class LLMRouter {
       try {
         return await provider.chat(messages, jsonMode);
       } catch (error) {
-        const msg =
-          error instanceof Error ? error.message : "Unknown error";
+        const msg = error instanceof Error ? error.message : "Unknown error";
         errors.push(`${provider.name}: ${msg}`);
 
         // If it's a rate limit error, try the next provider
@@ -288,9 +286,7 @@ export class LLMRouter {
       }
     }
 
-    throw new Error(
-      `All LLM providers exhausted:\n${errors.join("\n")}`,
-    );
+    throw new Error(`All LLM providers exhausted:\n${errors.join("\n")}`);
   }
 
   /** Get status of all providers */
