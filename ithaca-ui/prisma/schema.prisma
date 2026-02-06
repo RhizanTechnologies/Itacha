@@ -71,3 +71,23 @@ model Verification {
 
   @@map("verification")
 }
+
+// =============================================================================
+// CITATION CLASSIFICATION CACHE
+// =============================================================================
+
+model CitationCache {
+  id         String   @id @default(cuid())
+  citingId   String   // OpenAlex paper ID (e.g., "W2741809807")
+  citedId    String   // OpenAlex paper ID
+  edgeType   String   // "supports" | "contradicts" | "extends"
+  confidence Float    // 0.0 - 1.0
+  snippet    String   @db.Text // Key sentence explaining the relationship
+  provider   String   // e.g., "gemini/gemini-2.0-flash" — tracks which model classified it
+  createdAt  DateTime @default(now())
+
+  @@unique([citingId, citedId])
+  @@index([citingId])
+  @@index([citedId])
+  @@map("citation_cache")
+}

@@ -21,6 +21,13 @@ const envSchema = z.object({
   ORCID_CLIENT_ID: z.string().optional(),
   ORCID_CLIENT_SECRET: z.string().optional(),
 
+  // LLM Providers (for citation classification)
+  GEMINI_API_KEY: z.string().optional(), // Primary — free 1,500 req/day
+  GROQ_API_KEY: z.string().optional(), // Fallback — free ~30 RPM
+
+  // OpenAlex (polite pool — optional but recommended)
+  OPENALEX_EMAIL: z.string().email().optional(),
+
   // Email
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.string().optional(),
