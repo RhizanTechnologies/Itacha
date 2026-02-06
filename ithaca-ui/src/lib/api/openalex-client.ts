@@ -154,9 +154,7 @@ async function openAlexFetch<T>(
     } catch (error) {
       if (attempt === retries) throw error;
       // Wait before retry on network errors
-      await new Promise((resolve) =>
-        setTimeout(resolve, 1000 * (attempt + 1)),
-      );
+      await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
     }
   }
 

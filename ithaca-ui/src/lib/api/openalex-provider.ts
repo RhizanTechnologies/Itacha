@@ -62,9 +62,9 @@ const CLUSTER_COLORS = [
 ];
 
 const EDGE_COLORS: Record<string, string> = {
-  supports: "#22c55e",    // green  — matches --supports CSS var
-  contradicts: "#ef4444",  // red    — matches --contradicts CSS var
-  extends: "#3b82f6",      // blue   — matches --extends CSS var
+  supports: "#22c55e", // green  — matches --supports CSS var
+  contradicts: "#ef4444", // red    — matches --contradicts CSS var
+  extends: "#3b82f6", // blue   — matches --extends CSS var
 };
 
 // =============================================================================
@@ -74,10 +74,7 @@ const EDGE_COLORS: Record<string, string> = {
 /**
  * Convert an OpenAlex Work to a PaperNode for the graph canvas.
  */
-function workToPaperNode(
-  work: OpenAlexWork,
-  clusterIndex = 0,
-): PaperNode {
+function workToPaperNode(work: OpenAlexWork, clusterIndex = 0): PaperNode {
   const id = extractOpenAlexId(work.id);
   const authors = work.authorships
     .map((a) => a.author.display_name)
@@ -88,8 +85,7 @@ function workToPaperNode(
   const year = work.publication_year ?? 2024;
   const title = work.title ?? work.display_name ?? "Untitled";
   const citations = work.cited_by_count ?? 0;
-  const venue =
-    work.primary_location?.source?.display_name ?? undefined;
+  const venue = work.primary_location?.source?.display_name ?? undefined;
   const abstract = reconstructAbstract(work.abstract_inverted_index);
 
   // Size based on citation count (log scale, clamped)
@@ -160,7 +156,9 @@ async function classifyViaAPI(
     });
 
     if (!response.ok) {
-      console.warn(`[classify] API returned ${response.status}, using defaults`);
+      console.warn(
+        `[classify] API returned ${response.status}, using defaults`,
+      );
       return inputs.map((i) => ({
         ...i,
         edgeType: "extends" as const,
@@ -219,10 +217,7 @@ async function classifyEdges(
 /**
  * Create default (unclassified) edges for when classification is skipped or fails.
  */
-function createDefaultEdge(
-  sourceId: string,
-  targetId: string,
-): EdgeData {
+function createDefaultEdge(sourceId: string, targetId: string): EdgeData {
   return {
     id: `${sourceId}-${targetId}`,
     source: sourceId,
@@ -343,7 +338,10 @@ export class OpenAlexProvider implements IGraphProvider {
       try {
         edges = await classifyEdges(edgePairs);
       } catch (error) {
-        console.warn("[OpenAlexProvider] Edge classification failed, using defaults:", error);
+        console.warn(
+          "[OpenAlexProvider] Edge classification failed, using defaults:",
+          error,
+        );
         edges = edgePairs.map(({ sourceNode, targetNode }) =>
           createDefaultEdge(sourceNode.id, targetNode.id),
         );
@@ -581,8 +579,7 @@ export class OpenAlexProvider implements IGraphProvider {
     const evidence: EvidenceItem[] = [];
 
     for (const edge of relatedEdges.slice(0, 5)) {
-      const otherNodeId =
-        edge.source === paperId ? edge.target : edge.source;
+      const otherNodeId = edge.source === paperId ? edge.target : edge.source;
       const otherNode = this.nodeCache.get(otherNodeId);
       if (!otherNode) continue;
 
@@ -594,7 +591,12 @@ export class OpenAlexProvider implements IGraphProvider {
           authors: otherNode.authors,
           year: otherNode.year,
         },
-        relation: edge.edgeType === "contradicts" ? "refutes" : edge.edgeType === "supports" ? "supports" : "extends",
+        relation:
+          edge.edgeType === "contradicts"
+            ? "refutes"
+            : edge.edgeType === "supports"
+              ? "supports"
+              : "extends",
         confidence: edge.confidence,
         snippet: `This paper ${edge.edgeType === "supports" ? "builds upon" : edge.edgeType === "contradicts" ? "challenges" : "extends"} the work by ${otherNode.authors.split(",")[0]?.trim() ?? "the authors"} (${otherNode.year}).`,
         context: "Discussion",
@@ -637,10 +639,7 @@ export class OpenAlexProvider implements IGraphProvider {
           (supportCounts.get(edge.target) ?? 0) + 1,
         );
       } else if (edge.edgeType === "contradicts") {
-        refuteCounts.set(
-          edge.target,
-          (refuteCounts.get(edge.target) ?? 0) + 1,
-        );
+        refuteCounts.set(edge.target, (refuteCounts.get(edge.target) ?? 0) + 1);
       }
     }
 

@@ -171,9 +171,9 @@ const ABSTRACTS = [
   "We present methods for learning representations of text that can be used for a wide range of downstream NLP tasks with minimal task-specific architecture modifications.",
 ];
 const EDGE_COLORS = {
-  supports: "#22c55e",    // green
-  contradicts: "#ef4444",  // red
-  extends: "#3b82f6",      // blue — matches --extends CSS var
+  supports: "#22c55e", // green
+  contradicts: "#ef4444", // red
+  extends: "#3b82f6", // blue — matches --extends CSS var
 };
 const CLUSTER_COLORS = ["#3b82f6", "#8b5cf6", "#ec4899", "#f97316", "#14b8a6"];
 
