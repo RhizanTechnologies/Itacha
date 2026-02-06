@@ -1,10 +1,17 @@
 "use client";
 
 import { useCallback } from "react";
-import { useCanvasActions, useCanvasRefs, useCanvasState } from "@/contexts/canvas-context";
+import {
+  useCanvasActions,
+  useCanvasRefs,
+  useCanvasState,
+} from "@/contexts/canvas-context";
 import { graphAPI } from "@/lib/api/graph-api";
 import { debug } from "@/lib/debug";
-import type { PaperData, EvidenceItem } from "@/components/inspector/paper-inspector";
+import type {
+  PaperData,
+  EvidenceItem,
+} from "@/components/inspector/paper-inspector";
 import type { EdgeEvidence } from "@/components/canvas/edge-evidence-popover";
 
 /**
@@ -24,7 +31,11 @@ export function useCanvasInteraction() {
   );
 
   const handleEdgeClick = useCallback(
-    (edgeId: string, position: { x: number; y: number }, evidence: EdgeEvidence) => {
+    (
+      edgeId: string,
+      position: { x: number; y: number },
+      evidence: EdgeEvidence,
+    ) => {
       actions.showEdgeEvidence(evidence, position);
     },
     [actions],

@@ -1,7 +1,11 @@
 "use client";
 
 import { useCallback } from "react";
-import { useCanvasActions, useCanvasRefs, useCanvasState } from "@/contexts/canvas-context";
+import {
+  useCanvasActions,
+  useCanvasRefs,
+  useCanvasState,
+} from "@/contexts/canvas-context";
 import { findSemanticPath } from "@/lib/graph-algorithms";
 import { debug } from "@/lib/debug";
 import type { PathMode } from "@/components/canvas/path-comparison";

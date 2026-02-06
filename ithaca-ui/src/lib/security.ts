@@ -13,7 +13,7 @@ export function generateSecureToken(length: number = 32): string {
   const array = new Uint8Array(length);
   crypto.getRandomValues(array);
   return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join(
-    ""
+    "",
   );
 }
 
@@ -86,7 +86,7 @@ const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 export function checkRateLimit(
   identifier: string,
   maxAttempts: number = 5,
-  windowMs: number = 15 * 60 * 1000 // 15 minutes
+  windowMs: number = 15 * 60 * 1000, // 15 minutes
 ): { allowed: boolean; remaining: number; resetAt: number } {
   const now = Date.now();
   const record = rateLimitMap.get(identifier);

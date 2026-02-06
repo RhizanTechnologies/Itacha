@@ -82,14 +82,14 @@ export async function middleware(request: NextRequest) {
     response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
     response.headers.set(
       "Permissions-Policy",
-      "camera=(), microphone=(), geolocation=()"
+      "camera=(), microphone=(), geolocation=()",
     );
 
     // CSP header (adjust as needed)
     if (process.env.NODE_ENV === "production") {
       response.headers.set(
         "Content-Security-Policy",
-        "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:;"
+        "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:;",
       );
     }
 
