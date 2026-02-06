@@ -49,12 +49,14 @@ interface EdgeEvidencePosition {
 export interface CanvasState {
   // UI State
   showToast: boolean;
+  toastMessage: string;
   inspectorOpen: boolean;
   filtersOpen: boolean;
   shareOpen: boolean;
   keyboardHelpOpen: boolean;
   pathCompareOpen: boolean;
   chatOpen: boolean;
+  listPanelOpen: boolean;
 
   // Loading State
   isLoading: boolean;
@@ -67,6 +69,8 @@ export interface CanvasState {
   paperCount: number;
   refreshTrigger: number;
   solidNodes: Set<string>;
+  visiblePapers: PaperData[];
+  hoveredNode: string | null;
 
   // Selection State
   selectionMode: boolean;
@@ -107,6 +111,7 @@ type CanvasAction =
   | { type: "SET_KEYBOARD_HELP_OPEN"; payload: boolean }
   | { type: "SET_PATH_COMPARE_OPEN"; payload: boolean }
   | { type: "SET_CHAT_OPEN"; payload: boolean }
+  | { type: "SET_LIST_PANEL_OPEN"; payload: boolean }
   | { type: "TOGGLE_FILTERS" }
   | { type: "TOGGLE_CHAT" }
   | { type: "TOGGLE_SELECTION_MODE" }
@@ -122,6 +127,10 @@ type CanvasAction =
   | { type: "SET_PAPER_COUNT"; payload: number }
   | { type: "TRIGGER_REFRESH" }
   | { type: "SET_SOLID_NODES"; payload: Set<string> }
+  | { type: "ADD_SOLID_NODE"; payload: string }
+  | { type: "SET_VISIBLE_PAPERS"; payload: PaperData[] }
+  | { type: "SET_HOVERED_NODE"; payload: string | null }
+  | { type: "SET_TOAST_MESSAGE"; payload: string }
   // Selection
   | { type: "SET_SELECTION_MODE"; payload: boolean }
   | { type: "SET_SELECTED_NODES"; payload: string[] }
@@ -158,12 +167,14 @@ type CanvasAction =
 const initialState: CanvasState = {
   // UI State
   showToast: false,
+  toastMessage: "",
   inspectorOpen: false,
   filtersOpen: false,
   shareOpen: false,
   keyboardHelpOpen: false,
   pathCompareOpen: false,
   chatOpen: false,
+  listPanelOpen: false,
 
   // Loading State
   isLoading: false,
@@ -180,6 +191,8 @@ const initialState: CanvasState = {
   paperCount: 25,
   refreshTrigger: 0,
   solidNodes: new Set(),
+  visiblePapers: [],
+  hoveredNode: null,
 
   // Selection State
   selectionMode: false,
@@ -228,6 +241,8 @@ function canvasReducer(state: CanvasState, action: CanvasAction): CanvasState {
       return { ...state, pathCompareOpen: action.payload };
     case "SET_CHAT_OPEN":
       return { ...state, chatOpen: action.payload };
+    case "SET_LIST_PANEL_OPEN":
+      return { ...state, listPanelOpen: action.payload };
     case "TOGGLE_FILTERS":
       return { ...state, filtersOpen: !state.filtersOpen };
     case "TOGGLE_CHAT":
@@ -269,6 +284,17 @@ function canvasReducer(state: CanvasState, action: CanvasAction): CanvasState {
       return { ...state, refreshTrigger: state.refreshTrigger + 1 };
     case "SET_SOLID_NODES":
       return { ...state, solidNodes: action.payload };
+    case "ADD_SOLID_NODE": {
+      const next = new Set(state.solidNodes);
+      next.add(action.payload);
+      return { ...state, solidNodes: next };
+    }
+    case "SET_VISIBLE_PAPERS":
+      return { ...state, visiblePapers: action.payload };
+    case "SET_HOVERED_NODE":
+      return { ...state, hoveredNode: action.payload };
+    case "SET_TOAST_MESSAGE":
+      return { ...state, toastMessage: action.payload, showToast: true };
 
     // Selection
     case "SET_SELECTION_MODE":
@@ -489,6 +515,16 @@ export function useCanvasActions() {
       triggerRefresh: () => dispatch({ type: "TRIGGER_REFRESH" }),
       setSolidNodes: (nodes: Set<string>) =>
         dispatch({ type: "SET_SOLID_NODES", payload: nodes }),
+      addSolidNode: (nodeId: string) =>
+        dispatch({ type: "ADD_SOLID_NODE", payload: nodeId }),
+      setVisiblePapers: (papers: PaperData[]) =>
+        dispatch({ type: "SET_VISIBLE_PAPERS", payload: papers }),
+      setHoveredNode: (nodeId: string | null) =>
+        dispatch({ type: "SET_HOVERED_NODE", payload: nodeId }),
+      setListPanelOpen: (open: boolean) =>
+        dispatch({ type: "SET_LIST_PANEL_OPEN", payload: open }),
+      showToastMessage: (message: string) =>
+        dispatch({ type: "SET_TOAST_MESSAGE", payload: message }),
 
       // Selection
       setSelectionMode: (mode: boolean) =>

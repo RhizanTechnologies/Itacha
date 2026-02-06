@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -9,14 +9,12 @@ import {
   FolderOpen,
   Settings,
   Menu,
-  Plus,
   ChevronLeft,
   LayoutDashboard,
   Filter,
 } from "lucide-react";
 import { useState } from "react";
 import { UserButton } from "@/components/auth/user-button";
-import { CommandBar } from "@/components/command/command-bar";
 import { useRouter } from "next/navigation";
 
 interface CanvasLayoutProps {
@@ -26,18 +24,11 @@ interface CanvasLayoutProps {
 export default function CanvasLayout({ children }: CanvasLayoutProps) {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const router = useRouter();
 
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden">
-      <CommandBar
-        onSelectPaper={(id) => router.push(`/explore?nodeId=${id}`)}
-        onAction={(action) => {
-          if (action === "settings") router.push("/dashboard?tab=settings");
-          // Add other global actions if needed
-        }}
-        hideTrigger
-      />
       {/* Sidebar */}
       <aside
         className={`relative border-r border-border bg-muted/10 transition-[width] duration-300 ease-in-out flex flex-col ${
@@ -122,7 +113,7 @@ export default function CanvasLayout({ children }: CanvasLayoutProps) {
           <Link href="/dashboard?tab=settings">
             <Button
               variant={
-                pathname === "/dashboard" && pathname.includes("settings")
+                pathname === "/dashboard" && searchParams.get("tab") === "settings"
                   ? "secondary"
                   : "ghost"
               }

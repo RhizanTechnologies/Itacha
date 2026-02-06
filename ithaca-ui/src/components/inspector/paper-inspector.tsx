@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { cn } from "@/lib/utils";
 import {
   ContainedPanel,
@@ -25,11 +24,6 @@ import {
   TrendingUp,
   TrendingDown,
   Sparkles,
-  MessageSquare,
-  BookmarkPlus,
-  Share2,
-  Copy,
-  Check,
   Upload,
 } from "lucide-react";
 
@@ -84,24 +78,6 @@ export function PaperInspector({
   side = "right",
   className,
 }: PaperInspectorProps) {
-  const [copied, setCopied] = useState(false);
-  const [note, setNote] = useState("");
-  const [savedNotes, setSavedNotes] = useState<string[]>([]);
-
-  const handleCopyTitle = async () => {
-    if (!paper) return;
-    await navigator.clipboard.writeText(paper.title);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleAddNote = () => {
-    if (note.trim()) {
-      setSavedNotes([...savedNotes, note]);
-      setNote("");
-    }
-  };
-
   if (!paper) return null;
 
   return (

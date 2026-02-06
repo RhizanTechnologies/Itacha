@@ -11,7 +11,6 @@ import {
   Search,
   MousePointerClick,
   Lightbulb,
-  Quote,
   CheckCircle2,
   Sparkles,
   Shield,
@@ -24,34 +23,6 @@ import {
 import { Reveal, Stagger, StaggerItem } from "@/components/motion";
 import { GraphConstellation } from "@/components/visual/graph-constellation";
 import { AnimatedDemo } from "@/components/landing/animated-demo";
-
-// Mock data for testimonials
-const TESTIMONIALS = [
-  {
-    quote:
-      "Ithaca helped me identify the key debates in my field within a week. What used to take months of reading now takes hours.",
-    author: "Dr. Sarah Chen",
-    role: "Assistant Professor, Computational Biology",
-    institution: "MIT",
-    avatar: null,
-  },
-  {
-    quote:
-      "The argument visualization completely changed how I approach literature reviews. I can finally see the forest, not just the trees.",
-    author: "James Okonkwo",
-    role: "PhD Candidate, Machine Learning",
-    institution: "Stanford University",
-    avatar: null,
-  },
-  {
-    quote:
-      "For grant writing, being able to map the research landscape quickly is invaluable. Ithaca is now an essential part of my workflow.",
-    author: "Prof. Maria Santos",
-    role: "Research Director",
-    institution: "Oxford University",
-    avatar: null,
-  },
-];
 
 // Features data
 const FEATURES = [
@@ -105,7 +76,7 @@ const STEPS = [
     step: 1,
     title: "Search any topic",
     description:
-      "Enter a research question, paper title, or field of study. Our AI indexes millions of papers.",
+      "Enter a research question, paper title, or field of study.",
     icon: Search,
   },
   {
@@ -144,13 +115,6 @@ const USE_CASES = [
     description:
       "Visualize where your proposed research fits. Demonstrate novelty with clear relationship mapping.",
   },
-];
-
-// Stat bar data
-const STATS = [
-  { value: "2M+", label: "Papers Indexed" },
-  { value: "50+", label: "Institutions" },
-  { value: "10K+", label: "Researchers" },
 ];
 
 export default function Home() {
@@ -240,41 +204,15 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ===== SOCIAL PROOF BAR ===== */}
+      {/* ===== EARLY ACCESS NOTE ===== */}
       <section className="border-y border-border bg-muted/30 py-8">
         <div className="container mx-auto px-4">
           <Reveal>
-            <div className="flex flex-col md:flex-row items-center justify-between gap-8">
-              {/* Stats */}
-              <div className="flex items-center gap-8 md:gap-12">
-                {STATS.map((stat) => (
-                  <div key={stat.label} className="text-center">
-                    <div className="text-2xl md:text-3xl font-bold text-foreground">
-                      {stat.value}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {stat.label}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Institution logos placeholder */}
-              <div className="flex items-center gap-6 opacity-60">
-                <span className="text-sm text-muted-foreground">
-                  Trusted by researchers at
-                </span>
-                <div className="flex items-center gap-4">
-                  {["MIT", "Stanford", "Oxford", "ETH"].map((inst) => (
-                    <span
-                      key={inst}
-                      className="text-sm font-semibold text-muted-foreground/80"
-                    >
-                      {inst}
-                    </span>
-                  ))}
-                </div>
-              </div>
+            <div className="flex flex-col md:flex-row items-center justify-center gap-4 text-center">
+              <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+                <span className="w-2 h-2 rounded-full bg-supports" />
+                Ithaca is in early development. We&apos;re building in public and growing feature by feature.
+              </span>
             </div>
           </Reveal>
         </div>
@@ -499,57 +437,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ===== TESTIMONIALS ===== */}
-      <section className="py-24 md:py-32 bg-muted/20">
-        <div className="container mx-auto px-4">
-          <div className="max-w-6xl mx-auto">
-            <Reveal>
-              <div className="text-center mb-16">
-                <h2 className="text-3xl md:text-4xl font-bold mb-4">
-                  Loved by researchers worldwide
-                </h2>
-                <p className="text-lg text-muted-foreground">
-                  See what the research community is saying
-                </p>
-              </div>
-            </Reveal>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {TESTIMONIALS.map((testimonial, index) => (
-                <Reveal key={testimonial.author} delay={index * 0.1}>
-                  <div className="p-8 rounded-2xl border border-border bg-card h-full flex flex-col">
-                    <Quote className="w-8 h-8 text-primary/30 mb-4" />
-                    <blockquote className="text-foreground leading-relaxed flex-1 mb-6">
-                      "{testimonial.quote}"
-                    </blockquote>
-                    <div className="flex items-center gap-4">
-                      {/* Avatar placeholder */}
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center text-lg font-bold text-primary">
-                        {testimonial.author
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")}
-                      </div>
-                      <div>
-                        <div className="font-semibold">
-                          {testimonial.author}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {testimonial.role}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {testimonial.institution}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </Reveal>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* ===== USE CASES ===== */}
       <section className="py-24 md:py-32">
         <div className="container mx-auto px-4">
@@ -639,8 +526,8 @@ export default function Home() {
                 Ready to see research differently?
               </h2>
               <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
-                Join thousands of researchers who are navigating scientific
-                debates faster than ever.
+                Start navigating scientific debates with argumentation-aware
+                graph exploration.
               </p>
               <Button
                 size="lg"

@@ -15,12 +15,17 @@ export type {
 } from "@/lib/api/graph-api";
 
 // =============================================================================
-// GRAPH DATA TYPES
+// IMPORTS
 // =============================================================================
 
 import type { PaperNode, EdgeData, EvidenceItem } from "@/lib/api/graph-api";
 import type { FilterState } from "@/components/filters/global-filters";
+import type { PathMode } from "@/components/canvas/path-comparison";
 import type Graph from "graphology";
+
+// =============================================================================
+// GRAPH DATA TYPES
+// =============================================================================
 
 /** Response from graph fetch operations */
 export interface GraphFetchResult {
@@ -71,8 +76,6 @@ export interface GraphApiShape {
 // =============================================================================
 // INTERACTION API
 // =============================================================================
-
-import type { PathMode } from "@/components/canvas/path-comparison";
 
 /** Graph interaction API exposed to parent components */
 export interface GraphInteractionApi {

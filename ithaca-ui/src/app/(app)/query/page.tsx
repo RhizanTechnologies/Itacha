@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { QueryBuilder } from "@/components/query/query-builder";
 import type { QueryCondition } from "@/components/query/query-builder";
+import { Badge } from "@/components/ui/badge";
 
 export default function QueryBuilderPage() {
   const [queryResults, setQueryResults] = useState<any[]>([]);
@@ -32,9 +33,12 @@ export default function QueryBuilderPage() {
 
         {/* Results Area */}
         <div className="flex-1 p-6">
-          <h1 className="text-2xl font-bold mb-2">Query Results</h1>
+          <div className="flex items-center gap-3 mb-2">
+            <h1 className="text-2xl font-bold">Query Results</h1>
+            <Badge variant="secondary" className="text-xs">Coming Soon</Badge>
+          </div>
           <p className="text-muted-foreground text-sm mb-6">
-            Build a query on the left to see results here
+            Query execution is not yet connected to a backend. Build queries on the left to preview the interface.
           </p>
 
           {queryResults.length > 0 ? (

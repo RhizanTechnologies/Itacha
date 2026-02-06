@@ -10,7 +10,6 @@ import {
   FileText,
   Users,
   Calendar,
-  TrendingUp,
   Filter,
   ArrowUpDown,
   Loader2,
@@ -25,25 +24,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { graphAPI, SearchResult } from "@/lib/api/graph-api";
+import { escapeRegex } from "@/lib/utils";
 
 interface SearchPageProps {
   initialQuery?: string;
 }
 
-// Extended search result with more details
-interface ExtendedSearchResult extends SearchResult {
-  abstract?: string;
-  citations?: number;
-  venue?: string;
-  relevanceScore?: number;
-}
-
-export default function SearchPage({ initialQuery = "" }: SearchPageProps) {
+export default function SearchPage({ initialQuery = \"\" }: SearchPageProps) {
   const [query, setQuery] = useState(initialQuery);
-  const [results, setResults] = useState<ExtendedSearchResult[]>([]);
+  const [results, setResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
-  const [sortBy, setSortBy] = useState<"relevance" | "citations" | "year">("relevance");
+  const [sortBy, setSortBy] = useState<\"relevance\" | \"year\">(\"relevance\");
   const [filterYear, setFilterYear] = useState<string>("all");
 
   // Search on query change (debounced)
@@ -58,15 +50,7 @@ export default function SearchPage({ initialQuery = "" }: SearchPageProps) {
       setIsSearching(true);
       try {
         const searchResults = await graphAPI.searchPapers(query);
-        // Extend with mock additional data
-        const extended: ExtendedSearchResult[] = searchResults.map((r, i) => ({
-          ...r,
-          abstract: "This paper presents novel approaches to the field, introducing key concepts that have influenced subsequent research...",
-          citations: Math.floor(Math.random() * 500) + 10,
-          venue: ["NeurIPS", "ICML", "ICLR", "ACL", "CVPR"][i % 5],
-          relevanceScore: Math.floor(Math.random() * 30) + 70,
-        }));
-        setResults(extended);
+        setResults(searchResults);
         setHasSearched(true);
       } catch (error) {
         console.error("Search error:", error);
@@ -80,9 +64,8 @@ export default function SearchPage({ initialQuery = "" }: SearchPageProps) {
 
   // Sort results
   const sortedResults = [...results].sort((a, b) => {
-    if (sortBy === "citations") return (b.citations || 0) - (a.citations || 0);
     if (sortBy === "year") return b.year - a.year;
-    return (b.relevanceScore || 0) - (a.relevanceScore || 0);
+    return 0; // Default order from API
   });
 
   // Filter by year
@@ -144,7 +127,6 @@ export default function SearchPage({ initialQuery = "" }: SearchPageProps) {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="relevance">Relevance</SelectItem>
-                    <SelectItem value="citations">Citations</SelectItem>
                     <SelectItem value="year">Year</SelectItem>
                   </SelectContent>
                 </Select>
@@ -187,13 +169,13 @@ function SearchResultCard({
   result, 
   query 
 }: { 
-  result: ExtendedSearchResult; 
+  result: SearchResult; 
   query: string;
 }) {
   // Highlight matching text
   const highlightMatch = (text: string) => {
     if (!query) return text;
-    const regex = new RegExp(`(${query})`, "gi");
+    const regex = new RegExp(`(${escapeRegex(query)})`, "gi");
     return text.split(regex).map((part, i) =>
       regex.test(part) ? (
         <mark key={i} className="bg-primary/20 text-primary px-0.5 rounded">
@@ -207,44 +189,22 @@ function SearchResultCard({
 
   return (
     <div className="bg-card border rounded-lg p-4 hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex-1 min-w-0">
-          <h3 className="font-medium text-lg leading-tight">
-            {highlightMatch(result.title)}
-          </h3>
-          <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <Users className="h-3.5 w-3.5" />
-              {highlightMatch(result.authors)}
-            </span>
-            <span className="flex items-center gap-1">
-              <Calendar className="h-3.5 w-3.5" />
-              {result.year}
-            </span>
-            {result.venue && (
-              <Badge variant="secondary" className="text-xs">
-                {result.venue}
-              </Badge>
-            )}
-          </div>
-          {result.abstract && (
-            <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
-              {result.abstract}
-            </p>
-          )}
-        </div>
-
-        <div className="text-right shrink-0">
-          <div className="flex items-center gap-1 text-sm text-muted-foreground">
-            <TrendingUp className="h-4 w-4" />
-            <span className="font-medium">{result.citations}</span>
-          </div>
-          <p className="text-xs text-muted-foreground">citations</p>
-          {result.relevanceScore && (
-            <Badge className="mt-2 bg-primary/10 text-primary text-xs">
-              {result.relevanceScore}% match
-            </Badge>
-          )}
+      <div className="flex-1 min-w-0">
+        <h3 className="font-medium text-lg leading-tight">
+          {highlightMatch(result.title)}
+        </h3>
+        <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
+          <span className="flex items-center gap-1">
+            <Users className="h-3.5 w-3.5" />
+            {highlightMatch(result.authors)}
+          </span>
+          <span className="flex items-center gap-1">
+            <Calendar className="h-3.5 w-3.5" />
+            {result.year}
+          </span>
+          <Badge variant="secondary" className="text-xs">
+            {result.type}
+          </Badge>
         </div>
       </div>
 

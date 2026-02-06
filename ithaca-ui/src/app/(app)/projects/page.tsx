@@ -65,10 +65,9 @@ export default function ProjectsPage() {
         dashboardAPI.getCollections(),
       ]);
       setProjects(loadedProjects);
-      // @ts-ignore - Collection type mismatch handling in UI vs API if any, checking later
       setCollections(loadedCollections);
     } catch (e) {
-      console.error("Failed to lead projects", e);
+      console.error("Failed to load projects", e);
     } finally {
       setIsLoading(false);
     }
@@ -101,6 +100,8 @@ export default function ProjectsPage() {
   };
 
   const handleDeleteProject = async (projectId: string) => {
+    const confirmed = window.confirm("Are you sure you want to delete this project? This action cannot be undone.");
+    if (!confirmed) return;
     await dashboardAPI.deleteProject(projectId);
     setProjects((prev) => prev.filter((p) => p.id !== projectId));
     if (selectedProject?.id === projectId) setSelectedProject(null);

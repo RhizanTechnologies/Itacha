@@ -144,17 +144,17 @@
 .canvas-grid {
   background-size: 40px 40px;
   background-image:
-    linear-gradient(to right, hsl(var(--border) / 0.3) 1px, transparent 1px),
-    linear-gradient(to bottom, hsl(var(--border) / 0.3) 1px, transparent 1px);
+    linear-gradient(to right, color-mix(in oklch, var(--border) 30%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklch, var(--border) 30%, transparent) 1px, transparent 1px);
 }
 
 /* Node Glow Effects */
 .glow-node-primary {
-  box-shadow: 0 0 20px hsl(var(--primary) / 0.4);
+  box-shadow: 0 0 20px color-mix(in oklch, var(--primary) 40%, transparent);
 }
 
 .glow-node-new {
-  box-shadow: 0 0 30px hsl(var(--foreground) / 0.3);
+  box-shadow: 0 0 30px color-mix(in oklch, var(--foreground) 30%, transparent);
 }
 
 /* Edge Animation */
@@ -213,14 +213,14 @@
 
   0%,
   100% {
-    box-shadow: 0 0 2px hsl(var(--contradicts)),
-      0 0 4px hsl(var(--contradicts) / 0.5);
+    box-shadow: 0 0 2px var(--contradicts),
+      0 0 4px color-mix(in oklch, var(--contradicts) 50%, transparent);
     opacity: 1;
   }
 
   50% {
-    box-shadow: 0 0 8px hsl(var(--contradicts)),
-      0 0 12px hsl(var(--contradicts) / 0.6);
+    box-shadow: 0 0 8px var(--contradicts),
+      0 0 12px color-mix(in oklch, var(--contradicts) 60%, transparent);
     opacity: 0.8;
   }
 }
@@ -290,7 +290,7 @@
 
 /* Focus Indicators - 2px outline for keyboard navigation */
 :focus-visible {
-  outline: 2px solid hsl(var(--ring));
+  outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
 
@@ -299,8 +299,8 @@
   position: absolute;
   top: -40px;
   left: 0;
-  background: hsl(var(--primary));
-  color: hsl(var(--primary-foreground));
+  background: var(--primary);
+  color: var(--primary-foreground);
   padding: 8px 16px;
   z-index: 100;
   transition: top 0.2s;
@@ -325,7 +325,7 @@
 
 /* Keyboard focus ring for canvas controls */
 .canvas-control:focus-visible {
-  outline: 2px solid hsl(var(--primary));
+  outline: 2px solid var(--primary);
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -391,7 +391,7 @@
   inset: auto 0 0 0;
   margin: 0 auto;
   opacity: 0.9;
-  color: hsl(var(--primary));
+  color: var(--primary);
   contain: layout style paint;
   overflow: visible;
 }

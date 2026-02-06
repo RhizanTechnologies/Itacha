@@ -43,7 +43,6 @@ interface CanvasChatPanelProps {
     focusedCluster?: string | null;
   };
   onNavigateToPaper?: (paperId: string) => void;
-  onHighlightPath?: (startId: string, endId: string) => void;
   onFocusNode?: (nodeId: string) => void;
   defaultWidth?: number;
   minWidth?: number;

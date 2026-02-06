@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, ReactNode } from "react";
+import React, { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 // =============================================================================
@@ -20,16 +20,6 @@ interface OverlaySlot {
   children: ReactNode;
   className?: string;
 }
-
-// =============================================================================
-// OVERLAY CONTEXT (for responsive coordination)
-// =============================================================================
-
-interface OverlayContextValue {
-  // Future: could track which zones are active for responsive adjustments
-}
-
-const OverlayContext = createContext<OverlayContextValue>({});
 
 // =============================================================================
 // ZONE POSITIONS
@@ -108,13 +98,11 @@ interface OverlayManagerProps {
  */
 export function OverlayManager({ children, className }: OverlayManagerProps) {
   return (
-    <OverlayContext.Provider value={{}}>
-      <div
-        className={cn("absolute inset-0 pointer-events-none z-10", className)}
-      >
-        {children}
-      </div>
-    </OverlayContext.Provider>
+    <div
+      className={cn("absolute inset-0 pointer-events-none z-10", className)}
+    >
+      {children}
+    </div>
   );
 }
 
@@ -201,10 +189,4 @@ export function BottomRightZone({ children, className }: ZoneProps) {
   );
 }
 
-// =============================================================================
-// HOOK
-// =============================================================================
 
-export function useOverlayContext() {
-  return useContext(OverlayContext);
-}

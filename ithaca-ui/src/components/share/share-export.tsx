@@ -67,106 +67,6 @@ async function generateShareLink(graphId: string): Promise<string> {
   return `https://ithaca.app/graph/share/${Math.abs(hash).toString(36)}`;
 }
 
-/**
- * Export graph as PNG using canvas capture
- * Captures all Sigma canvas layers and combines them
- */
-async function exportAsPNG(title: string): Promise<void> {
-  // Sigma uses multiple canvas layers - find them all
-  const container = document.querySelector(".react-sigma");
-
-  if (!container) {
-    // Fallback to any sigma-related container
-    const anyContainer = document.querySelector('[class*="sigma"]');
-    if (!anyContainer) {
-      throw new Error("Sigma container not found");
-    }
-  }
-
-  // Find all canvases in the Sigma container
-  const canvases = document.querySelectorAll(
-    ".react-sigma canvas, [class*='sigma'] canvas",
-  );
-
-  if (canvases.length === 0) {
-    throw new Error("No canvas found for export");
-  }
-
-  // Get dimensions from the first canvas
-  const firstCanvas = canvases[0] as HTMLCanvasElement;
-  const width = firstCanvas.width || firstCanvas.offsetWidth * 2;
-  const height = firstCanvas.height || firstCanvas.offsetHeight * 2;
-
-  // Create a combined canvas
-  const combinedCanvas = document.createElement("canvas");
-  combinedCanvas.width = width;
-  combinedCanvas.height = height;
-  const ctx = combinedCanvas.getContext("2d");
-
-  if (!ctx) {
-    throw new Error("Could not create canvas context");
-  }
-
-  // Fill with background color (detect dark mode)
-  const isDark = document.documentElement.classList.contains("dark");
-  ctx.fillStyle = isDark ? "#0B0C10" : "#F6F7F8";
-  ctx.fillRect(0, 0, width, height);
-
-  // Draw each canvas layer on top
-  canvases.forEach((canvas) => {
-    if (canvas instanceof HTMLCanvasElement) {
-      try {
-        ctx.drawImage(canvas, 0, 0);
-      } catch (e) {
-        console.warn("Could not draw canvas layer:", e);
-      }
-    }
-  });
-
-  // Export the combined canvas
-  const dataUrl = combinedCanvas.toDataURL("image/png");
-  downloadFile(dataUrl, `${sanitizeFilename(title)}.png`);
-}
-
-/**
- * Export graph data as JSON
- */
-async function exportAsJSON(
-  title: string,
-  nodeCount: number,
-  edgeCount: number,
-): Promise<void> {
-  // In production, this would fetch the actual graph data from state/API
-  const graphData = {
-    title,
-    exportedAt: new Date().toISOString(),
-    stats: { nodeCount, edgeCount },
-    // TODO: Include actual nodes and edges from graph state
-    nodes: [],
-    edges: [],
-    metadata: {
-      version: "1.0",
-      format: "ithaca-graph",
-    },
-  };
-
-  const blob = new Blob([JSON.stringify(graphData, null, 2)], {
-    type: "application/json",
-  });
-  const url = URL.createObjectURL(blob);
-  downloadFile(url, `${sanitizeFilename(title)}.json`);
-  URL.revokeObjectURL(url);
-}
-
-function downloadFile(url: string, filename: string) {
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-}
-
 function sanitizeFilename(name: string): string {
   return name
     .toLowerCase()
@@ -220,9 +120,11 @@ export function ShareExportDialog({
   }, [graphTitle]);
 
   // Generate link on first open
-  if (open && !shareUrl && !isGeneratingLink) {
-    handleGenerateLink();
-  }
+  useEffect(() => {
+    if (open && !shareUrl && !isGeneratingLink) {
+      handleGenerateLink();
+    }
+  }, [open, shareUrl, isGeneratingLink, handleGenerateLink]);
 
   const handleCopy = useCallback(async () => {
     if (!shareUrl) return;

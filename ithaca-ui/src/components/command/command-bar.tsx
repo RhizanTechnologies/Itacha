@@ -29,29 +29,35 @@ import { useTheme } from "next-themes";
 import { graphAPI, SearchResult } from "@/lib/api/graph-api";
 
 interface CommandBarProps {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   onSelectPaper?: (paperId: string) => void;
   onAction?: (action: string) => void;
   hideTrigger?: boolean;
 }
 
 export function CommandBar({
+  open: controlledOpen,
+  onOpenChange,
   onSelectPaper,
   onAction,
   hideTrigger = false,
 }: CommandBarProps) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = onOpenChange ?? setInternalOpen;
   const [search, setSearch] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [recentPapers, setRecentPapers] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const { theme, setTheme } = useTheme();
 
-  // Listen for keyboard shortcut
+  // Listen for keyboard shortcut and external open events
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
-        setOpen((prev) => !prev);
+        setOpen(!open);
       }
     };
 
@@ -63,14 +69,17 @@ export function CommandBar({
       document.removeEventListener("keydown", down);
       window.removeEventListener("open-command-bar", openEvent);
     };
-  }, []);
+  }, [open, setOpen]);
 
   // Load recent papers on mount
   useEffect(() => {
     async function loadRecent() {
-      // In real implementation, this would be from user history
-      const results = await graphAPI.searchPapers("neural");
-      setRecentPapers(results.slice(0, 3));
+      try {
+        const results = await graphAPI.searchPapers("");
+        setRecentPapers(results.slice(0, 3));
+      } catch {
+        // Recent papers are non-critical
+      }
     }
     loadRecent();
   }, []);

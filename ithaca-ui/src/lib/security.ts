@@ -18,20 +18,6 @@ export function generateSecureToken(length: number = 32): string {
 }
 
 /**
- * Hash a password using Web Crypto API
- * Note: Better Auth handles password hashing internally
- * This is for additional custom use cases
- */
-export async function hashPassword(password: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(password);
-  const hash = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(hash))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-/**
  * Sanitize user input to prevent XSS
  */
 export function sanitizeInput(input: string): string {
