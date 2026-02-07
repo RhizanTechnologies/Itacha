@@ -104,15 +104,27 @@ export function GraphLoader({
   const graphRef = useRef<Graph | null>(null);
 
   // Load graph data from API
-  const { saveGraph, loadGraph: loadSessionGraph } = useGraphSession(
+  const { saveGraph, loadGraph: loadSessionGraph, clearSession } = useGraphSession(
     graphRef.current,
   );
 
+  // Track previous refresh trigger to detect manual refresh
+  const prevRefreshRef = useRef(refreshTrigger);
+
   // Load graph data from API or Session
   useEffect(() => {
+    const isManualRefresh = prevRefreshRef.current !== refreshTrigger;
+    prevRefreshRef.current = refreshTrigger;
+
     async function loadGraphData() {
-      // 1. Try loading from session
-      const sessionData = loadSessionGraph();
+      // If user clicked Refresh or changed paper count, clear session first
+      if (isManualRefresh) {
+        clearSession();
+        debug.graph("Session cleared for manual refresh");
+      }
+
+      // 1. Try loading from session (skipped on manual refresh)
+      const sessionData = isManualRefresh ? null : loadSessionGraph();
       let nodes: PaperNode[] = [];
       let edges: EdgeData[] = [];
       let loadedFromSession = false;
@@ -122,9 +134,24 @@ export function GraphLoader({
         nodes = sessionData.nodes;
         edges = sessionData.edges;
         loadedFromSession = true;
+      } else if (isManualRefresh && focusNode) {
+        // Re-fetch using the active search/focus target with new paperCount
+        const isTopic = focusNode.startsWith("topic-");
+        if (isTopic) {
+          const query = focusNode.replace("topic-", "");
+          debug.graph("Re-fetching topic slice:", query, "paperCount:", paperCount);
+          const data = await graphAPI.fetchTopicSlice(query, paperCount);
+          nodes = data.nodes;
+          edges = data.edges;
+        } else {
+          debug.graph("Re-fetching paper context:", focusNode);
+          const data = await graphAPI.fetchPaperContext(focusNode);
+          nodes = data.nodes;
+          edges = data.edges;
+        }
       } else {
-        // 2. Fetch from API
-        debug.graph("Fetching fresh graph data");
+        // 2. Fetch from API (initial load — may return empty if no query yet)
+        debug.graph("Fetching fresh graph data with paperCount:", paperCount);
         const data = await graphAPI.fetchGraph(paperCount);
         nodes = data.nodes;
         edges = data.edges;
@@ -228,22 +255,12 @@ export function GraphLoader({
 
     loadGraphData();
   }, [
-    loadGraph, // Sigma hook
-    // loadSessionGraph, // Custom hook (stable)
-    // graphAPI, // Stable
+    loadGraph,
     onStatsChange,
     onDataRangesChange,
     paperCount,
-    // refreshTrigger, // IMPORTANT: If refreshTrigger changes, we should FORCE fetch?
-    // User logic: "Persistence prevents reload data loss". But "Refresh" button should clear session?
-    // Current 'refreshTrigger' is from props. If it changes, we likely WANT to fetch fresh.
-    // So we should check if this render is due to refreshTrigger change.
-    // For now, simple logic: If refreshTrigger changes, we fetch fresh.
-    // BUT maintaining "refreshTrigger" in dependency array causes re-run.
-    // My logic above preferentially loads from Session.
-    // So Refresh Button needs to CLEAR session first.
-    // I'll leave that refinement for later or assume parent clears session if needed.
     refreshTrigger,
+    focusNode,
     sigma,
     onRegisterSigmaGraph,
   ]);

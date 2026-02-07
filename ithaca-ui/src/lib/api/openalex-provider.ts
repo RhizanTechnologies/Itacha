@@ -380,13 +380,14 @@ export class OpenAlexProvider implements IGraphProvider {
   // fetchTopicSlice — Search-based graph with topic clustering
   // ---------------------------------------------------------------------------
 
-  async fetchTopicSlice(query: string): Promise<{
+  async fetchTopicSlice(query: string, paperCount?: number): Promise<{
     nodes: PaperNode[];
     edges: EdgeData[];
     clusters: TopicCluster[];
   }> {
+    const perPage = Math.min(paperCount || 25, 100);
     const response = await searchWorks(query, {
-      perPage: 40,
+      perPage,
       sort: "cited_by_count:desc",
     });
 

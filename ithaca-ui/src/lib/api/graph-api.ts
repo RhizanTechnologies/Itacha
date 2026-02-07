@@ -96,7 +96,7 @@ export interface IGraphProvider {
   fetchGraph(
     nodeCount?: number,
   ): Promise<{ nodes: PaperNode[]; edges: EdgeData[] }>;
-  fetchTopicSlice(query: string): Promise<{
+  fetchTopicSlice(query: string, paperCount?: number): Promise<{
     nodes: PaperNode[];
     edges: EdgeData[];
     clusters: TopicCluster[];
@@ -259,7 +259,7 @@ class MockGraphProvider implements IGraphProvider {
     return { nodes, edges };
   }
 
-  async fetchTopicSlice(query: string): Promise<{
+  async fetchTopicSlice(query: string, paperCount?: number): Promise<{
     nodes: PaperNode[];
     edges: EdgeData[];
     clusters: TopicCluster[];
@@ -267,7 +267,7 @@ class MockGraphProvider implements IGraphProvider {
     // Logic extracted from fetchTopicSlice
     await new Promise((resolve) => setTimeout(resolve, 800));
     const nodes: PaperNode[] = [];
-    const SLICE_SIZE = 40;
+    const SLICE_SIZE = paperCount || 40;
     const NUM_CLUSTERS = 3;
     const clusters: TopicCluster[] = [
       { id: "c1", label: `${query} - Core Theory`, color: CLUSTER_COLORS[0] },
@@ -487,8 +487,8 @@ class GraphAPIService {
   fetchGraph(n?: number) {
     return this.provider.fetchGraph(n);
   }
-  fetchTopicSlice(q: string) {
-    return this.provider.fetchTopicSlice(q);
+  fetchTopicSlice(q: string, paperCount?: number) {
+    return this.provider.fetchTopicSlice(q, paperCount);
   }
   fetchPaperContext(id: string) {
     return this.provider.fetchPaperContext(id);

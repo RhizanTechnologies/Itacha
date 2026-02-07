@@ -53,7 +53,7 @@ export interface ClusterInfo {
 /** Shape of the graph API service - matches GraphAPIService class */
 export interface GraphApiShape {
   fetchGraph: (paperCount: number) => Promise<GraphFetchResult>;
-  fetchTopicSlice: (query: string) => Promise<ClusterSearchResult>;
+  fetchTopicSlice: (query: string, paperCount?: number) => Promise<ClusterSearchResult>;
   fetchPaperContext: (paperId: string) => Promise<GraphFetchResult>;
   getPaperById: (id: string) => Promise<PaperNode | null>;
   getEvidence: (paperId: string) => Promise<EvidenceItem[]>;
