@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
 
     // Build context-aware system prompt
     let contextInfo = `\n\nCurrent graph state: ${graphContext.nodeCount} papers, ${graphContext.edgeCount} citation edges.`;
-    
+
     if (graphContext.selectedNode) {
       contextInfo += ` Currently selected: ${graphContext.selectedNode}.`;
     }
