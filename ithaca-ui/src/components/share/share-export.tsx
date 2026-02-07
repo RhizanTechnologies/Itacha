@@ -50,21 +50,31 @@ interface ShareExportProps {
 }
 
 /**
- * Generate a shareable link for the graph
- * TODO: Replace with actual backend API call to create persistent share link
+ * Generate a shareable link for the graph by encoding current state in URL params.
+ * Encodes the search query and visible node IDs so the graph can be reconstructed.
  */
-async function generateShareLink(graphId: string): Promise<string> {
-  // In production, this would call the backend API
-  // POST /api/graphs/share { graphId }
-  // Returns { shareUrl: "https://ithaca.app/share/abc123" }
+async function generateShareLink(
+  searchQuery?: string,
+  graph?: Graph | null,
+): Promise<string> {
+  const url = new URL("/explore", window.location.origin);
 
-  // For now, generate a deterministic mock URL based on graphId
-  const hash = graphId.split("").reduce((a, b) => {
-    a = (a << 5) - a + b.charCodeAt(0);
-    return a & a;
-  }, 0);
+  if (searchQuery) {
+    url.searchParams.set("q", searchQuery);
+  }
 
-  return `https://ithaca.app/graph/share/${Math.abs(hash).toString(36)}`;
+  // Encode node IDs (OpenAlex work IDs) so the graph can be reconstructed
+  if (graph) {
+    const nodeIds = graph
+      .nodes()
+      .slice(0, 50) // Cap at 50 to keep URL reasonable
+      .join(",");
+    if (nodeIds) {
+      url.searchParams.set("nodes", nodeIds);
+    }
+  }
+
+  return url.toString();
 }
 
 function sanitizeFilename(name: string): string {
@@ -109,7 +119,7 @@ export function ShareExportDialog({
     setIsGeneratingLink(true);
     setError(null);
     try {
-      const url = await generateShareLink(graphTitle);
+      const url = await generateShareLink(searchQuery, graph);
       setShareUrl(url);
     } catch (err) {
       setError("Failed to generate share link");
@@ -117,7 +127,7 @@ export function ShareExportDialog({
     } finally {
       setIsGeneratingLink(false);
     }
-  }, [graphTitle]);
+  }, [searchQuery, graph]);
 
   // Generate link on first open
   useEffect(() => {

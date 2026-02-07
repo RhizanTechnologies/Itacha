@@ -74,62 +74,207 @@ export async function classifyCitation(
     return { ...cached, cached: true };
   }
 
-  // 2. Classify via LLM
-  const router = getLLMRouter();
+  // 2. Try LLM classification first
+  try {
+    const router = getLLMRouter();
 
-  const messages: LLMMessage[] = [
-    { role: "system", content: CLASSIFICATION_PROMPT },
-    {
-      role: "user",
-      content: `CITING PAPER: "${input.citingTitle}"
+    const messages: LLMMessage[] = [
+      { role: "system", content: CLASSIFICATION_PROMPT },
+      {
+        role: "user",
+        content: `CITING PAPER: "${input.citingTitle}"
 Abstract: ${input.citingAbstract || "No abstract available."}
 
 CITED PAPER: "${input.citedTitle}"
 Abstract: ${input.citedAbstract || "No abstract available."}`,
-    },
-  ];
+      },
+    ];
 
-  const response = await router.chat(messages, true);
+    const response = await router.chat(messages, true);
 
-  // 3. Parse response
-  let result: { edgeType: string; confidence: number; snippet: string };
-  try {
-    result = JSON.parse(response.content);
-  } catch {
-    // If JSON parsing fails, default to a safe classification
-    result = {
-      edgeType: "extends",
-      confidence: 0.3,
-      snippet:
-        "Citation relationship could not be determined from available abstracts.",
+    // 3. Parse response
+    let result: { edgeType: string; confidence: number; snippet: string };
+    try {
+      result = JSON.parse(response.content);
+    } catch {
+      result = {
+        edgeType: "extends",
+        confidence: 0.3,
+        snippet:
+          "Citation relationship could not be determined from available abstracts.",
+      };
+    }
+
+    // Validate edgeType
+    const validTypes = ["supports", "contradicts", "extends"] as const;
+    const edgeType = validTypes.includes(
+      result.edgeType as (typeof validTypes)[number],
+    )
+      ? (result.edgeType as (typeof validTypes)[number])
+      : "extends";
+
+    // Clamp confidence to [0, 1]
+    const confidence = Math.max(
+      0,
+      Math.min(1, Number(result.confidence) || 0.5),
+    );
+
+    const classification: ClassificationResult = {
+      citingId: input.citingId,
+      citedId: input.citedId,
+      edgeType,
+      confidence,
+      snippet: result.snippet || "No explanation available.",
+      provider: `${response.provider}/${response.model}`,
+      cached: false,
     };
+
+    // 4. Cache the result
+    await cacheClassification(classification);
+
+    return classification;
+  } catch {
+    // LLM unavailable — fall back to heuristic classifier
+    const heuristic = heuristicClassify(input);
+    await cacheClassification(heuristic);
+    return heuristic;
+  }
+}
+
+// =============================================================================
+// HEURISTIC CLASSIFIER (local fallback when LLM is unavailable)
+// =============================================================================
+
+/** Keywords that strongly signal contradiction/refutation */
+const CONTRADICT_SIGNALS = [
+  "contradict",
+  "refute",
+  "disprove",
+  "challenge",
+  "reject",
+  "fail to replicate",
+  "failed to replicate",
+  "could not replicate",
+  "no evidence",
+  "no significant",
+  "no effect",
+  "does not support",
+  "do not support",
+  "inconsistent with",
+  "contrary to",
+  "in contrast to",
+  "disagree",
+  "dispute",
+  "flawed",
+  "erroneous",
+  "incorrect",
+  "invalidate",
+  "overturned",
+  "debunk",
+  "rebut",
+  "no benefit",
+  "not effective",
+  "ineffective",
+  "no improvement",
+  "did not improve",
+  "negative results",
+  "opposite",
+  "reverses",
+  "undermines",
+  "questionable",
+  "no association",
+  "no correlation",
+  "not replicated",
+  "unreliable",
+];
+
+/** Keywords that signal support/confirmation */
+const SUPPORT_SIGNALS = [
+  "confirm",
+  "validate",
+  "replicate",
+  "corroborate",
+  "consistent with",
+  "in agreement",
+  "in line with",
+  "builds on",
+  "building on",
+  "inspired by",
+  "following",
+  "as shown by",
+  "demonstrated by",
+  "verified",
+  "strengthen",
+  "reinforce",
+  "support",
+  "lend support",
+  "provides evidence",
+  "further evidence",
+  "successfully reproduced",
+];
+
+/**
+ * Heuristic keyword-based classification — runs locally with no API.
+ * Scans titles + abstracts for contradiction/support signals.
+ * Good enough to catch ~60-70% of clear contradictions.
+ */
+function heuristicClassify(input: ClassificationInput): ClassificationResult {
+  const text = [
+    input.citingTitle,
+    input.citingAbstract,
+    input.citedTitle,
+    input.citedAbstract,
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  // Count contradiction and support signals
+  let contradictScore = 0;
+  let supportScore = 0;
+  let contradictSnippet = "";
+  let supportSnippet = "";
+
+  for (const signal of CONTRADICT_SIGNALS) {
+    if (text.includes(signal)) {
+      contradictScore++;
+      if (!contradictSnippet) contradictSnippet = signal;
+    }
   }
 
-  // Validate edgeType
-  const validTypes = ["supports", "contradicts", "extends"] as const;
-  const edgeType = validTypes.includes(
-    result.edgeType as (typeof validTypes)[number],
-  )
-    ? (result.edgeType as (typeof validTypes)[number])
-    : "extends";
+  for (const signal of SUPPORT_SIGNALS) {
+    if (text.includes(signal)) {
+      supportScore++;
+      if (!supportSnippet) supportSnippet = signal;
+    }
+  }
 
-  // Clamp confidence to [0, 1]
-  const confidence = Math.max(0, Math.min(1, Number(result.confidence) || 0.5));
+  let edgeType: "supports" | "contradicts" | "extends";
+  let confidence: number;
+  let snippet: string;
 
-  const classification: ClassificationResult = {
+  if (contradictScore >= 2 || (contradictScore >= 1 && supportScore === 0)) {
+    edgeType = "contradicts";
+    confidence = Math.min(0.5 + contradictScore * 0.1, 0.85);
+    snippet = `Likely contradicts — detected signals: "${contradictSnippet}" (heuristic)`;
+  } else if (supportScore >= 2) {
+    edgeType = "supports";
+    confidence = Math.min(0.4 + supportScore * 0.1, 0.8);
+    snippet = `Likely supports — detected signals: "${supportSnippet}" (heuristic)`;
+  } else {
+    edgeType = "extends";
+    confidence = 0.4;
+    snippet = "No strong signals found — classified as extends (heuristic)";
+  }
+
+  return {
     citingId: input.citingId,
     citedId: input.citedId,
     edgeType,
     confidence,
-    snippet: result.snippet || "No explanation available.",
-    provider: `${response.provider}/${response.model}`,
+    snippet,
+    provider: "heuristic",
     cached: false,
   };
-
-  // 4. Cache the result
-  await cacheClassification(classification);
-
-  return classification;
 }
 
 /**

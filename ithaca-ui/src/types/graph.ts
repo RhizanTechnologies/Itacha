@@ -87,7 +87,7 @@ export interface GraphInteractionApi {
 
 /** Extended interaction API with internal canvas methods */
 export interface CanvasInteractionApi extends GraphInteractionApi {
-  expandNode: (nodeId: string, direction: "in" | "out") => Promise<void>;
+  expandNode: (nodeId: string, direction: "in" | "out", type?: "all" | "supports" | "contradicts" | "extends") => Promise<void>;
   addGraphData: (
     nodes: PaperNode[],
     edges: EdgeData[],

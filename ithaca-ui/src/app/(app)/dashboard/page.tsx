@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -42,12 +41,17 @@ const STAT_ICONS = {
 
 export default function DashboardPage() {
   const { data: session } = useSession();
-  const searchParams = useSearchParams();
-  // Get active tab from URL or default to overview
-  const activeTab = searchParams.get("tab") || "overview";
 
-  // State from API
-  const [currentTab, setCurrentTab] = useState(activeTab);
+  // Read tab from URL without useSearchParams (avoids prerender issues)
+  const [currentTab, setCurrentTab] = useState("overview");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get("tab");
+      if (tab) setCurrentTab(tab);
+    }
+  }, []);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [activities, setActivities] = useState<RecentActivity[]>([]);
@@ -106,14 +110,6 @@ export default function DashboardPage() {
     const updatedProfile = await dashboardAPI.getUserProfile();
     setProfile(updatedProfile);
   };
-
-  // Update tab when URL changes
-  useEffect(() => {
-    const tab = searchParams.get("tab");
-    if (tab) {
-      setCurrentTab(tab);
-    }
-  }, [searchParams]);
 
   if (isLoading) {
     return (

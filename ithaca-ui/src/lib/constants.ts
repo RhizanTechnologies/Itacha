@@ -52,9 +52,9 @@ export const GRAPH = {
   /** Z-index for highlighted elements */
   HIGHLIGHT_Z_INDEX: 10,
   /** Default node size */
-  DEFAULT_NODE_SIZE: 5,
+  DEFAULT_NODE_SIZE: 8,
   /** Default edge size */
-  DEFAULT_EDGE_SIZE: 1,
+  DEFAULT_EDGE_SIZE: 1.5,
   /** Edge flow animation settings */
   EDGE_FLOW: {
     /** Normal flow animation duration (ms) - subtle slow flow */

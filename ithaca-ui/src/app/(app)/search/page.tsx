@@ -30,12 +30,12 @@ interface SearchPageProps {
   initialQuery?: string;
 }
 
-export default function SearchPage({ initialQuery = \"\" }: SearchPageProps) {
+export default function SearchPage({ initialQuery = "" }: SearchPageProps) {
   const [query, setQuery] = useState(initialQuery);
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
-  const [sortBy, setSortBy] = useState<\"relevance\" | \"year\">(\"relevance\");
+  const [sortBy, setSortBy] = useState<"relevance" | "year">("relevance");
   const [filterYear, setFilterYear] = useState<string>("all");
 
   // Search on query change (debounced)

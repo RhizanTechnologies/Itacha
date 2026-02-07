@@ -64,6 +64,7 @@ import {
 import { LABELS } from "@/lib/constants";
 import type { CanvasInteractionApi } from "@/types/graph";
 import type { PaperData } from "@/components/inspector/paper-inspector";
+import { graphAPI } from "@/lib/api/graph-api";
 import { Button } from "../ui/button";
 
 // Context hooks
@@ -268,10 +269,36 @@ export function ExploreCanvas() {
             {/* Sigma-managed internal components */}
             <NodeDragControl />
             <NodeTooltip
-              onExpand={(nodeId, direction) => {
-                refs.graphApiRef.current?.expandNode(nodeId, direction);
+              onExpand={(nodeId, direction, type) => {
+                refs.graphApiRef.current?.expandNode(nodeId, direction, type);
               }}
               onFocus={handleEnterFocusMode}
+              onViewDetails={(nodeId) => {
+                // Simulate a node click to open inspector
+                const graph = refs.graphRef.current;
+                if (!graph || !graph.hasNode(nodeId)) return;
+                const attrs = graph.getNodeAttributes(nodeId);
+                const paperData = {
+                  id: attrs.paperId || nodeId,
+                  title: attrs.title || attrs.label || "Unknown",
+                  authors: attrs.authors || "Unknown",
+                  year: attrs.year || 2024,
+                  venue: attrs.venue,
+                  arxivId: attrs.arxivId,
+                  doi: attrs.doi,
+                  openAccessUrl: attrs.openAccessUrl,
+                  citations: attrs.citations || 0,
+                  references: attrs.references || 0,
+                  supports: attrs.supports || 0,
+                  refutes: attrs.refutes || 0,
+                  abstract: attrs.abstract,
+                  aiSummary: attrs.aiSummary,
+                  status: attrs.status,
+                };
+                graphAPI.getEvidence(nodeId).then((evidence) => {
+                  handleNodeClick(paperData, evidence);
+                });
+              }}
             />
             <EdgeLabels />
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import {
   ContainedPanel,
@@ -35,6 +36,8 @@ export interface PaperData {
   year: number;
   venue?: string;
   arxivId?: string;
+  doi?: string;
+  openAccessUrl?: string;
   citations: number;
   references?: number;
   supports: number;
@@ -78,7 +81,51 @@ export function PaperInspector({
   side = "right",
   className,
 }: PaperInspectorProps) {
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+
+  // Fetch AI summary on-demand when paper opens
+  useEffect(() => {
+    if (!open || !paper || paper.aiSummary || !paper.abstract || aiSummary) return;
+    // Reset when paper changes
+    let cancelled = false;
+    setSummaryLoading(true);
+    setAiSummary(null);
+
+    fetch("/api/summarize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: paper.title,
+        abstract: paper.abstract,
+        year: paper.year,
+      }),
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data?.summary) {
+          setAiSummary(data.summary);
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setSummaryLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, paper?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Reset summary when paper changes
+  useEffect(() => {
+    setAiSummary(null);
+    setSummaryLoading(false);
+  }, [paper?.id]);
+
   if (!paper) return null;
+
+  const displaySummary = paper.aiSummary || aiSummary;
 
   return (
     <ContainedPanel
@@ -172,16 +219,23 @@ export function PaperInspector({
             </div>
 
             {/* AI Summary */}
-            {paper.aiSummary && (
+            {(displaySummary || summaryLoading) && (
               <div className="p-4 rounded-lg border bg-muted/30">
                 <div className="flex items-center gap-2 mb-2">
                   <Badge variant="secondary" className="text-xs">
                     <span className="mr-1">✨</span> AI TL;DR
                   </Badge>
                 </div>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  {paper.aiSummary}
-                </p>
+                {summaryLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground" />
+                    Generating summary...
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {displaySummary}
+                  </p>
+                )}
               </div>
             )}
 
@@ -240,7 +294,16 @@ export function PaperInspector({
 }`}
               </pre>
             </div>
-            <Button variant="outline" size="sm" className="gap-2">
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => {
+              const bibtex = `@article{${paper.id.replace("#", "")},\n  title={${paper.title}},\n  author={${paper.authors}},\n  year={${paper.year}},\n  ${paper.venue ? `journal={${paper.venue}},` : ""}\n  ${paper.doi ? `doi={${paper.doi}},` : ""}\n}`;
+              const blob = new Blob([bibtex], { type: "text/plain" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `${paper.id}.bib`;
+              a.click();
+              URL.revokeObjectURL(url);
+            }}>
               <Download className="h-4 w-4" />
               Export BibTeX
             </Button>
@@ -287,11 +350,18 @@ export function PaperInspector({
 
         {/* Footer Actions */}
         <div className="flex gap-2 mt-8 pt-4 border-t">
-          <Button className="flex-1 gap-2">
-            <FileText className="h-4 w-4" />
-            Open PDF
-          </Button>
-          <Button variant="outline" className="gap-2">
+          {paper.openAccessUrl && (
+            <Button className="flex-1 gap-2" onClick={() => window.open(paper.openAccessUrl, "_blank")}>
+              <FileText className="h-4 w-4" />
+              Open PDF
+            </Button>
+          )}
+          <Button variant="outline" className="gap-2" onClick={() => {
+            const url = paper.doi
+              ? `https://doi.org/${paper.doi}`
+              : `https://openalex.org/${paper.id}`;
+            window.open(url, "_blank");
+          }}>
             <ExternalLink className="h-4 w-4" />
             View Source
           </Button>

@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -24,7 +24,6 @@ interface CanvasLayoutProps {
 export default function CanvasLayout({ children }: CanvasLayoutProps) {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const router = useRouter();
 
   return (
@@ -112,11 +111,7 @@ export default function CanvasLayout({ children }: CanvasLayoutProps) {
         <div className="p-2 border-t border-border space-y-1">
           <Link href="/dashboard?tab=settings">
             <Button
-              variant={
-                pathname === "/dashboard" && searchParams.get("tab") === "settings"
-                  ? "secondary"
-                  : "ghost"
-              }
+              variant="ghost"
               className={`w-full justify-start gap-2 ${collapsed ? "px-2 justify-center" : ""}`}
             >
               <Settings className="h-4 w-4 shrink-0" />

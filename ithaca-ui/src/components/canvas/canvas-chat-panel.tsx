@@ -177,19 +177,45 @@ export function CanvasChatPanel({
       inputRef.current.style.height = "auto";
     }
 
-    // Simulate AI response
-    setTimeout(() => {
-      const response = generateContextualResponse(messageText, graphContext);
+    try {
+      // Build history from existing messages (excluding the one we just added)
+      const history = messages.map(m => ({ role: m.role, content: m.content }));
+
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: messageText,
+          graphContext,
+          history,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Chat request failed (${res.status})`);
+      }
+
+      const data = await res.json();
       const assistantMessage: ChatMessage = {
         id: `assistant_${Date.now()}`,
         role: "assistant",
-        content: response,
+        content: data.response,
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, assistantMessage]);
+    } catch (error) {
+      console.error("[Chat] Error:", error);
+      const errorMessage: ChatMessage = {
+        id: `assistant_${Date.now()}`,
+        role: "assistant",
+        content: "Sorry, I couldn't process that request. Please try again.",
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
       setIsTyping(false);
-    }, 800 + Math.random() * 700);
-  }, [input, isTyping, graphContext]);
+    }
+  }, [input, isTyping, graphContext, messages]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -391,28 +417,4 @@ export function ChatToggleButton({ isOpen, onClick }: ChatToggleButtonProps) {
   );
 }
 
-// =============================================================================
-// MOCK RESPONSE GENERATOR
-// =============================================================================
-
-function generateContextualResponse(query: string, context: CanvasChatPanelProps["graphContext"]): string {
-  const lowerQuery = query.toLowerCase();
-  
-  if (lowerQuery.includes("influential") || lowerQuery.includes("key papers") || lowerQuery.includes("important")) {
-    return `Based on the ${context.nodeCount} papers in this graph, the most influential nodes are those with high citation counts and central positions.\n\nLook for larger, more connected nodes   they typically represent foundational work in the field. You can click on any node to see its details and citation count.`;
-  }
-  
-  if (lowerQuery.includes("connection") || lowerQuery.includes("path") || lowerQuery.includes("link")) {
-    return `To find connections between papers:\n\n1. Enable selection mode (lasso icon)\n2. Select two or more papers\n3. Click "Compare" to see citation paths\n\nThe graph shows ${context.edgeCount} citation relationships   each edge represents one paper citing another.`;
-  }
-  
-  if (lowerQuery.includes("trend") || lowerQuery.includes("evolution") || lowerQuery.includes("over time")) {
-    return `To see how this field evolved:\n\n1. Use the year filter on the left\n2. Papers are colored by publication year\n3. Watch clusters form as you adjust the range\n\nDenser clusters often represent distinct research threads or methodological breakthroughs.`;
-  }
-  
-  if (lowerQuery.includes("cluster") || lowerQuery.includes("group") || lowerQuery.includes("community")) {
-    return `The graph layout naturally groups related papers together based on citation patterns.\n\nTry enabling the physics simulation (play button in controls) to see clusters form organically. Densely connected clusters often represent sub-fields or shared methodologies.`;
-  }
-  
-  return `I can help you explore this graph of ${context.nodeCount} papers and ${context.edgeCount} citations.\n\nTry asking about:\n• Key papers or influential research\n• Connections between specific topics\n• Research trends over time\n• What the clusters represent`;
-}
+// Chat panel uses /api/chat route for LLM responses

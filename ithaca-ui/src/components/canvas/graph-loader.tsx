@@ -205,6 +205,7 @@ export function GraphLoader({
           graph.mergeEdgeWithKey(edge.id, edge.source, edge.target, {
             ...edge,
             originalColor: edge.color,
+            originalSize: edge.size || GRAPH.DEFAULT_EDGE_SIZE,
             hidden: false,
           });
         }
@@ -501,15 +502,13 @@ export function GraphLoader({
         sigma.refresh();
       },
 
-      expandNode: async (nodeId: string, direction: "in" | "out") => {
+      expandNode: async (nodeId: string, direction: "in" | "out", type?: "all" | "supports" | "contradicts" | "extends") => {
         const graph = sigma.getGraph();
         if (!graph.hasNode(nodeId)) return;
 
-        // Visual feedback - maybe spin the node or show a toast
-
         try {
           const { nodes: newNodes, edges: newEdges } =
-            await graphAPI.expandNode(nodeId, direction);
+            await graphAPI.expandNode(nodeId, direction, type);
 
           let addedCount = 0;
 
@@ -540,6 +539,7 @@ export function GraphLoader({
               graph.mergeEdgeWithKey(edge.id, edge.source, edge.target, {
                 ...edge,
                 originalColor: edge.color,
+                originalSize: edge.size || GRAPH.DEFAULT_EDGE_SIZE,
                 hidden: false,
               });
             }
@@ -590,6 +590,8 @@ export function GraphLoader({
               ...edge,
               hidden: false,
               size: edge.size || GRAPH.DEFAULT_EDGE_SIZE,
+              originalSize: edge.size || GRAPH.DEFAULT_EDGE_SIZE,
+              originalColor: edge.color,
               color: edge.color,
             });
           }
@@ -636,6 +638,8 @@ export function GraphLoader({
           year: attrs.year || 2024,
           venue: attrs.venue,
           arxivId: attrs.arxivId,
+          doi: attrs.doi,
+          openAccessUrl: attrs.openAccessUrl,
           citations: attrs.citations || 0,
           references: attrs.references || 0,
           supports: attrs.supports || 0,
@@ -658,41 +662,26 @@ export function GraphLoader({
         const sourceAttrs = graph.getNodeAttributes(graph.source(event.edge));
         const targetAttrs = graph.getNodeAttributes(graph.target(event.edge));
 
-        // Mock edge evidence for now (since API might not have it yet)
-        const type = (attrs.edgeType || "supports") as
+        const type = (attrs.edgeType || "extends") as
           | "supports"
           | "contradicts"
           | "extends";
 
-        const SNIPPETS = [
-          {
-            text: "...contrary to the findings of [Source], we observe significant deviation...",
-            context: "Results",
-            type: "contradicts",
-          },
-          {
-            text: "...our method builds on the architecture proposed by [Source]...",
-            context: "Methodology",
-            type: "extends",
-          },
-          {
-            text: "...this validates the initial hypothesis presented in [Target]...",
-            context: "Discussion",
-            type: "supports",
-          },
-          {
-            text: "...however, unlike the approach in [Target], we do not rely on...",
-            context: "Introduction",
-            type: "contradicts",
-          },
-        ] as const;
+        // Build snippet from real edge data (classifier provides this via confidence)
+        const snippetVerb =
+          type === "supports"
+            ? "builds upon and validates"
+            : type === "contradicts"
+              ? "challenges the findings of"
+              : "extends the methodology of";
 
-        const match = SNIPPETS.find((s) => s.type === type) || SNIPPETS[0];
+        const sourceAuthor = sourceAttrs.authors?.split(",")[0]?.trim() || "Authors";
+        const targetAuthor = targetAttrs.authors?.split(",")[0]?.trim() || "Authors";
 
         const evidence: EdgeEvidence = {
           id: event.edge,
           edgeType: type,
-          confidence: attrs.confidence || 85,
+          confidence: attrs.confidence || 50,
           sourcePaper: {
             id: graph.source(event.edge),
             title: sourceAttrs.title || sourceAttrs.label || "Source Paper",
@@ -707,9 +696,9 @@ export function GraphLoader({
           },
           snippets: [
             {
-              text: match.text,
-              source: `Section ${Math.floor(Math.random() * 5) + 1}, p. ${Math.floor(Math.random() * 20) + 1}`,
-              context: match.context,
+              text: `${sourceAuthor} (${sourceAttrs.year || "n.d."}) ${snippetVerb} ${targetAuthor} (${targetAttrs.year || "n.d."}).`,
+              source: `Citation relationship classified by AI with ${attrs.confidence || 50}% confidence`,
+              context: "Discussion",
             },
           ],
         };
@@ -821,23 +810,18 @@ export function GraphLoader({
     graph.forEachNode((node, attrs) => {
       if (attrs.hidden) return; // Skip hidden nodes
 
+      // Use originalSize as the ground truth — never fall back to current size
+      const baseSize = attrs.originalSize || GRAPH.DEFAULT_NODE_SIZE;
+
       if (hoveredNode) {
         if (node === hoveredNode) {
-          graph.setNodeAttribute(
-            node,
-            "size",
-            (attrs.originalSize || attrs.size) * GRAPH.HOVER_SIZE_MULTIPLIER,
-          );
+          graph.setNodeAttribute(node, "size", baseSize * GRAPH.HOVER_SIZE_MULTIPLIER);
           graph.setNodeAttribute(node, "zIndex", GRAPH.HIGHLIGHT_Z_INDEX);
         } else {
-          graph.setNodeAttribute(
-            node,
-            "size",
-            (attrs.originalSize || attrs.size) * GRAPH.UNHOVER_SIZE_MULTIPLIER,
-          );
+          graph.setNodeAttribute(node, "size", baseSize * GRAPH.UNHOVER_SIZE_MULTIPLIER);
         }
       } else {
-        graph.setNodeAttribute(node, "size", attrs.originalSize || attrs.size);
+        graph.setNodeAttribute(node, "size", baseSize);
         graph.setNodeAttribute(node, "zIndex", 0);
       }
     });
@@ -845,28 +829,21 @@ export function GraphLoader({
     graph.forEachEdge((edge, attrs, source, target) => {
       if (attrs.hidden) return; // Skip hidden edges
 
+      const baseEdgeSize = attrs.originalSize || GRAPH.DEFAULT_EDGE_SIZE;
+
       if (hoveredNode) {
         if (source === hoveredNode || target === hoveredNode) {
           // Add to connected edges for flow animation
           connectedEdges.add(edge);
 
-          graph.setEdgeAttribute(
-            edge,
-            "size",
-            (attrs.originalSize || GRAPH.DEFAULT_EDGE_SIZE) *
-              GRAPH.HOVER_EDGE_SIZE_MULTIPLIER,
-          );
+          graph.setEdgeAttribute(edge, "size", baseEdgeSize * GRAPH.HOVER_EDGE_SIZE_MULTIPLIER);
           graph.setEdgeAttribute(edge, "zIndex", GRAPH.HIGHLIGHT_Z_INDEX);
         } else {
           graph.setEdgeAttribute(edge, "size", GRAPH.UNHOVER_EDGE_SIZE);
           graph.setEdgeAttribute(edge, "zIndex", 0);
         }
       } else {
-        graph.setEdgeAttribute(
-          edge,
-          "size",
-          attrs.originalSize || GRAPH.DEFAULT_EDGE_SIZE,
-        );
+        graph.setEdgeAttribute(edge, "size", baseEdgeSize);
         graph.setEdgeAttribute(edge, "zIndex", 0);
       }
     });

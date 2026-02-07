@@ -89,7 +89,7 @@ function workToPaperNode(work: OpenAlexWork, clusterIndex = 0): PaperNode {
   const abstract = reconstructAbstract(work.abstract_inverted_index);
 
   // Size based on citation count (log scale, clamped)
-  const size = Math.min(Math.max(Math.log10(citations + 1) * 5, 4), 30);
+  const size = Math.min(Math.max(Math.log10(citations + 1) * 6 + 6, 8), 35);
 
   // Cluster assignment from top-level concept
   const topConcept = work.concepts?.[0];
@@ -106,15 +106,17 @@ function workToPaperNode(work: OpenAlexWork, clusterIndex = 0): PaperNode {
     year,
     venue,
     arxivId: work.ids?.doi ?? undefined,
+    doi: work.ids?.doi ?? undefined,
+    openAccessUrl: work.open_access?.oa_url ?? work.ids?.doi ? `https://doi.org/${work.ids.doi}` : `https://openalex.org/${id}`,
     citations,
     references: work.referenced_works?.length ?? 0,
-    supports: 0, // Will be populated after edge classification
+    supports: 0,
     refutes: 0,
     abstract: abstract || undefined,
     isHighImpact: citations > 100,
     status: "solid",
     cluster,
-    x: 0, // ForceAtlas2 handles layout
+    x: 0,
     y: 0,
     size,
     color: CLUSTER_COLORS[cluster],

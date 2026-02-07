@@ -25,34 +25,38 @@ export function ForceAtlasControl({
       // Large graphs: prioritize performance
       return {
         slowDown: 15,
-        gravity: 0.5,
-        scalingRatio: 3,
+        gravity: 2,
+        scalingRatio: 2,
         barnesHutOptimize: true,
-        barnesHutTheta: 0.8, // Lower quality but faster
+        barnesHutTheta: 0.8,
         adjustSizes: false,
         edgeWeightInfluence: 0,
+        strongGravityMode: true,
       };
     } else if (count > 5000) {
       // Medium graphs: balance quality and performance
       return {
         slowDown: 12,
-        gravity: 0.8,
-        scalingRatio: 2.5,
+        gravity: 3,
+        scalingRatio: 1.5,
         barnesHutOptimize: true,
         barnesHutTheta: 0.6,
         adjustSizes: true,
         edgeWeightInfluence: 0.5,
+        strongGravityMode: true,
       };
     } else {
-      // Small graphs: prioritize quality
+      // Small graphs: prioritize quality, keep compact
       return {
         slowDown: 10,
-        gravity: 1,
-        scalingRatio: 2,
+        gravity: 5,
+        scalingRatio: 1,
         barnesHutOptimize: true,
         barnesHutTheta: 0.5,
         adjustSizes: true,
         edgeWeightInfluence: 1,
+        strongGravityMode: true,
+        linLogMode: false,
       };
     }
   };

@@ -24,6 +24,8 @@ export interface PaperNode {
   year: number;
   venue?: string;
   arxivId?: string;
+  doi?: string;
+  openAccessUrl?: string;
   citations: number;
   references: number;
   supports: number;

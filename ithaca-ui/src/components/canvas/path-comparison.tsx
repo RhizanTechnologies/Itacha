@@ -367,27 +367,3 @@ export function PathComparisonView({
     </ContainedPanel>
   );
 }
-
-// Compact trigger button for canvas
-export function PathComparisonButton({
-  onClick,
-  pathCount = 0,
-}: {
-  onClick: () => void;
-  pathCount?: number;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="absolute top-28 right-4 z-30 flex items-center gap-2 px-3 py-2 rounded-lg bg-card/90 backdrop-blur border border-border shadow-lg hover:bg-muted transition-colors"
-    >
-      <GitCompare className="h-4 w-4" />
-      <span className="text-sm font-medium">Compare Paths</span>
-      {pathCount > 0 && (
-        <Badge variant="secondary" className="text-xs">
-          {pathCount}
-        </Badge>
-      )}
-    </button>
-  );
-}

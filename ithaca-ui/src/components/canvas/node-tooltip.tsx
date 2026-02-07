@@ -43,12 +43,14 @@ interface NodeTooltipProps {
   ) => void;
   onFocus?: (nodeId: string) => void;
   onAddToProject?: (nodeId: string) => void;
+  onViewDetails?: (nodeId: string) => void;
 }
 
 export function NodeTooltip({
   onExpand,
   onFocus,
   onAddToProject,
+  onViewDetails,
 }: NodeTooltipProps) {
   const registerEvents = useRegisterEvents();
   const sigma = useSigma();
@@ -194,10 +196,12 @@ export function NodeTooltip({
                 <span className="text-supports text-lg font-mono font-bold">
                   {tooltip.supports}
                 </span>
-                <span className="text-supports/60 text-xs font-mono flex items-center">
-                  <TrendingUp className="h-3 w-3 mr-0.5" />
-                  12%
-                </span>
+                {tooltip.supports > 0 && (
+                  <span className="text-supports/60 text-xs font-mono flex items-center">
+                    <TrendingUp className="h-3 w-3 mr-0.5" />
+                    {total > 0 ? Math.round((tooltip.supports / total) * 100) : 0}%
+                  </span>
+                )}
               </div>
             </div>
             <div className="w-px bg-border" />
@@ -209,10 +213,12 @@ export function NodeTooltip({
                 <span className="text-contradicts text-lg font-mono font-bold">
                   {tooltip.refutes}
                 </span>
-                <span className="text-contradicts/60 text-xs font-mono flex items-center">
-                  <TrendingDown className="h-3 w-3 mr-0.5" />
-                  2%
-                </span>
+                {tooltip.refutes > 0 && (
+                  <span className="text-contradicts/60 text-xs font-mono flex items-center">
+                    <TrendingDown className="h-3 w-3 mr-0.5" />
+                    {total > 0 ? Math.round((tooltip.refutes / total) * 100) : 0}%
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -223,7 +229,13 @@ export function NodeTooltip({
           <span className="text-muted-foreground text-[10px] font-mono">
             Cit: {tooltip.citations.toLocaleString()}
           </span>
-          <button className="text-foreground hover:text-primary transition-colors text-xs font-medium flex items-center gap-1">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onViewDetails?.(tooltip.nodeId);
+            }}
+            className="text-foreground hover:text-primary transition-colors text-xs font-medium flex items-center gap-1"
+          >
             View Details
             <ArrowRight className="h-3 w-3" />
           </button>
