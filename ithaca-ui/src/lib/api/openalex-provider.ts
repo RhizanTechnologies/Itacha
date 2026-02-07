@@ -380,7 +380,10 @@ export class OpenAlexProvider implements IGraphProvider {
   // fetchTopicSlice — Search-based graph with topic clustering
   // ---------------------------------------------------------------------------
 
-  async fetchTopicSlice(query: string, paperCount?: number): Promise<{
+  async fetchTopicSlice(
+    query: string,
+    paperCount?: number,
+  ): Promise<{
     nodes: PaperNode[];
     edges: EdgeData[];
     clusters: TopicCluster[];

@@ -96,7 +96,10 @@ export interface IGraphProvider {
   fetchGraph(
     nodeCount?: number,
   ): Promise<{ nodes: PaperNode[]; edges: EdgeData[] }>;
-  fetchTopicSlice(query: string, paperCount?: number): Promise<{
+  fetchTopicSlice(
+    query: string,
+    paperCount?: number,
+  ): Promise<{
     nodes: PaperNode[];
     edges: EdgeData[];
     clusters: TopicCluster[];
@@ -259,7 +262,10 @@ class MockGraphProvider implements IGraphProvider {
     return { nodes, edges };
   }
 
-  async fetchTopicSlice(query: string, paperCount?: number): Promise<{
+  async fetchTopicSlice(
+    query: string,
+    paperCount?: number,
+  ): Promise<{
     nodes: PaperNode[];
     edges: EdgeData[];
     clusters: TopicCluster[];
