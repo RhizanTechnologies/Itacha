@@ -186,10 +186,12 @@ export function ExploreCanvas() {
   );
 
   const handleListSelectNode = useCallback(
-    (nodeId: string) => {
+    async (nodeId: string) => {
       const paper = state.visiblePapers.find((p) => p.id === nodeId);
       if (paper) {
-        actions.selectPaper(paper, []);
+        // Fetch real evidence when selecting from list (same as clicking node)
+        const evidence = await graphAPI.getEvidence(nodeId);
+        actions.selectPaper(paper, evidence);
         const graph = refs.graphRef.current;
         if (graph && graph.hasNode(nodeId)) {
           const pos = graph.getNodeAttributes(nodeId);
@@ -534,6 +536,14 @@ export function ExploreCanvas() {
           nodeCount: state.graphStats.nodeCount,
           edgeCount: state.graphStats.edgeCount,
           selectedNode: state.selectedNodes[0] || null,
+          papers: state.visiblePapers.slice(0, 30).map((p) => ({
+            title: p.title,
+            authors: p.authors,
+            year: p.year,
+            citations: p.citations,
+            supports: p.supports,
+            refutes: p.refutes,
+          })),
         }}
         onNavigateToPaper={handleSearchPaper}
         onFocusNode={(nodeId) => {

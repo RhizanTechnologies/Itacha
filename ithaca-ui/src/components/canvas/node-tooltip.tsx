@@ -9,30 +9,36 @@ interface PaperTooltipState {
   visible: boolean;
   nodeId: string;
   label: string;
+  title: string;
   paperId: string;
   authors: string;
   year: number;
+  venue: string;
   citations: number;
   supports: number;
   refutes: number;
   isHighImpact: boolean;
   cluster: number;
   status: "solid" | "ghost";
+  abstract: string;
 }
 
 const initialState: PaperTooltipState = {
   visible: false,
   nodeId: "",
   label: "",
+  title: "",
   paperId: "",
   authors: "",
   year: 2024,
+  venue: "",
   citations: 0,
   supports: 0,
   refutes: 0,
   isHighImpact: false,
   cluster: 0,
   status: "solid",
+  abstract: "",
 };
 
 interface NodeTooltipProps {
@@ -69,15 +75,18 @@ export function NodeTooltip({
         visible: true,
         nodeId: event.node,
         label: nodeData.label || `Paper ${event.node}`,
+        title: nodeData.title || nodeData.label || `Paper ${event.node}`,
         paperId: nodeData.paperId || `#${event.node}`,
         authors: nodeData.authors || "Unknown",
         year: nodeData.year || 2024,
+        venue: nodeData.venue || "",
         citations: nodeData.citations || 0,
         supports: nodeData.supports || 0,
         refutes: nodeData.refutes || 0,
         isHighImpact: nodeData.isHighImpact || false,
         cluster: nodeData.cluster || 0,
         status: nodeData.status || "solid",
+        abstract: nodeData.abstract || "",
       });
     },
     [sigma],
@@ -153,11 +162,16 @@ export function NodeTooltip({
             </span>
           </div>
           <h3 className="text-foreground text-sm font-bold leading-snug mb-1 line-clamp-2">
-            {tooltip.label}
+            {tooltip.title}
           </h3>
           <p className="text-muted-foreground text-xs font-medium">
             {tooltip.authors} ({tooltip.year})
           </p>
+          {tooltip.venue && (
+            <p className="text-muted-foreground/70 text-[10px] mt-0.5 truncate italic">
+              {tooltip.venue}
+            </p>
+          )}
         </div>
 
         {/* Mini Chart Section */}
@@ -223,6 +237,15 @@ export function NodeTooltip({
             </div>
           </div>
         </div>
+
+        {/* Abstract Snippet */}
+        {tooltip.abstract && (
+          <div className="px-4 py-2 border-t border-border/50">
+            <p className="text-muted-foreground/80 text-[11px] leading-relaxed line-clamp-2">
+              {tooltip.abstract}
+            </p>
+          </div>
+        )}
 
         {/* Footer */}
         <div className="bg-muted/30 px-4 py-2 flex items-center justify-between border-t border-border">

@@ -2,7 +2,7 @@
  * Canvas Chat API Route
  *
  * POST /api/chat
- * Body: { message: string, graphContext: { nodeCount, edgeCount, selectedNode?, focusedCluster? }, history?: { role, content }[] }
+ * Body: { message: string, graphContext: { nodeCount, edgeCount, selectedNode?, papers?: [...] }, history?: { role, content }[] }
  * Returns: { response: string }
  *
  * Uses the LLM router to generate contextual responses about the graph.
@@ -23,6 +23,19 @@ const requestSchema = z.object({
     edgeCount: z.number(),
     selectedNode: z.string().nullable().optional(),
     focusedCluster: z.string().nullable().optional(),
+    papers: z
+      .array(
+        z.object({
+          title: z.string(),
+          authors: z.string(),
+          year: z.number(),
+          citations: z.number(),
+          supports: z.number().optional(),
+          refutes: z.number().optional(),
+        }),
+      )
+      .max(30)
+      .optional(),
   }),
   history: z
     .array(
@@ -77,11 +90,25 @@ export async function POST(request: NextRequest) {
     const router = getLLMRouter();
 
     // Build context-aware system prompt
-    const contextInfo = `\n\nCurrent graph state: ${graphContext.nodeCount} papers, ${graphContext.edgeCount} citation edges.${
-      graphContext.selectedNode
-        ? ` Currently selected: ${graphContext.selectedNode}.`
-        : ""
-    }`;
+    let contextInfo = `\n\nCurrent graph state: ${graphContext.nodeCount} papers, ${graphContext.edgeCount} citation edges.`;
+    
+    if (graphContext.selectedNode) {
+      contextInfo += ` Currently selected: ${graphContext.selectedNode}.`;
+    }
+
+    // Inject real paper data so the LLM knows what's in the graph
+    const papers = graphContext.papers || [];
+    if (papers.length > 0) {
+      contextInfo += `\n\nPapers in this graph (sorted by citations):\n`;
+      const sorted = [...papers].sort((a, b) => b.citations - a.citations);
+      sorted.forEach((p, i) => {
+        let line = `${i + 1}. "${p.title}" by ${p.authors.split(",")[0]} et al. (${p.year}) — ${p.citations} citations`;
+        if ((p.supports ?? 0) > 0 || (p.refutes ?? 0) > 0) {
+          line += ` [${p.supports ?? 0} supporting, ${p.refutes ?? 0} contradicting]`;
+        }
+        contextInfo += line + "\n";
+      });
+    }
 
     const messages: LLMMessage[] = [
       { role: "system", content: SYSTEM_PROMPT + contextInfo },

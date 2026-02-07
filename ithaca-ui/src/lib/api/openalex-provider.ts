@@ -105,9 +105,12 @@ function workToPaperNode(work: OpenAlexWork, clusterIndex = 0): PaperNode {
     authors: authors || "Unknown",
     year,
     venue,
-    arxivId: work.ids?.doi ?? undefined,
+    arxivId: undefined,
     doi: work.ids?.doi ?? undefined,
-    openAccessUrl: work.open_access?.oa_url ?? work.ids?.doi ? `https://doi.org/${work.ids.doi}` : `https://openalex.org/${id}`,
+    openAccessUrl:
+      work.open_access?.oa_url ||
+      (work.ids?.doi ? `https://doi.org/${work.ids.doi}` : undefined) ||
+      `https://openalex.org/${id}`,
     citations,
     references: work.referenced_works?.length ?? 0,
     supports: 0,

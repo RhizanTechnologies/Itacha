@@ -33,6 +33,15 @@ interface ChatMessage {
   timestamp: Date;
 }
 
+interface PaperSummary {
+  title: string;
+  authors: string;
+  year: number;
+  citations: number;
+  supports: number;
+  refutes: number;
+}
+
 interface CanvasChatPanelProps {
   isOpen: boolean;
   onClose: () => void;
@@ -41,6 +50,7 @@ interface CanvasChatPanelProps {
     edgeCount: number;
     selectedNode?: string | null;
     focusedCluster?: string | null;
+    papers?: PaperSummary[];
   };
   onNavigateToPaper?: (paperId: string) => void;
   onFocusNode?: (nodeId: string) => void;
@@ -186,7 +196,13 @@ export function CanvasChatPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: messageText,
-          graphContext,
+          graphContext: {
+            nodeCount: graphContext.nodeCount,
+            edgeCount: graphContext.edgeCount,
+            selectedNode: graphContext.selectedNode,
+            focusedCluster: graphContext.focusedCluster,
+            papers: graphContext.papers,
+          },
           history,
         }),
       });
@@ -196,19 +212,45 @@ export function CanvasChatPanel({
       }
 
       const data = await res.json();
+      
+      // Check if response indicates LLM fallback
+      const responseContent = data.response || data.fallback || "I couldn't generate a response. Try rephrasing your question.";
+      
       const assistantMessage: ChatMessage = {
         id: `assistant_${Date.now()}`,
         role: "assistant",
-        content: data.response,
+        content: responseContent,
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {
       console.error("[Chat] Error:", error);
+      
+      // Provide a useful fallback using local graph data
+      const papers = graphContext.papers || [];
+      let fallbackContent = "I'm having trouble connecting to the AI service. ";
+      
+      if (papers.length > 0) {
+        const mostCited = [...papers].sort((a, b) => b.citations - a.citations).slice(0, 3);
+        const contradicted = papers.filter(p => p.refutes > 0);
+        
+        fallbackContent += `Here's what I can tell you from the graph data:\n\n`;
+        fallbackContent += `**${graphContext.nodeCount} papers** with **${graphContext.edgeCount} citation links**\n\n`;
+        fallbackContent += `**Most cited:**\n`;
+        mostCited.forEach(p => {
+          fallbackContent += `- ${p.title} (${p.year}) — ${p.citations} citations\n`;
+        });
+        if (contradicted.length > 0) {
+          fallbackContent += `\n**Papers with contradictions:** ${contradicted.length}`;
+        }
+      } else {
+        fallbackContent += "Please try again in a moment.";
+      }
+      
       const errorMessage: ChatMessage = {
         id: `assistant_${Date.now()}`,
         role: "assistant",
-        content: "Sorry, I couldn't process that request. Please try again.",
+        content: fallbackContent,
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, errorMessage]);
