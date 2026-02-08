@@ -106,6 +106,7 @@ export interface IGraphProvider {
   }>;
   fetchPaperContext(
     paperId: string,
+    paperCount?: number,
   ): Promise<{ nodes: PaperNode[]; edges: EdgeData[] }>;
   getPaperById(id: string): Promise<PaperNode | null>;
   getEvidence(paperId: string): Promise<EvidenceItem[]>;
@@ -322,6 +323,7 @@ class MockGraphProvider implements IGraphProvider {
 
   async fetchPaperContext(
     paperId: string,
+    paperCount?: number,
   ): Promise<{ nodes: PaperNode[]; edges: EdgeData[] }> {
     await new Promise((resolve) => setTimeout(resolve, 600));
     // ... (Rest of logic truncated for brevity, but would be identical to previous fetchPaperContext)
@@ -354,7 +356,9 @@ class MockGraphProvider implements IGraphProvider {
     const edges: EdgeData[] = [];
 
     // Add fake roots/branches
-    for (let i = 0; i < 3; i++) {
+    const totalRelated = Math.max(0, (paperCount ?? 7) - 1);
+    const relatedCount = Math.min(3, totalRelated);
+    for (let i = 0; i < relatedCount; i++) {
       const id = `root-${paperId}-${i}`;
       nodes.push({
         ...centerNode,
@@ -496,8 +500,8 @@ class GraphAPIService {
   fetchTopicSlice(q: string, paperCount?: number) {
     return this.provider.fetchTopicSlice(q, paperCount);
   }
-  fetchPaperContext(id: string) {
-    return this.provider.fetchPaperContext(id);
+  fetchPaperContext(id: string, paperCount?: number) {
+    return this.provider.fetchPaperContext(id, paperCount);
   }
   getPaperById(id: string) {
     return this.provider.getPaperById(id);

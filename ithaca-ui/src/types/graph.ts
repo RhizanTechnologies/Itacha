@@ -57,7 +57,10 @@ export interface GraphApiShape {
     query: string,
     paperCount?: number,
   ) => Promise<ClusterSearchResult>;
-  fetchPaperContext: (paperId: string) => Promise<GraphFetchResult>;
+  fetchPaperContext: (
+    paperId: string,
+    paperCount?: number,
+  ) => Promise<GraphFetchResult>;
   getPaperById: (id: string) => Promise<PaperNode | null>;
   getEvidence: (paperId: string) => Promise<EvidenceItem[]>;
   searchPapers: (

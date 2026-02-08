@@ -67,13 +67,13 @@ export function useCanvasInteraction() {
           nodes = data.nodes;
           edges = data.edges;
         } else {
-          const data = await graphAPI.fetchPaperContext(paperId);
+          const data = await graphAPI.fetchPaperContext(paperId, state.paperCount);
           nodes = data.nodes;
           edges = data.edges;
         }
 
         if (refs.graphApiRef.current) {
-          refs.graphApiRef.current.addGraphData(nodes, edges, false);
+          refs.graphApiRef.current.addGraphData(nodes, edges, true);
           if (!isTopic) {
             refs.graphApiRef.current.focusNodes([paperId]);
           }
@@ -81,11 +81,7 @@ export function useCanvasInteraction() {
 
         // Update the paper list panel with newly loaded papers
         if (nodes.length > 0) {
-          // Merge with existing visible papers (deduplicate by id)
-          const existingPapers = state.visiblePapers;
-          const existingIds = new Set(existingPapers.map((p: any) => p.id));
-          const newPapers = nodes.filter((n: any) => !existingIds.has(n.id));
-          actions.setVisiblePapers([...existingPapers, ...newPapers]);
+          actions.setVisiblePapers(nodes);
         }
       } catch (e) {
         debug.error("Search failed", e);

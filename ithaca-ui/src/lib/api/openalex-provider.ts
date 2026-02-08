@@ -298,6 +298,7 @@ export class OpenAlexProvider implements IGraphProvider {
 
   async fetchPaperContext(
     paperId: string,
+    paperCount?: number,
   ): Promise<{ nodes: PaperNode[]; edges: EdgeData[] }> {
     // 1. Fetch the center paper
     const centerWork = await getWork(paperId);
@@ -310,9 +311,19 @@ export class OpenAlexProvider implements IGraphProvider {
     const edgePairs: { sourceNode: PaperNode; targetNode: PaperNode }[] = [];
 
     // 2. Fetch papers citing this one (incoming citations)
+    const totalRelated = Math.max(0, (paperCount ?? 25) - 1);
+    const citingLimit =
+      totalRelated === 0 ? 0 : Math.max(1, Math.floor(totalRelated / 2));
+    const referenceLimit =
+      totalRelated === 0 ? 0 : Math.max(1, totalRelated - citingLimit);
+
     const [citingResponse, referencedWorks] = await Promise.all([
-      getCitingWorks(paperId, { perPage: 12 }),
-      getReferencedWorks(paperId, 12),
+      citingLimit > 0
+        ? getCitingWorks(paperId, { perPage: citingLimit })
+        : Promise.resolve({ results: [] }),
+      referenceLimit > 0
+        ? getReferencedWorks(paperId, referenceLimit)
+        : Promise.resolve([]),
     ]);
 
     // 3. Process citing papers (they cite the center paper)

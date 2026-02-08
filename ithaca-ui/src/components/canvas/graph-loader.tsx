@@ -144,8 +144,8 @@ export function GraphLoader({
           nodes = data.nodes;
           edges = data.edges;
         } else {
-          debug.graph("Re-fetching paper context:", focusNode);
-          const data = await graphAPI.fetchPaperContext(focusNode);
+          debug.graph("Re-fetching paper context:", focusNode, "paperCount:", paperCount);
+          const data = await graphAPI.fetchPaperContext(focusNode, paperCount);
           nodes = data.nodes;
           edges = data.edges;
         }
