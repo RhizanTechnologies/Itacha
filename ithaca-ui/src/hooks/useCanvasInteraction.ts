@@ -67,7 +67,10 @@ export function useCanvasInteraction() {
           nodes = data.nodes;
           edges = data.edges;
         } else {
-          const data = await graphAPI.fetchPaperContext(paperId, state.paperCount);
+          const data = await graphAPI.fetchPaperContext(
+            paperId,
+            state.paperCount,
+          );
           nodes = data.nodes;
           edges = data.edges;
         }

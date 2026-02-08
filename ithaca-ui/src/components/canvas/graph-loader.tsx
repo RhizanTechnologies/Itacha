@@ -265,112 +265,121 @@ export function GraphLoader({
     onRegisterSigmaGraph,
   ]);
 
-  // Apply filters when they change
+  // Apply filters when they change — coalesced via rAF to prevent jank
+  const filterRafRef = useRef<number | null>(null);
+  const latestFiltersRef = useRef(filters);
+  latestFiltersRef.current = filters;
+
   useEffect(() => {
-    const graph = graphRef.current || sigma.getGraph();
-    if (!graph || graph.order === 0) return;
-
-    const { hiddenNodes, hiddenEdges } = graphAPI.applyFilters(graph, filters);
-
-    // If Focus Mode is active, override filtering logic
-    let effectiveHiddenNodes = hiddenNodes;
-    let effectiveHiddenEdges = hiddenEdges;
-
-    if (focusModeNode && graph.hasNode(focusModeNode)) {
-      const neighbors = graph.neighbors(focusModeNode);
-      const visibleSet = new Set([focusModeNode, ...neighbors]);
-
-      effectiveHiddenNodes = new Set();
-      effectiveHiddenEdges = new Set();
-
-      // Hide all nodes not in the visible set
-      graph.forEachNode((node) => {
-        if (!visibleSet.has(node)) {
-          effectiveHiddenNodes.add(node);
-        }
-      });
-
-      // Hide all edges where at least one endpoint is hidden
-      graph.forEachEdge((edge, _attrs, source, target) => {
-        if (!visibleSet.has(source) || !visibleSet.has(target)) {
-          effectiveHiddenEdges.add(edge);
-        }
-      });
+    // Cancel any pending frame to coalesce rapid changes
+    if (filterRafRef.current !== null) {
+      cancelAnimationFrame(filterRafRef.current);
     }
 
-    // Update node visibility
-    graph.forEachNode((node, attrs) => {
-      const isHidden = effectiveHiddenNodes.has(node);
-      graph.setNodeAttribute(node, "hidden", isHidden);
-      // In focus mode, strict hiding (user request: "remove all in all")
-      if (isHidden) {
-        // If focus mode, strictly hidden (no opacity override needed as hidden=true handles it)
-        if (focusModeNode) {
-          // Ensure no residual visual artifacts
-          graph.setNodeAttribute(node, "size", 0);
-        } else {
-          // For standard filters, maybe we want faint ghosts?
-          // Current logic sets hidden=true, so they are gone anyway.
-          // If we wanted dimming, we would set hidden=false and color=faint.
-          // For now, sticking to strict hiding for filters too as per standard Sigma behavior.
+    filterRafRef.current = requestAnimationFrame(() => {
+      filterRafRef.current = null;
+      const graph = graphRef.current || sigma.getGraph();
+      if (!graph || graph.order === 0) return;
+
+      const currentFilters = latestFiltersRef.current;
+      const { hiddenNodes, hiddenEdges } = graphAPI.applyFilters(graph, currentFilters);
+
+      // If Focus Mode is active, override filtering logic
+      let effectiveHiddenNodes = hiddenNodes;
+      let effectiveHiddenEdges = hiddenEdges;
+
+      if (focusModeNode && graph.hasNode(focusModeNode)) {
+        const neighbors = graph.neighbors(focusModeNode);
+        const visibleSet = new Set([focusModeNode, ...neighbors]);
+
+        effectiveHiddenNodes = new Set();
+        effectiveHiddenEdges = new Set();
+
+        graph.forEachNode((node) => {
+          if (!visibleSet.has(node)) {
+            effectiveHiddenNodes.add(node);
+          }
+        });
+
+        graph.forEachEdge((edge, _attrs, source, target) => {
+          if (!visibleSet.has(source) || !visibleSet.has(target)) {
+            effectiveHiddenEdges.add(edge);
+          }
+        });
+      }
+
+      // Batch node updates — use updateEachNodeAttributes to fire a single graphology event
+      graph.updateEachNodeAttributes((node, attrs) => {
+        const isHidden = effectiveHiddenNodes.has(node);
+
+        if (isHidden) {
+          return {
+            ...attrs,
+            hidden: true,
+            ...(focusModeNode ? { size: 0 } : {}),
+          };
         }
-      } else {
+
         const isSolid = solidNodes?.has(node);
-        // Logic: if in solidNodes, IT IS SOLID, override any 'ghost' status.
-        // If not in solidNodes, respect the attribute status.
         const isGhost = !isSolid && attrs.status === "ghost";
 
-        graph.setNodeAttribute(
-          node,
-          "color",
-          attrs.controversyScore > 0 && !attrs.hidden
-            ? COLORS.CONTRADICTS // Red for controversial
+        const color =
+          attrs.controversyScore > 0
+            ? COLORS.CONTRADICTS
             : isGhost
-              ? `${attrs.color}${COLORS.GHOST_ALPHA}` // 25% opacity for ghost
+              ? `${attrs.color}${COLORS.GHOST_ALPHA}`
               : attrs.originalColor ||
                 COLORS.CLUSTERS[attrs.cluster] ||
-                COLORS.CLUSTERS[0],
-        );
+                COLORS.CLUSTERS[0];
 
-        // Update status attribute in graph for other components (tooltip etc) to see
-        if (isSolid && attrs.status !== "solid") {
-          graph.setNodeAttribute(node, "status", "solid");
+        return {
+          ...attrs,
+          hidden: false,
+          color,
+          size: attrs.originalSize || attrs.size || GRAPH.DEFAULT_NODE_SIZE,
+          ...(isSolid && attrs.status !== "solid" ? { status: "solid" } : {}),
+        };
+      });
+
+      // Batch edge updates
+      graph.updateEachEdgeAttributes((_edge, attrs) => {
+        const edgeKey = _edge;
+        const isHidden = effectiveHiddenEdges.has(edgeKey);
+
+        if (isHidden) {
+          return {
+            ...attrs,
+            hidden: true,
+            color: "rgba(100, 100, 100, 0.05)",
+            size: 0.1,
+          };
         }
 
-        // Explicit visual cue for ghost (e.g. outline or desaturated)?
-        // For now, simpler visual cue: Low opacity color
-        // And reset size
-        graph.setNodeAttribute(
-          node,
-          "size",
-          attrs.originalSize || attrs.size || GRAPH.DEFAULT_NODE_SIZE,
-        );
-      }
-    });
-
-    // Update edge visibility
-    graph.forEachEdge((edge, attrs) => {
-      const isHidden = effectiveHiddenEdges.has(edge);
-      graph.setEdgeAttribute(edge, "hidden", isHidden);
-      if (isHidden) {
-        graph.setEdgeAttribute(edge, "color", "rgba(100, 100, 100, 0.05)");
-        graph.setEdgeAttribute(edge, "size", 0.1);
-      } else {
-        graph.setEdgeAttribute(edge, "color", attrs.originalColor || "#e5e7eb");
-        graph.setEdgeAttribute(edge, "size", attrs.originalSize || 1);
-      }
-    });
-
-    // Report filtering stats
-    if (onFilterStatsChange) {
-      onFilterStatsChange({
-        hiddenNodes: effectiveHiddenNodes.size,
-        hiddenEdges: effectiveHiddenEdges.size,
+        return {
+          ...attrs,
+          hidden: false,
+          color: attrs.originalColor || "#e5e7eb",
+          size: attrs.originalSize || 1,
+        };
       });
-    }
 
-    // Only refresh ONCE after all updates
-    sigma.refresh();
+      // Report filtering stats
+      if (onFilterStatsChange) {
+        onFilterStatsChange({
+          hiddenNodes: effectiveHiddenNodes.size,
+          hiddenEdges: effectiveHiddenEdges.size,
+        });
+      }
+
+      // Single refresh after all batch updates
+      sigma.refresh();
+    });
+
+    return () => {
+      if (filterRafRef.current !== null) {
+        cancelAnimationFrame(filterRafRef.current);
+      }
+    };
   }, [
     filters,
     sigma,

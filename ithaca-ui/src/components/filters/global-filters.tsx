@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
@@ -62,6 +62,20 @@ export function GlobalFilters({
   minYear = FILTERS.MIN_YEAR,
   maxYear = FILTERS.MAX_YEAR,
 }: GlobalFiltersProps) {
+  // Local slider state for instant visual feedback without re-rendering the graph
+  const [localCitationRange, setLocalCitationRange] = useState(filters.citationRange);
+  const [localYearRange, setLocalYearRange] = useState(filters.yearRange);
+  const citationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const yearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Sync local state when external filters change (e.g. reset)
+  useEffect(() => {
+    setLocalCitationRange(filters.citationRange);
+  }, [filters.citationRange]);
+  useEffect(() => {
+    setLocalYearRange(filters.yearRange);
+  }, [filters.yearRange]);
+
   const handleRelationshipToggle = useCallback(
     (type: keyof FilterState["relationships"]) => {
       onFiltersChange({
@@ -75,21 +89,61 @@ export function GlobalFilters({
     [filters, onFiltersChange],
   );
 
+  // Debounced citation slider — local state updates instantly, context after 30ms pause
   const handleCitationChange = useCallback(
     (value: number[]) => {
+      const range = [value[0], value[1]] as [number, number];
+      setLocalCitationRange(range);
+      if (citationTimerRef.current) clearTimeout(citationTimerRef.current);
+      citationTimerRef.current = setTimeout(() => {
+        onFiltersChange({
+          ...filters,
+          citationRange: range,
+        });
+      }, 30);
+    },
+    [filters, onFiltersChange],
+  );
+
+  // Commit on mouse release — always dispatch final value
+  const handleCitationCommit = useCallback(
+    (value: number[]) => {
+      if (citationTimerRef.current) clearTimeout(citationTimerRef.current);
+      const range = [value[0], value[1]] as [number, number];
+      setLocalCitationRange(range);
       onFiltersChange({
         ...filters,
-        citationRange: [value[0], value[1]] as [number, number],
+        citationRange: range,
       });
     },
     [filters, onFiltersChange],
   );
 
+  // Debounced year slider
   const handleYearChange = useCallback(
     (value: number[]) => {
+      const range = [value[0], value[1]] as [number, number];
+      setLocalYearRange(range);
+      if (yearTimerRef.current) clearTimeout(yearTimerRef.current);
+      yearTimerRef.current = setTimeout(() => {
+        onFiltersChange({
+          ...filters,
+          yearRange: range,
+        });
+      }, 30);
+    },
+    [filters, onFiltersChange],
+  );
+
+  // Commit on mouse release
+  const handleYearCommit = useCallback(
+    (value: number[]) => {
+      if (yearTimerRef.current) clearTimeout(yearTimerRef.current);
+      const range = [value[0], value[1]] as [number, number];
+      setLocalYearRange(range);
       onFiltersChange({
         ...filters,
-        yearRange: [value[0], value[1]] as [number, number],
+        yearRange: range,
       });
     },
     [filters, onFiltersChange],
@@ -195,12 +249,13 @@ export function GlobalFilters({
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-medium">Citation Count</span>
                 <span className="text-xs text-muted-foreground font-mono">
-                  {filters.citationRange[0]}–{filters.citationRange[1]}
+                  {localCitationRange[0]}–{localCitationRange[1]}
                 </span>
               </div>
               <Slider
-                value={[filters.citationRange[0], filters.citationRange[1]]}
+                value={[localCitationRange[0], localCitationRange[1]]}
                 onValueChange={handleCitationChange}
+                onValueCommit={handleCitationCommit}
                 min={FILTERS.MIN_CITATIONS}
                 max={maxCitations}
                 step={10}
@@ -213,12 +268,13 @@ export function GlobalFilters({
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-medium">Publication Year</span>
                 <span className="text-xs text-muted-foreground font-mono">
-                  {filters.yearRange[0]}–{filters.yearRange[1]}
+                  {localYearRange[0]}–{localYearRange[1]}
                 </span>
               </div>
               <Slider
-                value={[filters.yearRange[0], filters.yearRange[1]]}
+                value={[localYearRange[0], localYearRange[1]]}
                 onValueChange={handleYearChange}
+                onValueCommit={handleYearCommit}
                 min={minYear}
                 max={maxYear}
                 step={1}
