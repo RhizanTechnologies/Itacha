@@ -1,8 +1,10 @@
 "use client";
 
-import { Search, Sparkles, BookOpen, ArrowRight } from "lucide-react";
+import { Search, Sparkles, BookOpen, ArrowRight, CheckCircle, XCircle, ArrowRightCircle, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
+import type { RelationshipFocusType } from "@/components/canvas/relationship-focus-control";
 
 interface CanvasEmptyStateProps {
   /** Callback when user clicks the search prompt */
@@ -11,6 +13,10 @@ interface CanvasEmptyStateProps {
   message?: string;
   /** Whether to show the animated background */
   showAnimation?: boolean;
+  /** Current relationship focus */
+  relationshipFocus?: RelationshipFocusType;
+  /** Callback when relationship focus changes */
+  onRelationshipFocusChange?: (focus: RelationshipFocusType) => void;
 }
 
 /**
@@ -21,7 +27,21 @@ export function CanvasEmptyState({
   onSearchClick,
   message = "Start exploring the research landscape",
   showAnimation = true,
+  relationshipFocus = "all",
+  onRelationshipFocusChange,
 }: CanvasEmptyStateProps) {
+  const focusOptions: {
+    value: RelationshipFocusType;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+    activeColor: string;
+    desc: string;
+  }[] = [
+    { value: "all", label: "All Types", icon: Layers, activeColor: "bg-primary text-primary-foreground", desc: "See every relationship" },
+    { value: "supports", label: "Supports", icon: CheckCircle, activeColor: "bg-emerald-600 text-white", desc: "Find papers that agree" },
+    { value: "contradicts", label: "Refutes", icon: XCircle, activeColor: "bg-red-600 text-white", desc: "Find papers that disagree" },
+    { value: "extends", label: "Extends", icon: ArrowRightCircle, activeColor: "bg-blue-600 text-white", desc: "Find papers that build on" },
+  ];
   return (
     <div className="absolute inset-0 flex items-center justify-center bg-background">
       {/* Animated background pattern */}
@@ -90,7 +110,42 @@ export function CanvasEmptyState({
         </h2>
 
         {/* Message */}
-        <p className="text-muted-foreground mb-6 leading-relaxed">{message}</p>
+        <p className="text-muted-foreground mb-4 leading-relaxed">{message}</p>
+
+        {/* Relationship Focus Selector */}
+        {onRelationshipFocusChange && (
+          <div className="mb-6 w-full">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+              I want to explore
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {focusOptions.map((opt) => {
+                const isActive = relationshipFocus === opt.value;
+                const Icon = opt.icon;
+                return (
+                  <button
+                    key={opt.value}
+                    onClick={() => onRelationshipFocusChange(opt.value)}
+                    className={cn(
+                      "flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium transition-all text-left",
+                      isActive
+                        ? `${opt.activeColor} border-transparent shadow-md scale-[1.02]`
+                        : "border-border text-muted-foreground hover:bg-muted/80 hover:text-foreground",
+                    )}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" />
+                    <div>
+                      <div>{opt.label}</div>
+                      <div className={cn("text-[10px] font-normal", isActive ? "opacity-80" : "text-muted-foreground")}>
+                        {opt.desc}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Action buttons */}
         <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">

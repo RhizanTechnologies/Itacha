@@ -27,6 +27,18 @@ import {
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { graphAPI, SearchResult } from "@/lib/api/graph-api";
+import {
+  useCanvasState,
+  useCanvasActions,
+} from "@/contexts/canvas-context";
+import {
+  CheckCircle,
+  XCircle,
+  ArrowRightCircle,
+  Layers,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import type { RelationshipFocusType } from "@/components/canvas/relationship-focus-control";
 
 interface CommandBarProps {
   open?: boolean;
@@ -51,6 +63,50 @@ export function CommandBar({
   const [recentPapers, setRecentPapers] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const { theme, setTheme } = useTheme();
+  const canvasState = useCanvasState();
+  const canvasActions = useCanvasActions();
+
+  const focusOptions: {
+    value: RelationshipFocusType;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+    color: string;
+    activeColor: string;
+    desc: string;
+  }[] = [
+    {
+      value: "all",
+      label: "All",
+      icon: Layers,
+      color: "text-muted-foreground",
+      activeColor: "bg-primary text-primary-foreground border-primary",
+      desc: "Every relationship",
+    },
+    {
+      value: "supports",
+      label: "Supports",
+      icon: CheckCircle,
+      color: "text-emerald-500",
+      activeColor: "bg-emerald-600 text-white border-emerald-600",
+      desc: "Papers that agree",
+    },
+    {
+      value: "contradicts",
+      label: "Refutes",
+      icon: XCircle,
+      color: "text-red-500",
+      activeColor: "bg-red-600 text-white border-red-600",
+      desc: "Papers that disagree",
+    },
+    {
+      value: "extends",
+      label: "Extends",
+      icon: ArrowRightCircle,
+      color: "text-blue-500",
+      activeColor: "bg-blue-600 text-white border-blue-600",
+      desc: "Papers that build on",
+    },
+  ];
 
   // Listen for keyboard shortcut and external open events
   useEffect(() => {
@@ -146,8 +202,37 @@ export function CommandBar({
 
       {/* Command Dialog */}
       <CommandDialog open={open} onOpenChange={setOpen}>
+        {/* Relationship Focus Selector — pick intent before searching */}
+        <div className="px-3 pt-3 pb-2 border-b border-border">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
+            What are you looking for?
+          </p>
+          <div className="flex gap-1.5">
+            {focusOptions.map((opt) => {
+              const isActive = canvasState.relationshipFocus === opt.value;
+              const Icon = opt.icon;
+              return (
+                <button
+                  key={opt.value}
+                  onClick={() => canvasActions.setRelationshipFocus(opt.value)}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border transition-all",
+                    isActive
+                      ? opt.activeColor
+                      : "border-border text-muted-foreground hover:bg-muted hover:text-foreground",
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
         <CommandInput
-          placeholder="Search papers, authors, or actions..."
+          placeholder={canvasState.relationshipFocus === "all"
+            ? "Search papers, authors, or topics..."
+            : `Search for papers that ${canvasState.relationshipFocus === "supports" ? "support" : canvasState.relationshipFocus === "contradicts" ? "refute" : "extend"} others...`}
           value={search}
           onValueChange={setSearch}
         />
