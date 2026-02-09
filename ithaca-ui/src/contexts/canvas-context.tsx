@@ -92,6 +92,7 @@ export interface CanvasState {
   // Search & Focus State
   searchTarget: string | null;
   focusModeNode: string | null;
+  relationshipFocus: "all" | "supports" | "contradicts" | "extends";
 
   // Feature State
   physicsEnabled: boolean;
@@ -156,6 +157,7 @@ type CanvasAction =
   // Search & Focus
   | { type: "SET_SEARCH_TARGET"; payload: string | null }
   | { type: "SET_FOCUS_MODE_NODE"; payload: string | null }
+  | { type: "SET_RELATIONSHIP_FOCUS"; payload: "all" | "supports" | "contradicts" | "extends" }
   // Features
   | { type: "SET_PHYSICS_ENABLED"; payload: boolean }
   | { type: "SET_TUTORIAL_ACTIVE"; payload: boolean };
@@ -214,6 +216,7 @@ const initialState: CanvasState = {
   // Search & Focus State
   searchTarget: null,
   focusModeNode: null,
+  relationshipFocus: "all" as const,
 
   // Feature State
   physicsEnabled: true,
@@ -357,6 +360,8 @@ function canvasReducer(state: CanvasState, action: CanvasAction): CanvasState {
       return { ...state, searchTarget: action.payload };
     case "SET_FOCUS_MODE_NODE":
       return { ...state, focusModeNode: action.payload };
+    case "SET_RELATIONSHIP_FOCUS":
+      return { ...state, relationshipFocus: action.payload };
 
     // Features
     case "SET_PHYSICS_ENABLED":
@@ -566,6 +571,8 @@ export function useCanvasActions() {
         dispatch({ type: "SET_SEARCH_TARGET", payload: target }),
       setFocusModeNode: (nodeId: string | null) =>
         dispatch({ type: "SET_FOCUS_MODE_NODE", payload: nodeId }),
+      setRelationshipFocus: (focus: "all" | "supports" | "contradicts" | "extends") =>
+        dispatch({ type: "SET_RELATIONSHIP_FOCUS", payload: focus }),
 
       // Features
       setPhysicsEnabled: (enabled: boolean) =>

@@ -61,6 +61,7 @@ export interface GraphLoaderProps {
   filters: FilterState;
   paperCount: number;
   refreshTrigger: number;
+  relationshipFocus: "all" | "supports" | "contradicts" | "extends";
   solidNodes: Set<string>;
   onAddToProject: (nodeId: string) => void;
   // Hoisted state for List View integration
@@ -89,6 +90,7 @@ export function GraphLoader({
   filters,
   paperCount,
   refreshTrigger,
+  relationshipFocus,
   focusModeNode,
   solidNodes,
   onAddToProject,
@@ -110,6 +112,8 @@ export function GraphLoader({
 
   // Track previous refresh trigger to detect manual refresh
   const prevRefreshRef = useRef(refreshTrigger);
+  const relationshipFocusRef = useRef(relationshipFocus);
+  relationshipFocusRef.current = relationshipFocus;
 
   // Load graph data from API or Session
   useEffect(() => {
@@ -148,6 +152,19 @@ export function GraphLoader({
           const data = await graphAPI.fetchPaperContext(focusNode, paperCount);
           nodes = data.nodes;
           edges = data.edges;
+        }
+
+        // Apply relationship focus filter on refresh
+        const currentFocus = relationshipFocusRef.current;
+        if (currentFocus !== "all") {
+          edges = edges.filter((e: any) => e.edgeType === currentFocus);
+          const connectedNodeIds = new Set<string>();
+          for (const e of edges) {
+            connectedNodeIds.add(e.source);
+            connectedNodeIds.add(e.target);
+          }
+          if (!isTopic && focusNode) connectedNodeIds.add(focusNode);
+          nodes = nodes.filter((n: any) => connectedNodeIds.has(n.id));
         }
       } else {
         // 2. Fetch from API (initial load — may return empty if no query yet)

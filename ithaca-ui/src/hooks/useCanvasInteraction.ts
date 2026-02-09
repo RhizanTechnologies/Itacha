@@ -75,6 +75,22 @@ export function useCanvasInteraction() {
           edges = data.edges;
         }
 
+        // Apply relationship focus filter: keep only edges matching the selected type
+        const focus = state.relationshipFocus;
+        if (focus !== "all") {
+          edges = edges.filter((e: any) => e.edgeType === focus);
+
+          // Also remove orphan nodes — nodes with no remaining edges
+          const connectedNodeIds = new Set<string>();
+          for (const e of edges) {
+            connectedNodeIds.add(e.source);
+            connectedNodeIds.add(e.target);
+          }
+          // Always keep the search target node
+          if (!isTopic) connectedNodeIds.add(paperId);
+          nodes = nodes.filter((n: any) => connectedNodeIds.has(n.id));
+        }
+
         if (refs.graphApiRef.current) {
           refs.graphApiRef.current.addGraphData(nodes, edges, true);
           if (!isTopic) {
@@ -92,7 +108,7 @@ export function useCanvasInteraction() {
         actions.setLoading(false);
       }
     },
-    [actions, refs, state.paperCount, state.visiblePapers],
+    [actions, refs, state.paperCount, state.relationshipFocus, state.visiblePapers],
   );
 
   const handleCommandAction = useCallback(

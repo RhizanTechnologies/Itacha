@@ -28,6 +28,7 @@ import {
 } from "@/components/share/share-export";
 import { NodeDragControl } from "@/components/canvas/node-drag-control";
 import { PaperCountControl } from "@/components/canvas/paper-count-control";
+import { RelationshipFocusControl } from "@/components/canvas/relationship-focus-control";
 import {
   NewArgumentToast,
   createThemeAwareHoverDrawer,
@@ -266,6 +267,7 @@ export function ExploreCanvas() {
               focusModeNode={state.focusModeNode}
               solidNodes={state.solidNodes}
               hoveredNode={state.hoveredNode}
+              relationshipFocus={state.relationshipFocus}
             />
 
             {/* Sigma-managed internal components */}
@@ -363,6 +365,10 @@ export function ExploreCanvas() {
               }}
               onRefresh={() => actions.triggerRefresh()}
               isLoading={state.isLoading}
+            />
+            <RelationshipFocusControl
+              value={state.relationshipFocus}
+              onChange={(focus) => actions.setRelationshipFocus(focus)}
             />
           </TopLeftZone>
 
