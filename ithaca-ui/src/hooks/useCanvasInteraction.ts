@@ -108,7 +108,13 @@ export function useCanvasInteraction() {
         actions.setLoading(false);
       }
     },
-    [actions, refs, state.paperCount, state.relationshipFocus, state.visiblePapers],
+    [
+      actions,
+      refs,
+      state.paperCount,
+      state.relationshipFocus,
+      state.visiblePapers,
+    ],
   );
 
   const handleCommandAction = useCallback(
