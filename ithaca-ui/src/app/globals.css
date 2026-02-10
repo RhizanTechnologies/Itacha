@@ -459,6 +459,7 @@
   --sigma-controls-margin: 16px;
   --sigma-controls-size: 36px;
   --sigma-controls-padding: 6px;
+  --canvas-overlay-gutter: 12px;
 }
 
 .react-sigma-controls {
@@ -504,7 +505,7 @@
   border-bottom: none !important;
 }
 
-.react-sigma-control > button {
+.react-sigma-control>button {
   width: var(--sigma-controls-size) !important;
   height: var(--sigma-controls-size) !important;
   display: grid;
@@ -522,25 +523,62 @@
   filter: none !important;
 }
 
-.react-sigma-control > button:hover {
+.react-sigma-control>button:hover {
   background-color: color-mix(in oklch, var(--foreground) 10%, transparent) !important;
 }
 
-.dark .react-sigma-control > button {
+.dark .react-sigma-control>button {
   filter: invert(1) !important;
 }
 
-.dark .react-sigma-control > button.sigma-control-button--svg {
+.dark .react-sigma-control>button.sigma-control-button--svg {
   filter: none !important;
 }
 
-.react-sigma-control > button.sigma-control-button--svg svg {
+.react-sigma-control>button.sigma-control-button--svg svg {
   color: var(--foreground) !important;
 }
 
-.react-sigma-control > button:focus {
+.react-sigma-control>button:focus {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
+}
+
+/* Desktop overlay layout: keep top-right actions clear of sigma controls */
+.canvas-zone--top-right {
+  top: var(--canvas-overlay-gutter) !important;
+  right: calc(var(--sigma-controls-margin) + var(--sigma-controls-size) + (var(--sigma-controls-padding) * 2) + var(--canvas-overlay-gutter)) !important;
+}
+
+/* Responsive overlay layout: prevent overlap on small screens */
+@media (max-width: 768px) {
+  .canvas-zone {
+    max-width: calc(100vw - (var(--canvas-overlay-gutter) * 2));
+  }
+
+  .canvas-zone--top-left {
+    top: var(--canvas-overlay-gutter) !important;
+    left: var(--canvas-overlay-gutter) !important;
+    right: auto !important;
+  }
+
+  .canvas-zone--top-right {
+    top: auto !important;
+    right: var(--canvas-overlay-gutter) !important;
+    bottom: calc(var(--canvas-overlay-gutter) + 56px) !important;
+    flex-direction: column !important;
+    align-items: flex-end !important;
+  }
+
+  .canvas-zone--bottom-right {
+    right: var(--canvas-overlay-gutter) !important;
+    bottom: var(--canvas-overlay-gutter) !important;
+  }
+
+  .react-sigma-controls.top-right {
+    top: var(--sigma-controls-margin) !important;
+    right: var(--sigma-controls-margin) !important;
+  }
 }
 
 

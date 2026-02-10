@@ -63,8 +63,11 @@ export function OverlaySlot({ zone, children, className }: OverlaySlotProps) {
         ZONE_POSITIONS[zone],
         ZONE_DEFAULTS[zone],
         "pointer-events-auto",
+        "canvas-zone",
+        `canvas-zone--${zone}`,
         className,
       )}
+      data-zone={zone}
     >
       {children}
     </div>
@@ -132,16 +135,9 @@ export function TopLeftZone({ children, className }: ZoneProps) {
  */
 export function TopRightZone({ children, className }: ZoneProps) {
   return (
-    <div
-      className={cn(
-        "absolute top-4 right-12 md:right-24",
-        "flex flex-row items-start gap-3",
-        "pointer-events-auto",
-        className,
-      )}
-    >
+    <OverlaySlot zone="top-right" className={className}>
       {children}
-    </div>
+    </OverlaySlot>
   );
 }
 
