@@ -30,6 +30,7 @@ import {
   getReferencedWorks,
   reconstructAbstract,
 } from "./openalex-client";
+import { batchGetCitationContexts } from "./semantic-scholar-client";
 // Classification is done via API route (server-side) since LLM keys can't be
 // exposed in the browser bundle. We call /api/classify from here.
 type ClassificationInput = {
@@ -39,6 +40,8 @@ type ClassificationInput = {
   citingAbstract: string;
   citedTitle: string;
   citedAbstract: string;
+  citationContexts?: string[];
+  s2Intents?: string[];
 };
 
 type ClassificationResult = ClassificationInput & {
@@ -156,6 +159,8 @@ async function classifyViaAPI(
           citingAbstract: i.citingAbstract,
           citedTitle: i.citedTitle,
           citedAbstract: i.citedAbstract,
+          citationContexts: i.citationContexts,
+          s2Intents: i.s2Intents,
         })),
       }),
     });
@@ -186,29 +191,68 @@ async function classifyViaAPI(
 /**
  * Classify edges between papers using the LLM classifier.
  * Takes source/target paper info and returns classified EdgeData[].
+ *
+ * Phase 2: Enriches classification inputs with Semantic Scholar citation
+ * context sentences (actual in-text citations) when DOIs are available.
  */
 async function classifyEdges(
   edges: { sourceNode: PaperNode; targetNode: PaperNode }[],
 ): Promise<EdgeData[]> {
   if (edges.length === 0) return [];
 
-  // Build classification inputs
+  // Phase 2: Fetch Semantic Scholar citation contexts for all edges
+  // Group by citing paper DOI to minimize API calls
+  const s2Pairs = edges
+    .filter((e) => e.sourceNode.doi && e.targetNode.doi)
+    .map((e) => ({
+      citingDoi: e.sourceNode.doi!,
+      citedDoi: e.targetNode.doi!,
+      citingId: e.sourceNode.id,
+      citedId: e.targetNode.id,
+    }));
+
+  let contextMap = new Map<string, { contexts: string[]; intents: string[] }>();
+
+  if (s2Pairs.length > 0) {
+    try {
+      contextMap = await batchGetCitationContexts(s2Pairs);
+      if (contextMap.size > 0) {
+        console.log(
+          `[classifyEdges] Enriched ${contextMap.size}/${edges.length} edges with S2 citation contexts`,
+        );
+      }
+    } catch (err) {
+      console.warn(
+        "[classifyEdges] S2 context fetch failed, proceeding without:",
+        err,
+      );
+    }
+  }
+
+  // Build classification inputs, injecting S2 contexts where available
   const inputs: ClassificationInput[] = edges.map(
-    ({ sourceNode, targetNode }) => ({
-      citingId: sourceNode.id,
-      citedId: targetNode.id,
-      citingTitle: sourceNode.title,
-      citingAbstract: sourceNode.abstract ?? "",
-      citedTitle: targetNode.title,
-      citedAbstract: targetNode.abstract ?? "",
-    }),
+    ({ sourceNode, targetNode }) => {
+      const key = `${sourceNode.id}→${targetNode.id}`;
+      const s2Context = contextMap.get(key);
+
+      return {
+        citingId: sourceNode.id,
+        citedId: targetNode.id,
+        citingTitle: sourceNode.title,
+        citingAbstract: sourceNode.abstract ?? "",
+        citedTitle: targetNode.title,
+        citedAbstract: targetNode.abstract ?? "",
+        citationContexts: s2Context?.contexts,
+        s2Intents: s2Context?.intents,
+      };
+    },
   );
 
   // Classify via API route (server-side LLM call)
   const classifications = await classifyViaAPI(inputs);
 
   // Map to EdgeData
-  return classifications.map((c, i) => ({
+  return classifications.map((c) => ({
     id: `${c.citingId}-${c.citedId}`,
     source: c.citingId,
     target: c.citedId,
@@ -591,17 +635,21 @@ export class OpenAlexProvider implements IGraphProvider {
   // ---------------------------------------------------------------------------
 
   async getEvidence(paperId: string): Promise<EvidenceItem[]> {
-    // Find all edges involving this paper
-    const relatedEdges = this.edgeCache.filter(
-      (e) => e.source === paperId || e.target === paperId,
-    );
+    // Find incoming edges (papers citing this paper)
+    const relatedEdges = this.edgeCache.filter((e) => e.target === paperId);
+    const inspectedPaper = this.nodeCache.get(paperId);
 
     const evidence: EvidenceItem[] = [];
 
     for (const edge of relatedEdges.slice(0, 5)) {
-      const otherNodeId = edge.source === paperId ? edge.target : edge.source;
+      const otherNodeId = edge.source;
       const otherNode = this.nodeCache.get(otherNodeId);
       if (!otherNode) continue;
+
+      const inspectedAuthor = inspectedPaper?.authors?.split(",")[0]?.trim();
+      const inspectedLabel = inspectedAuthor
+        ? `${inspectedAuthor} (${inspectedPaper?.year ?? ""})`
+        : inspectedPaper?.title || "the cited work";
 
       evidence.push({
         id: `ev-${edge.id}`,
@@ -618,7 +666,7 @@ export class OpenAlexProvider implements IGraphProvider {
               ? "supports"
               : "extends",
         confidence: edge.confidence,
-        snippet: `This paper ${edge.edgeType === "supports" ? "builds upon" : edge.edgeType === "contradicts" ? "challenges" : "extends"} the work by ${otherNode.authors.split(",")[0]?.trim() ?? "the authors"} (${otherNode.year}).`,
+        snippet: `This paper ${edge.edgeType === "supports" ? "builds upon" : edge.edgeType === "contradicts" ? "challenges" : "extends"} the work by ${inspectedLabel}.`,
         context: "Discussion",
       });
     }

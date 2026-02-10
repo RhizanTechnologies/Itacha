@@ -673,6 +673,70 @@ export function GraphLoader({
           return;
         }
 
+        const graph = sigma.getGraph();
+
+        // Build evidence from currently visible edges (incoming citations only)
+        const incomingEdges = graph
+          .edges(event.node)
+          .filter((edge) => graph.target(edge) === event.node);
+
+        const evidence: EvidenceItem[] = incomingEdges.slice(0, 5).map((edge) => {
+          const edgeAttrs = graph.getEdgeAttributes(edge) as {
+            edgeType?: "supports" | "contradicts" | "extends";
+            confidence?: number;
+          };
+          const sourceId = graph.source(edge);
+          const sourceAttrs = graph.getNodeAttributes(sourceId) as PaperNode;
+
+          const relation =
+            edgeAttrs.edgeType === "contradicts"
+              ? "refutes"
+              : edgeAttrs.edgeType === "supports"
+                ? "supports"
+                : "extends";
+
+          const verb =
+            edgeAttrs.edgeType === "supports"
+              ? "builds upon"
+              : edgeAttrs.edgeType === "contradicts"
+                ? "challenges"
+                : "extends";
+
+          const inspectedAuthor = (attrs.authors || "").split(",")[0]?.trim();
+          const inspectedYear = attrs.year || 2024;
+          const inspectedLabel = inspectedAuthor
+            ? `${inspectedAuthor} (${inspectedYear})`
+            : attrs.title || attrs.label || "the cited work";
+
+          return {
+            id: `ev-${edge}`,
+            sourcePaper: {
+              id: sourceId,
+              title: sourceAttrs.title || sourceAttrs.label,
+              authors: sourceAttrs.authors || "Unknown Authors",
+              year: sourceAttrs.year || 2024,
+            },
+            relation,
+            confidence: Math.round(edgeAttrs.confidence ?? 50),
+            snippet: `This paper ${verb} the work by ${inspectedLabel}.`,
+            context: "Discussion",
+          };
+        });
+
+        const supportsCount = incomingEdges.filter((edge) => {
+          const edgeAttrs = graph.getEdgeAttributes(edge) as {
+            edgeType?: "supports" | "contradicts" | "extends";
+          };
+          return edgeAttrs.edgeType === "supports";
+        }).length;
+
+        const refutesCount = incomingEdges.filter((edge) => {
+          const edgeAttrs = graph.getEdgeAttributes(edge) as {
+            edgeType?: "supports" | "contradicts" | "extends";
+          };
+          return edgeAttrs.edgeType === "contradicts";
+        }).length;
+
         // Get real paper data from the graph
         const paperData: PaperData = {
           id: attrs.paperId || `#${event.node}`,
@@ -685,15 +749,12 @@ export function GraphLoader({
           openAccessUrl: attrs.openAccessUrl,
           citations: attrs.citations || 0,
           references: attrs.references || 0,
-          supports: attrs.supports || 0,
-          refutes: attrs.refutes || 0,
+          supports: supportsCount,
+          refutes: refutesCount,
           abstract: attrs.abstract,
           aiSummary: attrs.aiSummary,
           status: attrs.status,
         };
-
-        // Fetch evidence from API
-        const evidence = await graphAPI.getEvidence(event.node);
 
         onNodeClick(paperData, evidence);
       },
@@ -842,7 +903,7 @@ export function GraphLoader({
     }
   }, [focusNode, sigma]);
 
-  // Apply hover effects
+  // Apply hover effects — only highlight edges, never touch node sizes
   useEffect(() => {
     const graph = sigma.getGraph();
     if (!graph || graph.order === 0) return;
@@ -850,35 +911,19 @@ export function GraphLoader({
     // Track which edges are connected to hovered node for flow animation
     const connectedEdges = new Set<string>();
 
-    graph.forEachNode((node, attrs) => {
-      if (attrs.hidden) return; // Skip hidden nodes
-
-      // Use originalSize as the ground truth — never fall back to current size
-      const baseSize = attrs.originalSize || GRAPH.DEFAULT_NODE_SIZE;
-
-      if (hoveredNode) {
-        if (node === hoveredNode) {
-          graph.setNodeAttribute(node, "size", baseSize * GRAPH.HOVER_SIZE_MULTIPLIER);
-          graph.setNodeAttribute(node, "zIndex", GRAPH.HIGHLIGHT_Z_INDEX);
-        } else {
-          graph.setNodeAttribute(node, "size", baseSize * GRAPH.UNHOVER_SIZE_MULTIPLIER);
-        }
-      } else {
-        graph.setNodeAttribute(node, "size", baseSize);
-        graph.setNodeAttribute(node, "zIndex", 0);
-      }
-    });
+    // Only set zIndex on the hovered node (no size changes at all)
+    if (hoveredNode && graph.hasNode(hoveredNode)) {
+      graph.setNodeAttribute(hoveredNode, "zIndex", GRAPH.HIGHLIGHT_Z_INDEX);
+    }
 
     graph.forEachEdge((edge, attrs, source, target) => {
-      if (attrs.hidden) return; // Skip hidden edges
+      if (attrs.hidden) return;
 
       const baseEdgeSize = attrs.originalSize || GRAPH.DEFAULT_EDGE_SIZE;
 
       if (hoveredNode) {
         if (source === hoveredNode || target === hoveredNode) {
-          // Add to connected edges for flow animation
           connectedEdges.add(edge);
-
           graph.setEdgeAttribute(edge, "size", baseEdgeSize * GRAPH.HOVER_EDGE_SIZE_MULTIPLIER);
           graph.setEdgeAttribute(edge, "zIndex", GRAPH.HIGHLIGHT_Z_INDEX);
         } else {
@@ -891,9 +936,14 @@ export function GraphLoader({
       }
     });
 
-    // Update hovered edges state for flow animation
-    setHoveredEdges(connectedEdges);
+    // Reset zIndex when nothing is hovered
+    if (!hoveredNode) {
+      graph.forEachNode((node) => {
+        graph.setNodeAttribute(node, "zIndex", 0);
+      });
+    }
 
+    setHoveredEdges(connectedEdges);
     sigma.refresh();
   }, [hoveredNode, sigma]);
 

@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useWorkerLayoutForceAtlas2 } from "@react-sigma/layout-forceatlas2";
-import { Play, Pause, Sliders } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Play, Pause } from "lucide-react";
 import { ANIMATION } from "@/lib/constants";
 
 interface ForceAtlasControlProps {
@@ -103,29 +102,30 @@ export function ForceAtlasControl({
 
   return (
     <div className="react-sigma-control">
-      <div className="flex flex-col gap-1">
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={toggle}
-          className="bg-background/95 backdrop-blur-sm border-border shadow-sm h-[30px] w-[30px]"
-          title={isActive ? "Stop Layout" : "Start Layout"}
-        >
-          {isActive ? (
-            <Pause className="h-4 w-4" />
-          ) : (
-            <Play className="h-4 w-4" />
-          )}
-        </Button>
-        
-        {/* Settings indicator */}
-        {nodeCount > 5000 && (
-          <div className="bg-background/95 backdrop-blur-sm border border-border rounded-md px-2 py-1 text-xs text-muted-foreground">
-            <Sliders className="h-3 w-3 inline mr-1" />
-            Optimized
-          </div>
+      <button
+        onClick={toggle}
+        title={isActive ? "Stop Layout" : "Start Layout"}
+        className="sigma-control-button sigma-control-button--svg"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: "var(--sigma-controls-size, 36px)",
+          height: "var(--sigma-controls-size, 36px)",
+          border: "none",
+          background: "transparent",
+          cursor: "pointer",
+          padding: 0,
+          margin: 0,
+          color: "inherit",
+        }}
+      >
+        {isActive ? (
+          <Pause className="h-4 w-4" style={{ color: "var(--foreground)" }} />
+        ) : (
+          <Play className="h-4 w-4" style={{ color: "var(--foreground)" }} />
         )}
-      </div>
+      </button>
     </div>
   );
 }

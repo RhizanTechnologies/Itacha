@@ -25,6 +25,9 @@ const envSchema = z.object({
   GEMINI_API_KEY: z.string().optional(), // Primary — free 1,500 req/day
   GROQ_API_KEY: z.string().optional(), // Fallback — free ~30 RPM
 
+  // Semantic Scholar (for citation context enrichment)
+  SEMANTIC_SCHOLAR_API_KEY: z.string().optional(), // Optional — increases rate limit from 1 to 10 req/s
+
   // OpenAlex (polite pool — optional but recommended)
   OPENALEX_EMAIL: z.string().email().optional(),
 

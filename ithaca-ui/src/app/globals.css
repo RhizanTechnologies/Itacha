@@ -451,6 +451,98 @@
   }
 }
 
+/* =================================
+   SIGMA CONTROLS THEME OVERRIDES
+   ================================= */
+
+:root {
+  --sigma-controls-margin: 16px;
+  --sigma-controls-size: 36px;
+  --sigma-controls-padding: 6px;
+}
+
+.react-sigma-controls {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  box-sizing: border-box;
+  margin: var(--sigma-controls-margin) !important;
+  padding: var(--sigma-controls-padding) !important;
+  width: calc(var(--sigma-controls-size) + (var(--sigma-controls-padding) * 2));
+  border-radius: 12px !important;
+  border: 1px solid var(--border) !important;
+  background-color: var(--card) !important;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+}
+
+.dark .react-sigma-controls {
+  background-color: var(--card) !important;
+  border-color: var(--border) !important;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.5);
+}
+
+.react-sigma-controls.top-right {
+  top: var(--sigma-controls-margin) !important;
+  right: var(--sigma-controls-margin) !important;
+}
+
+.react-sigma-control {
+  width: 100% !important;
+  height: var(--sigma-controls-size) !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent !important;
+  border-bottom: 1px solid var(--border) !important;
+  box-sizing: border-box;
+}
+
+.react-sigma-control:last-child {
+  border-bottom: none !important;
+}
+
+.react-sigma-control > button {
+  width: var(--sigma-controls-size) !important;
+  height: var(--sigma-controls-size) !important;
+  display: grid;
+  place-items: center;
+  background: transparent !important;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-size: 55% !important;
+  clip: auto !important;
+  filter: none !important;
+}
+
+.react-sigma-control > button:hover {
+  background-color: color-mix(in oklch, var(--foreground) 10%, transparent) !important;
+}
+
+.dark .react-sigma-control > button {
+  filter: invert(1) !important;
+}
+
+.dark .react-sigma-control > button.sigma-control-button--svg {
+  filter: none !important;
+}
+
+.react-sigma-control > button.sigma-control-button--svg svg {
+  color: var(--foreground) !important;
+}
+
+.react-sigma-control > button:focus {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
 
 /* High contrast mode support */
 @media (forced-colors: active) {

@@ -31,10 +31,6 @@ export const ANIMATION = {
 // =============================================================================
 
 export const GRAPH = {
-  /** Size multiplier for hovered node */
-  HOVER_SIZE_MULTIPLIER: 1.4,
-  /** Size multiplier for non-hovered nodes when something is hovered */
-  UNHOVER_SIZE_MULTIPLIER: 0.8,
   /** Size multiplier for edges connected to hovered node */
   HOVER_EDGE_SIZE_MULTIPLIER: 2.5,
   /** Size for edges not connected to hovered node */

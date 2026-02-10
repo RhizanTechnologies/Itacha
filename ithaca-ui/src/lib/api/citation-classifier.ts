@@ -23,6 +23,9 @@ export interface ClassificationInput {
   citingAbstract: string;
   citedTitle: string;
   citedAbstract: string;
+  // Semantic Scholar citation context enrichment (Phase 2)
+  citationContexts?: string[]; // Actual sentences from citing paper referencing cited paper
+  s2Intents?: string[]; // S2 intent labels: "Background", "Methodology", "ResultComparison"
 }
 
 export interface ClassificationResult {
@@ -44,22 +47,63 @@ const CLASSIFICATION_PROMPT = `You are a scientific citation classifier. Given t
 Classify as one of:
 - "supports": The citing paper builds on, confirms, validates, or agrees with the cited paper's findings or methods.
 - "contradicts": The citing paper challenges, refutes, questions, or presents evidence against the cited paper.
-- "extends": The citing paper applies the cited paper's methods/ideas to a new domain, dataset, or problem, or generalizes it.
+- "extends": The citing paper meaningfully applies the cited paper's methods/ideas to a new domain, dataset, or problem — there must be clear evidence of extension or generalization.
+- "unknown": The relationship cannot be determined from the available information, or it is a routine/background citation with no clear directional signal.
 
 Also provide:
-- "confidence": A number from 0.0 to 1.0 indicating how confident you are in the classification. Use 0.5 if the abstracts don't provide enough context.
+- "confidence": A number from 0.0 to 1.0 indicating how confident you are in the classification. Use 0.3 or lower for "unknown".
 - "snippet": One concise sentence (max 30 words) explaining the relationship, written from the citing paper's perspective (e.g., "Builds on the transformer architecture proposed in the cited work to improve efficiency").
 
 Rules:
-- Base your classification ONLY on the provided titles and abstracts.
-- If both abstracts are missing or too vague, default to "extends" with confidence 0.3.
-- Most citations are supportive (papers usually cite work they build on). Only classify as "contradicts" if there is clear evidence of disagreement.
+- If CITATION CONTEXT SENTENCES are provided, use them as the PRIMARY signal — they contain the actual text from the citing paper where it references the cited paper. These are far more reliable than abstracts alone.
+- If Semantic Scholar INTENT LABELS are provided, use them as a supplementary signal: "ResultComparison" often indicates contradiction or support, "Background" often indicates routine citation (unknown), "Methodology" may indicate extension.
+- Base your classification on the provided titles, abstracts, and citation contexts.
+- Pay close attention to negation: "does not support", "no evidence", "failed to replicate" all indicate contradiction, NOT support.
+- The citing paper's language determines the relationship. Focus on what the citing paper says ABOUT the cited paper.
+- Do NOT assume most citations are supportive. Many papers cite previous work specifically to refute, correct, or challenge it.
+- If the abstracts are missing AND no citation contexts are available, classify as "unknown" with confidence 0.3.
+- Do NOT use "extends" as a default or fallback — use "unknown" when you cannot determine the relationship.
 
 Respond with ONLY valid JSON: {"edgeType": "...", "confidence": 0.0, "snippet": "..."}`;
 
 // =============================================================================
+// JSON SANITIZER
+// =============================================================================
+
+/**
+ * Sanitize LLM JSON output that may be wrapped in markdown code fences,
+ * have trailing commas, or contain other common LLM formatting artifacts.
+ *
+ * Examples of inputs this handles:
+ *   ```json\n{"edgeType": "supports"}\n```
+ *   ```{"edgeType": "supports"}```
+ *   Here is the JSON: {"edgeType": "supports"}
+ *   {"edgeType": "supports",}  ← trailing comma
+ */
+function sanitizeJSON(raw: string): string {
+  let s = raw.trim();
+
+  // Strip markdown code fences: ```json ... ``` or ``` ... ```
+  s = s.replace(/^```(?:json|JSON)?\s*\n?/m, "").replace(/\n?\s*```\s*$/m, "");
+
+  // Extract the first JSON object {...} if surrounded by other text
+  const braceMatch = s.match(/(\{[\s\S]*\})/);
+  if (braceMatch) {
+    s = braceMatch[1];
+  }
+
+  // Remove trailing commas before closing braces: {"a": 1,} → {"a": 1}
+  s = s.replace(/,\s*([\]}])/g, "$1");
+
+  return s.trim();
+}
+
+// =============================================================================
 // CLASSIFIER
 // =============================================================================
+
+/** Current classifier version — bump when logic changes to invalidate stale cache */
+const CLASSIFIER_VERSION = 2;
 
 /**
  * Classify a single citation relationship.
@@ -68,56 +112,81 @@ Respond with ONLY valid JSON: {"edgeType": "...", "confidence": 0.0, "snippet": 
 export async function classifyCitation(
   input: ClassificationInput,
 ): Promise<ClassificationResult> {
-  // 1. Check cache
+  // 1. Check cache — skip stale entries from old classifier versions
   const cached = await getCachedClassification(input.citingId, input.citedId);
-  if (cached) {
+  if (cached && cached.classifierVersion === CLASSIFIER_VERSION) {
     return { ...cached, cached: true };
   }
 
-  // 2. Try LLM classification first
+  // 2. Build user message — include citation contexts from S2 if available
+  let userContent = `CITING PAPER: "${input.citingTitle}"
+Abstract: ${input.citingAbstract || "No abstract available."}
+
+CITED PAPER: "${input.citedTitle}"
+Abstract: ${input.citedAbstract || "No abstract available."}`;
+
+  if (input.citationContexts && input.citationContexts.length > 0) {
+    userContent += `\n\nCITATION CONTEXT SENTENCES (extracted from the citing paper's full text where it references the cited paper):
+${input.citationContexts.map((ctx, i) => `${i + 1}. "${ctx}"`).join("\n")}`;
+  }
+
+  if (input.s2Intents && input.s2Intents.length > 0) {
+    userContent += `\n\nSEMANTIC SCHOLAR INTENT LABELS: ${input.s2Intents.join(", ")}`;
+  }
+
+  // 3. Try LLM classification first
   try {
     const router = getLLMRouter();
 
     const messages: LLMMessage[] = [
       { role: "system", content: CLASSIFICATION_PROMPT },
-      {
-        role: "user",
-        content: `CITING PAPER: "${input.citingTitle}"
-Abstract: ${input.citingAbstract || "No abstract available."}
-
-CITED PAPER: "${input.citedTitle}"
-Abstract: ${input.citedAbstract || "No abstract available."}`,
-      },
+      { role: "user", content: userContent },
     ];
 
     const response = await router.chat(messages, true);
 
-    // 3. Parse response
+    // 4. Parse response — sanitize LLM output first
     let result: { edgeType: string; confidence: number; snippet: string };
     try {
-      result = JSON.parse(response.content);
+      const sanitized = sanitizeJSON(response.content);
+      result = JSON.parse(sanitized);
     } catch {
-      result = {
-        edgeType: "extends",
-        confidence: 0.3,
-        snippet:
-          "Citation relationship could not be determined from available abstracts.",
-      };
+      console.warn(
+        "[Citation Classifier] Failed to parse LLM JSON, falling back to heuristic. Raw:",
+        response.content.substring(0, 200),
+      );
+      // Fall through to heuristic instead of defaulting to "extends"
+      const heuristic = heuristicClassify(input);
+      await cacheClassification(
+        heuristic,
+        input.citationContexts,
+        input.s2Intents,
+      );
+      return heuristic;
     }
 
-    // Validate edgeType
-    const validTypes = ["supports", "contradicts", "extends"] as const;
-    const edgeType = validTypes.includes(
+    // Validate edgeType — "unknown" is a valid internal type now
+    const validTypes = [
+      "supports",
+      "contradicts",
+      "extends",
+      "unknown",
+    ] as const;
+    const rawType = validTypes.includes(
       result.edgeType as (typeof validTypes)[number],
     )
       ? (result.edgeType as (typeof validTypes)[number])
-      : "extends";
+      : "unknown";
 
-    // Clamp confidence to [0, 1]
-    const confidence = Math.max(
-      0,
-      Math.min(1, Number(result.confidence) || 0.5),
-    );
+    // Map "unknown" → "extends" for display layer
+    const edgeType: ClassificationResult["edgeType"] =
+      rawType === "unknown" ? "extends" : rawType;
+
+    // Clamp confidence to [0, 1] — lower confidence for "unknown" mapped to "extends"
+    const confidence =
+      rawType === "unknown"
+        ? Math.min(0.3, Math.max(0, Number(result.confidence) || 0.3))
+        : Math.max(0, Math.min(1, Number(result.confidence) || 0.5));
 
     const classification: ClassificationResult = {
       citingId: input.citingId,
@@ -130,13 +199,21 @@ Abstract: ${input.citedAbstract || "No abstract available."}`,
     };
 
     // 4. Cache the result
-    await cacheClassification(classification);
+    await cacheClassification(
+      classification,
+      input.citationContexts,
+      input.s2Intents,
+    );
 
     return classification;
   } catch {
     // LLM unavailable — fall back to heuristic classifier
     const heuristic = heuristicClassify(input);
-    await cacheClassification(heuristic);
+    await cacheClassification(
+      heuristic,
+      input.citationContexts,
+      input.s2Intents,
+    );
     return heuristic;
   }
 }
@@ -145,125 +222,231 @@ Abstract: ${input.citedAbstract || "No abstract available."}`,
 // HEURISTIC CLASSIFIER (local fallback when LLM is unavailable)
 // =============================================================================
 
-/** Keywords that strongly signal contradiction/refutation */
-const CONTRADICT_SIGNALS = [
-  "contradict",
-  "refute",
-  "disprove",
-  "challenge",
-  "reject",
-  "fail to replicate",
-  "failed to replicate",
-  "could not replicate",
-  "no evidence",
-  "no significant",
-  "no effect",
-  "does not support",
-  "do not support",
-  "inconsistent with",
-  "contrary to",
-  "in contrast to",
-  "disagree",
-  "dispute",
-  "flawed",
-  "erroneous",
-  "incorrect",
-  "invalidate",
-  "overturned",
-  "debunk",
-  "rebut",
-  "no benefit",
-  "not effective",
-  "ineffective",
-  "no improvement",
-  "did not improve",
-  "negative results",
-  "opposite",
-  "reverses",
-  "undermines",
-  "questionable",
-  "no association",
-  "no correlation",
-  "not replicated",
-  "unreliable",
-];
-
-/** Keywords that signal support/confirmation */
-const SUPPORT_SIGNALS = [
-  "confirm",
-  "validate",
-  "replicate",
-  "corroborate",
-  "consistent with",
-  "in agreement",
-  "in line with",
-  "builds on",
-  "building on",
-  "inspired by",
-  "following",
-  "as shown by",
-  "demonstrated by",
-  "verified",
-  "strengthen",
-  "reinforce",
-  "support",
-  "lend support",
-  "provides evidence",
-  "further evidence",
-  "successfully reproduced",
+/**
+ * Negation prefixes that flip a support signal into a contradiction.
+ * E.g., "does not support" should NOT count as support.
+ */
+const NEGATION_PREFIXES = [
+  "no ",
+  "not ",
+  "does not ",
+  "do not ",
+  "did not ",
+  "cannot ",
+  "failed to ",
+  "lack of ",
+  "absence of ",
+  "without ",
+  "insufficient ",
+  "little ",
+  "unable to ",
+  "hardly ",
+  "neither ",
+  "never ",
 ];
 
 /**
+ * Phrases that strongly signal contradiction/refutation.
+ * Order matters — longer/more specific phrases first to avoid substring issues.
+ */
+const CONTRADICT_SIGNALS: { phrase: string; weight: number }[] = [
+  // Strong explicit refutation signals (weight 3)
+  { phrase: "fail to replicate", weight: 3 },
+  { phrase: "failed to replicate", weight: 3 },
+  { phrase: "could not replicate", weight: 3 },
+  { phrase: "not replicated", weight: 3 },
+  { phrase: "does not support", weight: 3 },
+  { phrase: "do not support", weight: 3 },
+  { phrase: "did not support", weight: 3 },
+  { phrase: "no evidence", weight: 3 },
+  { phrase: "no association", weight: 3 },
+  { phrase: "no correlation", weight: 3 },
+  { phrase: "no causal", weight: 3 },
+  { phrase: "no link", weight: 3 },
+  { phrase: "no relationship", weight: 3 },
+  { phrase: "no connection", weight: 3 },
+  { phrase: "no significant", weight: 2 },
+  { phrase: "no effect", weight: 2 },
+  { phrase: "no benefit", weight: 2 },
+  { phrase: "not effective", weight: 2 },
+  { phrase: "not associated", weight: 3 },
+  { phrase: "not related", weight: 3 },
+  // Direct contradiction verbs (weight 2)
+  { phrase: "contradict", weight: 2 },
+  { phrase: "refute", weight: 3 },
+  { phrase: "disprove", weight: 3 },
+  { phrase: "debunk", weight: 3 },
+  { phrase: "rebut", weight: 3 },
+  { phrase: "retract", weight: 3 },
+  { phrase: "retracted", weight: 3 },
+  { phrase: "fraudulent", weight: 3 },
+  { phrase: "fabricat", weight: 3 },
+  { phrase: "misconduct", weight: 3 },
+  { phrase: "challenge", weight: 1 },
+  { phrase: "reject", weight: 2 },
+  { phrase: "invalidate", weight: 2 },
+  { phrase: "overturned", weight: 2 },
+  // Disagreement language (weight 1–2)
+  { phrase: "inconsistent with", weight: 2 },
+  { phrase: "contrary to", weight: 2 },
+  { phrase: "in contrast to", weight: 1 },
+  { phrase: "disagree", weight: 2 },
+  { phrase: "dispute", weight: 2 },
+  { phrase: "flawed", weight: 2 },
+  { phrase: "erroneous", weight: 2 },
+  { phrase: "incorrect", weight: 2 },
+  { phrase: "ineffective", weight: 2 },
+  { phrase: "no improvement", weight: 1 },
+  { phrase: "did not improve", weight: 1 },
+  { phrase: "negative results", weight: 1 },
+  { phrase: "opposite", weight: 1 },
+  { phrase: "reverses", weight: 1 },
+  { phrase: "undermines", weight: 2 },
+  { phrase: "questionable", weight: 1 },
+  { phrase: "unreliable", weight: 2 },
+  { phrase: "unfounded", weight: 2 },
+  { phrase: "unsubstantiated", weight: 2 },
+  { phrase: "false", weight: 1 },
+  { phrase: "myth", weight: 2 },
+  { phrase: "safety of", weight: 1 }, // "safety of vaccines" = refuting danger claims
+];
+
+/**
+ * Phrases that signal support/confirmation.
+ * Using full phrases to avoid false positives (e.g., "support" alone matching "does not support").
+ */
+const SUPPORT_SIGNALS: { phrase: string; weight: number }[] = [
+  { phrase: "confirms", weight: 2 },
+  { phrase: "confirmed", weight: 2 },
+  { phrase: "validates", weight: 2 },
+  { phrase: "validated", weight: 2 },
+  { phrase: "replicated successfully", weight: 2 },
+  { phrase: "successfully reproduced", weight: 2 },
+  { phrase: "corroborate", weight: 2 },
+  { phrase: "consistent with", weight: 1 },
+  { phrase: "in agreement with", weight: 2 },
+  { phrase: "in line with", weight: 1 },
+  { phrase: "builds on", weight: 1 },
+  { phrase: "building on", weight: 1 },
+  { phrase: "as shown by", weight: 1 },
+  { phrase: "demonstrated by", weight: 1 },
+  { phrase: "verified", weight: 2 },
+  { phrase: "strengthens", weight: 2 },
+  { phrase: "reinforces", weight: 2 },
+  { phrase: "lends support", weight: 2 },
+  { phrase: "provides evidence for", weight: 2 },
+  { phrase: "further evidence for", weight: 2 },
+  { phrase: "supports the", weight: 2 },
+  { phrase: "supporting the", weight: 2 },
+  { phrase: "provides support for", weight: 2 },
+];
+
+/**
+ * Check if a phrase match is negated by a preceding negation word.
+ * Returns true if the match is negated (i.e., should flip meaning).
+ */
+function isNegated(text: string, matchIndex: number): boolean {
+  // Look at the 30 chars before the match for negation prefixes
+  const preceding = text.substring(Math.max(0, matchIndex - 30), matchIndex);
+  return NEGATION_PREFIXES.some((neg) => preceding.includes(neg));
+}
+
+/**
  * Heuristic keyword-based classification — runs locally with no API.
- * Scans titles + abstracts for contradiction/support signals.
- * Good enough to catch ~60-70% of clear contradictions.
+ *
+ * Key design decisions:
+ * 1. ONLY citing paper text is scanned — the cited paper's own language
+ *    (e.g., negative-result papers describing their own findings) must NOT
+ *    influence the classification of how ANOTHER paper cites them.
+ * 2. Citation context sentences (from S2) are the strongest signal if available.
+ * 3. Negation detection — "does not support" counts as contradiction, not support.
+ * 4. Weighted signals — "refute" is stronger than "challenge".
+ * 5. Phrase-based matching — "support" alone won't match; "supports the" will.
+ * 6. Defaults to "extends" with low confidence when no signals found (unknown).
  */
 function heuristicClassify(input: ClassificationInput): ClassificationResult {
-  const text = [
-    input.citingTitle,
-    input.citingAbstract,
-    input.citedTitle,
-    input.citedAbstract,
-  ]
+  // Build text from citing paper ONLY — cited paper text is excluded
+  // to prevent directionality errors
+  const citingText = [input.citingTitle, input.citingAbstract]
     .join(" ")
     .toLowerCase();
 
-  // Count contradiction and support signals
+  // Citation context sentences are the most reliable signal
+  const contextText = input.citationContexts
+    ? input.citationContexts.join(" ").toLowerCase()
+    : "";
+
   let contradictScore = 0;
   let supportScore = 0;
   let contradictSnippet = "";
   let supportSnippet = "";
 
-  for (const signal of CONTRADICT_SIGNALS) {
-    if (text.includes(signal)) {
-      contradictScore++;
-      if (!contradictSnippet) contradictSnippet = signal;
+  // Helper: scan text for signals
+  function scanSignals(text: string, multiplier: number) {
+    for (const signal of CONTRADICT_SIGNALS) {
+      const idx = text.indexOf(signal.phrase);
+      if (idx !== -1) {
+        contradictScore += signal.weight * multiplier;
+        if (!contradictSnippet) contradictSnippet = signal.phrase;
+      }
+    }
+
+    for (const signal of SUPPORT_SIGNALS) {
+      const idx = text.indexOf(signal.phrase);
+      if (idx !== -1) {
+        // Check for negation — "does not support the" should flip to contradiction
+        if (isNegated(text, idx)) {
+          contradictScore += signal.weight * multiplier;
+          if (!contradictSnippet)
+            contradictSnippet = `negated: ${signal.phrase}`;
+        } else {
+          supportScore += signal.weight * multiplier;
+          if (!supportSnippet) supportSnippet = signal.phrase;
+        }
+      }
     }
   }
 
-  for (const signal of SUPPORT_SIGNALS) {
-    if (text.includes(signal)) {
-      supportScore++;
-      if (!supportSnippet) supportSnippet = signal;
-    }
+  // Citation contexts get highest weight (3x) — these are actual in-text sentences
+  if (contextText) {
+    scanSignals(contextText, 3);
   }
+
+  // Citing paper abstract gets standard weight (2x)
+  scanSignals(citingText, 2);
+
+  // NOTE: cited paper text is NOT scanned — it causes directionality errors
 
   let edgeType: "supports" | "contradicts" | "extends";
   let confidence: number;
   let snippet: string;
 
-  if (contradictScore >= 2 || (contradictScore >= 1 && supportScore === 0)) {
+  // Threshold-based decision with clear hierarchy
+  if (contradictScore >= 4 || (contradictScore >= 2 && supportScore === 0)) {
     edgeType = "contradicts";
-    confidence = Math.min(0.5 + contradictScore * 0.1, 0.85);
+    confidence = Math.min(0.5 + contradictScore * 0.05, 0.9);
     snippet = `Likely contradicts — detected signals: "${contradictSnippet}" (heuristic)`;
-  } else if (supportScore >= 2) {
+  } else if (contradictScore > supportScore && contradictScore >= 2) {
+    edgeType = "contradicts";
+    confidence = Math.min(0.4 + (contradictScore - supportScore) * 0.05, 0.8);
+    snippet = `Likely contradicts — detected signals: "${contradictSnippet}" (heuristic)`;
+  } else if (
+    supportScore >= 4 ||
+    (supportScore >= 2 && contradictScore === 0)
+  ) {
     edgeType = "supports";
-    confidence = Math.min(0.4 + supportScore * 0.1, 0.8);
+    confidence = Math.min(0.4 + supportScore * 0.05, 0.8);
+    snippet = `Likely supports — detected signals: "${supportSnippet}" (heuristic)`;
+  } else if (supportScore > contradictScore && supportScore >= 2) {
+    edgeType = "supports";
+    confidence = Math.min(0.35 + (supportScore - contradictScore) * 0.05, 0.7);
     snippet = `Likely supports — detected signals: "${supportSnippet}" (heuristic)`;
   } else {
+    // No strong signals — unknown, mapped to "extends" at display layer
     edgeType = "extends";
-    confidence = 0.4;
-    snippet = "No strong signals found — classified as extends (heuristic)";
+    confidence = 0.3;
+    snippet =
+      "No clear directional signals found — relationship uncertain (heuristic)";
   }
 
   return {
@@ -329,7 +512,9 @@ export async function classifyBatch(
 async function getCachedClassification(
   citingId: string,
   citedId: string,
-): Promise<Omit<ClassificationResult, "cached"> | null> {
+): Promise<
+  (Omit<ClassificationResult, "cached"> & { classifierVersion: number }) | null
+> {
   try {
     const cached = await prisma.citationCache.findUnique({
       where: {
@@ -346,6 +531,7 @@ async function getCachedClassification(
       confidence: cached.confidence,
       snippet: cached.snippet,
       provider: cached.provider,
+      classifierVersion: cached.classifierVersion ?? 1,
     };
   } catch {
     // If DB is not set up yet or table doesn't exist, skip cache
@@ -355,6 +541,8 @@ async function getCachedClassification(
 
 async function cacheClassification(
   result: ClassificationResult,
+  citationContexts?: string[],
+  s2Intents?: string[],
 ): Promise<void> {
   try {
     await prisma.citationCache.upsert({
@@ -369,6 +557,9 @@ async function cacheClassification(
         confidence: result.confidence,
         snippet: result.snippet,
         provider: result.provider,
+        contexts: citationContexts ? JSON.stringify(citationContexts) : null,
+        s2Intents: s2Intents ? s2Intents.join(",") : null,
+        classifierVersion: CLASSIFIER_VERSION,
       },
       create: {
         citingId: result.citingId,
@@ -377,6 +568,9 @@ async function cacheClassification(
         confidence: result.confidence,
         snippet: result.snippet,
         provider: result.provider,
+        contexts: citationContexts ? JSON.stringify(citationContexts) : null,
+        s2Intents: s2Intents ? s2Intents.join(",") : null,
+        classifierVersion: CLASSIFIER_VERSION,
       },
     });
   } catch {

@@ -327,7 +327,9 @@ export function ExploreCanvas() {
           <CanvasEmptyState
             message="Search for a research topic to explore its citation network"
             relationshipFocus={state.relationshipFocus}
-            onRelationshipFocusChange={(focus) => actions.setRelationshipFocus(focus)}
+            onRelationshipFocusChange={(focus) =>
+              actions.setRelationshipFocus(focus)
+            }
             onSearchClick={() => {
               document.dispatchEvent(
                 new KeyboardEvent("keydown", {

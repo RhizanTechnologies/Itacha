@@ -27,6 +27,9 @@ const citationSchema = z.object({
   citingAbstract: z.string().default(""),
   citedTitle: z.string().min(1),
   citedAbstract: z.string().default(""),
+  // Semantic Scholar citation context enrichment (optional)
+  citationContexts: z.array(z.string()).optional(),
+  s2Intents: z.array(z.string()).optional(),
 });
 
 const requestSchema = z.object({

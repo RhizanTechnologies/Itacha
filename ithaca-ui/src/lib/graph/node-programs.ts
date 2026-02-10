@@ -20,30 +20,26 @@ export interface NodeWithHalo extends Partial<NodeDisplayData> {
  */
 export function createHoverReducers() {
   return {
-    // Node reducer - applied to each node on hover
+    // Node reducer - only dims color, never changes size
     nodeReducer: (
       node: string,
       data: NodeDisplayData,
-      hoveredNode: string | null
+      hoveredNode: string | null,
     ) => {
       const res = { ...data } as NodeWithHalo;
 
       if (hoveredNode) {
-        // Dim non-hovered nodes
         if (node !== hoveredNode) {
           res.color = dimColor(data.color, 0.3);
-          res.size = (data.size || 5) * 0.8;
         } else {
-          // Highlight hovered node
           res.highlighted = true;
-          res.size = (data.size || 5) * 1.2;
         }
       }
 
       return res as NodeDisplayData;
     },
 
-    // Edge reducer - applied to each edge on hover
+    // Edge reducer - dims non-connected edges
     edgeReducer: (
       edge: string,
       data: { color: string; size: number },
@@ -51,7 +47,7 @@ export function createHoverReducers() {
       graph: {
         source: (edge: string) => string;
         target: (edge: string) => string;
-      }
+      },
     ) => {
       const res = { ...data };
 
@@ -59,10 +55,7 @@ export function createHoverReducers() {
         const source = graph.source(edge);
         const target = graph.target(edge);
 
-        // Highlight edges connected to hovered node
-        if (source === hoveredNode || target === hoveredNode) {
-          res.size = (data.size || 1) * 2;
-        } else {
+        if (source !== hoveredNode && target !== hoveredNode) {
           res.color = dimColor(data.color, 0.2);
         }
       }
