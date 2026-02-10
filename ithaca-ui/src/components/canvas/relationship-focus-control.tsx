@@ -48,17 +48,15 @@ const OPTIONS: {
 ];
 
 /**
- * RelationshipFocusControl — lets the user choose which relationship type
- * to focus on when searching. "All" fetches everything; a specific type
- * filters results to only show that relationship, giving a denser,
- * more relevant graph.
+ * RelationshipFocusControl — tab-style mode switcher.
+ * Positioned at bottom-center like a proper navigation control.
  */
 export function RelationshipFocusControl({
   value,
   onChange,
 }: RelationshipFocusControlProps) {
   return (
-    <div className="flex items-center bg-card/90 backdrop-blur border border-border rounded-lg shadow-lg overflow-hidden">
+    <div className="inline-flex items-center bg-card/95 backdrop-blur-md border border-border rounded-full shadow-lg p-1 gap-0.5">
       {OPTIONS.map((opt) => {
         const isActive = value === opt.value;
         const Icon = opt.icon;
@@ -68,14 +66,14 @@ export function RelationshipFocusControl({
             onClick={() => onChange(opt.value)}
             title={opt.label}
             className={cn(
-              "flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium transition-all",
+              "relative flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full transition-all duration-200",
               isActive
-                ? opt.activeColor
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+                ? cn(opt.activeColor, "shadow-sm")
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/60",
             )}
           >
             <Icon className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">{opt.shortLabel}</span>
+            <span>{opt.shortLabel}</span>
           </button>
         );
       })}

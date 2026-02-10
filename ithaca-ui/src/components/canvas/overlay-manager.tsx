@@ -29,9 +29,9 @@ const ZONE_POSITIONS: Record<OverlayZone, string> = {
   "top-left": "absolute top-4 left-4",
   "top-center": "absolute top-4 left-1/2 -translate-x-1/2",
   "top-right": "absolute top-4 right-4",
-  "bottom-left": "absolute bottom-4 left-4",
-  "bottom-center": "absolute bottom-20 left-1/2 -translate-x-1/2",
-  "bottom-right": "absolute bottom-4 right-4",
+  "bottom-left": "absolute bottom-16 left-4",
+  "bottom-center": "absolute bottom-4 left-1/2 -translate-x-1/2",
+  "bottom-right": "absolute bottom-16 right-4",
 };
 
 const ZONE_DEFAULTS: Record<OverlayZone, string> = {

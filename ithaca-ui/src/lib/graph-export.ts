@@ -75,6 +75,59 @@ const BRAND = {
 // =============================================================================
 
 /**
+ * Compute a coordinate mapper that normalizes graph node positions
+ * into a target pixel area. This bypasses sigma.graphToViewport() which
+ * depends on the live camera state and can produce NaN/out-of-bounds values.
+ */
+function createGraphMapper(
+  graph: Graph,
+  targetWidth: number,
+  targetHeight: number,
+  padding = 40,
+  includeHidden = false,
+): (gx: number, gy: number) => { x: number; y: number } {
+  let minX = Infinity,
+    maxX = -Infinity,
+    minY = Infinity,
+    maxY = -Infinity;
+  let count = 0;
+
+  graph.forEachNode((_node, attrs) => {
+    if (!includeHidden && attrs.hidden) return;
+    const x = attrs.x ?? 0;
+    const y = attrs.y ?? 0;
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+    count++;
+  });
+
+  // Fallback: if all nodes are at the same point, spread them
+  if (count === 0 || (minX === maxX && minY === maxY)) {
+    return () => ({ x: targetWidth / 2, y: targetHeight / 2 });
+  }
+
+  const rangeX = maxX - minX || 1;
+  const rangeY = maxY - minY || 1;
+  const usableWidth = targetWidth - padding * 2;
+  const usableHeight = targetHeight - padding * 2;
+
+  // Preserve aspect ratio
+  const scaleX = usableWidth / rangeX;
+  const scaleY = usableHeight / rangeY;
+  const scale = Math.min(scaleX, scaleY);
+
+  const offsetX = padding + (usableWidth - rangeX * scale) / 2;
+  const offsetY = padding + (usableHeight - rangeY * scale) / 2;
+
+  return (gx: number, gy: number) => ({
+    x: offsetX + (gx - minX) * scale,
+    y: offsetY + (gy - minY) * scale,
+  });
+}
+
+/**
  * Get scale factor based on quality setting
  */
 function getScaleForQuality(quality: ExportOptions["quality"]): number {
@@ -340,11 +393,17 @@ export async function exportAsPNG(
     const graphData = graph || sigma.getGraph();
 
     if (graphData) {
-      // Draw edges manually from graph data
-      const camera = sigma.getCamera();
-      const viewportWidth = graphWidth;
-      const viewportHeight = graphHeight;
+      // Create coordinate mapper that normalizes graph positions
+      // into the graphWidth × graphHeight pixel area (before scale)
+      const mapCoord = createGraphMapper(
+        graphData,
+        graphWidth,
+        graphHeight,
+        40,
+        includeHidden,
+      );
 
+      // Draw edges
       graphData.forEachEdge((edge, attributes, source, target) => {
         if (!includeHidden && attributes.hidden) return;
 
@@ -354,15 +413,8 @@ export async function exportAsPNG(
         if (!includeHidden && (sourceAttrs.hidden || targetAttrs.hidden))
           return;
 
-        // Convert graph coordinates to viewport coordinates
-        const sourceViewport = sigma.graphToViewport({
-          x: sourceAttrs.x,
-          y: sourceAttrs.y,
-        });
-        const targetViewport = sigma.graphToViewport({
-          x: targetAttrs.x,
-          y: targetAttrs.y,
-        });
+        const sv = mapCoord(sourceAttrs.x ?? 0, sourceAttrs.y ?? 0);
+        const tv = mapCoord(targetAttrs.x ?? 0, targetAttrs.y ?? 0);
 
         // Get edge color and type
         const edgeType = attributes.edgeType || attributes.type || "default";
@@ -392,29 +444,26 @@ export async function exportAsPNG(
         }
 
         ctx.beginPath();
-        ctx.moveTo(sourceViewport.x, sourceViewport.y);
-        ctx.lineTo(targetViewport.x, targetViewport.y);
+        ctx.moveTo(sv.x, sv.y);
+        ctx.lineTo(tv.x, tv.y);
         ctx.stroke();
       });
 
       ctx.setLineDash([]);
       ctx.globalAlpha = 1;
 
-      // Draw nodes manually from graph data
+      // Draw nodes
       graphData.forEachNode((node, attributes) => {
         if (!includeHidden && attributes.hidden) return;
 
-        const viewport = sigma.graphToViewport({
-          x: attributes.x,
-          y: attributes.y,
-        });
+        const pos = mapCoord(attributes.x ?? 0, attributes.y ?? 0);
         const size = attributes.size || 5;
         const isHighlighted =
           attributes.highlighted || attributes.controversyScore > 0;
 
         // Draw node circle
         ctx.beginPath();
-        ctx.arc(viewport.x, viewport.y, size, 0, Math.PI * 2);
+        ctx.arc(pos.x, pos.y, size, 0, Math.PI * 2);
         ctx.fillStyle = attributes.color || "#999999";
         ctx.fill();
 
@@ -423,8 +472,8 @@ export async function exportAsPNG(
           const label = attributes.label;
           ctx.font = `11px system-ui, -apple-system, sans-serif`;
           const textWidth = ctx.measureText(label).width;
-          const labelX = viewport.x;
-          const labelY = viewport.y - size - 8;
+          const labelX = pos.x;
+          const labelY = pos.y - size - 8;
 
           if (isHighlighted) {
             // Draw pill background - THEME AWARE
@@ -669,7 +718,10 @@ export async function exportAsSVG(
   <g id="graph">
 `;
 
-    // Draw edges first - using viewport coordinates
+    // Create coordinate mapper for the graph area
+    const mapCoord = createGraphMapper(graph, width, height, 40, includeHidden);
+
+    // Draw edges
     graph.forEachEdge((edge, attributes, source, target) => {
       if (!includeHidden && attributes.hidden) return;
 
@@ -678,21 +730,14 @@ export async function exportAsSVG(
 
       if (!includeHidden && (sourceNode.hidden || targetNode.hidden)) return;
 
-      // Convert to viewport coordinates
-      const sourceViewport = sigma.graphToViewport({
-        x: sourceNode.x,
-        y: sourceNode.y,
-      });
-      const targetViewport = sigma.graphToViewport({
-        x: targetNode.x,
-        y: targetNode.y,
-      });
+      const sv = mapCoord(sourceNode.x ?? 0, sourceNode.y ?? 0);
+      const tv = mapCoord(targetNode.x ?? 0, targetNode.y ?? 0);
 
       // Offset for header
-      const sx = sourceViewport.x;
-      const sy = sourceViewport.y + headerHeight;
-      const tx = targetViewport.x;
-      const ty = targetViewport.y + headerHeight;
+      const sx = sv.x;
+      const sy = sv.y + headerHeight;
+      const tx = tv.x;
+      const ty = tv.y + headerHeight;
 
       const edgeType = attributes.edgeType || attributes.type || "default";
 
@@ -718,16 +763,13 @@ export async function exportAsSVG(
 `;
     });
 
-    // Draw nodes - using viewport coordinates
+    // Draw nodes
     graph.forEachNode((node, attributes) => {
       if (!includeHidden && attributes.hidden) return;
 
-      const viewport = sigma.graphToViewport({
-        x: attributes.x,
-        y: attributes.y,
-      });
-      const cx = viewport.x;
-      const cy = viewport.y + headerHeight;
+      const pos = mapCoord(attributes.x ?? 0, attributes.y ?? 0);
+      const cx = pos.x;
+      const cy = pos.y + headerHeight;
       const size = attributes.size || 5;
       const isHighlighted =
         attributes.highlighted || attributes.controversyScore > 0;
@@ -1057,6 +1099,13 @@ export async function exportAsPDF(
     const graphData = graph || sigma.getGraph();
 
     if (graphData) {
+      const mapCoord = createGraphMapper(
+        graphData,
+        graphWidth,
+        graphHeight,
+        40,
+      );
+
       // Draw edges
       graphData.forEachEdge((edge, attributes, source, target) => {
         const sourceAttrs = graphData.getNodeAttributes(source);
@@ -1065,14 +1114,8 @@ export async function exportAsPDF(
         if (attributes.hidden || sourceAttrs.hidden || targetAttrs.hidden)
           return;
 
-        const sourceViewport = sigma.graphToViewport({
-          x: sourceAttrs.x,
-          y: sourceAttrs.y,
-        });
-        const targetViewport = sigma.graphToViewport({
-          x: targetAttrs.x,
-          y: targetAttrs.y,
-        });
+        const sv = mapCoord(sourceAttrs.x ?? 0, sourceAttrs.y ?? 0);
+        const tv = mapCoord(targetAttrs.x ?? 0, targetAttrs.y ?? 0);
 
         const edgeType = attributes.edgeType || attributes.type || "default";
         let edgeColor = attributes.color || "#999999";
@@ -1093,8 +1136,8 @@ export async function exportAsPDF(
         }
 
         ctx.beginPath();
-        ctx.moveTo(sourceViewport.x, sourceViewport.y);
-        ctx.lineTo(targetViewport.x, targetViewport.y);
+        ctx.moveTo(sv.x, sv.y);
+        ctx.lineTo(tv.x, tv.y);
         ctx.stroke();
       });
 
@@ -1105,14 +1148,11 @@ export async function exportAsPDF(
       graphData.forEachNode((node, attributes) => {
         if (attributes.hidden) return;
 
-        const viewport = sigma.graphToViewport({
-          x: attributes.x,
-          y: attributes.y,
-        });
+        const pos = mapCoord(attributes.x ?? 0, attributes.y ?? 0);
         const size = attributes.size || 5;
 
         ctx.beginPath();
-        ctx.arc(viewport.x, viewport.y, size, 0, Math.PI * 2);
+        ctx.arc(pos.x, pos.y, size, 0, Math.PI * 2);
         ctx.fillStyle = attributes.color || "#999999";
         ctx.fill();
 
@@ -1122,7 +1162,7 @@ export async function exportAsPDF(
           ctx.fillStyle = isDark ? "#f9fafb" : "#1f2937";
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
-          ctx.fillText(attributes.label, viewport.x, viewport.y - size - 8);
+          ctx.fillText(attributes.label, pos.x, pos.y - size - 8);
         }
       });
     }

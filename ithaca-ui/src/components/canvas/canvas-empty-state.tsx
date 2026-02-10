@@ -1,9 +1,8 @@
 "use client";
 
-import { Search, Sparkles, BookOpen, ArrowRight, CheckCircle, XCircle, ArrowRightCircle, Layers } from "lucide-react";
+import { Search, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import { cn } from "@/lib/utils";
 import type { RelationshipFocusType } from "@/components/canvas/relationship-focus-control";
 
 interface CanvasEmptyStateProps {
@@ -30,23 +29,11 @@ export function CanvasEmptyState({
   relationshipFocus = "all",
   onRelationshipFocusChange,
 }: CanvasEmptyStateProps) {
-  const focusOptions: {
-    value: RelationshipFocusType;
-    label: string;
-    icon: React.ComponentType<{ className?: string }>;
-    activeColor: string;
-    desc: string;
-  }[] = [
-    { value: "all", label: "All Types", icon: Layers, activeColor: "bg-primary text-primary-foreground", desc: "See every relationship" },
-    { value: "supports", label: "Supports", icon: CheckCircle, activeColor: "bg-emerald-600 text-white", desc: "Find papers that agree" },
-    { value: "contradicts", label: "Refutes", icon: XCircle, activeColor: "bg-red-600 text-white", desc: "Find papers that disagree" },
-    { value: "extends", label: "Extends", icon: ArrowRightCircle, activeColor: "bg-blue-600 text-white", desc: "Find papers that build on" },
-  ];
   return (
     <div className="absolute inset-0 flex items-center justify-center bg-background">
-      {/* Animated background pattern */}
+      {/* Subtle dot grid — grounded, not starfield */}
       {showAnimation && (
-        <div className="absolute inset-0 overflow-hidden opacity-[0.03] dark:opacity-[0.05]">
+        <div className="absolute inset-0 overflow-hidden opacity-[0.04] dark:opacity-[0.06]">
           <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
             <defs>
               <pattern
@@ -63,120 +50,39 @@ export function CanvasEmptyState({
         </div>
       )}
 
-      {/* Decorative floating nodes */}
-      {showAnimation && (
-        <div className="absolute inset-0 pointer-events-none">
-          {[...Array(5)].map((_, i) => (
-            <motion.div
-              key={i}
-              className="absolute w-3 h-3 rounded-full bg-primary/10"
-              initial={{
-                x: `${20 + i * 15}%`,
-                y: `${30 + (i % 3) * 20}%`,
-                scale: 0.5 + (i % 3) * 0.3,
-              }}
-              animate={{
-                y: [`${30 + (i % 3) * 20}%`, `${35 + (i % 3) * 20}%`],
-                opacity: [0.3, 0.6, 0.3],
-              }}
-              transition={{
-                duration: 3 + i * 0.5,
-                repeat: Infinity,
-                ease: "easeInOut",
-              }}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Main content */}
+      {/* Main content — focused, single CTA hierarchy */}
       <motion.div
-        className="relative z-10 flex flex-col items-center text-center max-w-md px-6"
-        initial={{ opacity: 0, y: 20 }}
+        className="relative z-10 flex flex-col items-center text-center max-w-sm px-6"
+        initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
+        transition={{ duration: 0.4 }}
       >
-        {/* Icon with glow effect */}
-        <div className="relative mb-6">
-          <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl scale-150" />
-          <div className="relative bg-gradient-to-br from-primary/20 to-primary/5 p-6 rounded-2xl border border-primary/10">
-            <Search className="w-10 h-10 text-primary" />
+        {/* Icon */}
+        <div className="relative mb-5">
+          <div className="bg-primary/10 p-5 rounded-2xl border border-primary/10">
+            <Search className="w-8 h-8 text-primary" />
           </div>
         </div>
 
         {/* Title */}
-        <h2 className="text-2xl font-bold text-foreground mb-2">
-          No graph loaded
+        <h2 className="text-xl font-semibold text-foreground mb-2">
+          Explore citation networks
         </h2>
 
         {/* Message */}
-        <p className="text-muted-foreground mb-4 leading-relaxed">{message}</p>
+        <p className="text-sm text-muted-foreground mb-6 leading-relaxed max-w-xs">{message}</p>
 
-        {/* Relationship Focus Selector */}
-        {onRelationshipFocusChange && (
-          <div className="mb-6 w-full">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-              I want to explore
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              {focusOptions.map((opt) => {
-                const isActive = relationshipFocus === opt.value;
-                const Icon = opt.icon;
-                return (
-                  <button
-                    key={opt.value}
-                    onClick={() => onRelationshipFocusChange(opt.value)}
-                    className={cn(
-                      "flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium transition-all text-left",
-                      isActive
-                        ? `${opt.activeColor} border-transparent shadow-md scale-[1.02]`
-                        : "border-border text-muted-foreground hover:bg-muted/80 hover:text-foreground",
-                    )}
-                  >
-                    <Icon className="h-4 w-4 shrink-0" />
-                    <div>
-                      <div>{opt.label}</div>
-                      <div className={cn("text-[10px] font-normal", isActive ? "opacity-80" : "text-muted-foreground")}>
-                        {opt.desc}
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
+        {/* Primary CTA — owns the screen */}
+        <Button size="lg" className="gap-2 group w-full max-w-xs" onClick={onSearchClick}>
+          <Search className="w-4 h-4" />
+          Search for papers
+          <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+        </Button>
 
-        {/* Action buttons */}
-        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-          <Button size="lg" className="gap-2 group" onClick={onSearchClick}>
-            <Search className="w-4 h-4" />
-            Search for papers
-            <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-          </Button>
-        </div>
-
-        {/* Feature hints */}
-        <div className="mt-8 grid grid-cols-2 gap-4 text-left">
-          <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-            <Sparkles className="w-5 h-5 text-primary mt-0.5 shrink-0" />
-            <div>
-              <p className="text-sm font-medium">AI-Powered Insights</p>
-              <p className="text-xs text-muted-foreground">
-                Ask questions about the research
-              </p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-            <BookOpen className="w-5 h-5 text-primary mt-0.5 shrink-0" />
-            <div>
-              <p className="text-sm font-medium">Citation Paths</p>
-              <p className="text-xs text-muted-foreground">
-                Discover how papers connect
-              </p>
-            </div>
-          </div>
-        </div>
+        {/* Keyboard hint */}
+        <p className="mt-3 text-xs text-muted-foreground">
+          or press <kbd className="px-1.5 py-0.5 rounded border border-border bg-muted text-[10px] font-mono">⌘K</kbd>
+        </p>
       </motion.div>
     </div>
   );

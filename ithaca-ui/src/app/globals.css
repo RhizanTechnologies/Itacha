@@ -550,7 +550,14 @@
   right: calc(var(--sigma-controls-margin) + var(--sigma-controls-size) + (var(--sigma-controls-padding) * 2) + var(--canvas-overlay-gutter)) !important;
 }
 
-/* Responsive overlay layout: prevent overlap on small screens */
+/* Tablet: hide non-essential, tighten spacing */
+@media (max-width: 1024px) {
+  .canvas-zone--bottom-left {
+    max-width: 220px;
+  }
+}
+
+/* Mobile: single-CTA mode, hide most overlays */
 @media (max-width: 768px) {
   .canvas-zone {
     max-width: calc(100vw - (var(--canvas-overlay-gutter) * 2));
@@ -562,17 +569,9 @@
     right: auto !important;
   }
 
-  .canvas-zone--top-right {
-    top: auto !important;
-    right: var(--canvas-overlay-gutter) !important;
-    bottom: calc(var(--canvas-overlay-gutter) + 56px) !important;
-    flex-direction: column !important;
-    align-items: flex-end !important;
-  }
-
+  .canvas-zone--bottom-left,
   .canvas-zone--bottom-right {
-    right: var(--canvas-overlay-gutter) !important;
-    bottom: var(--canvas-overlay-gutter) !important;
+    display: none !important;
   }
 
   .react-sigma-controls.top-right {

@@ -50,28 +50,16 @@ interface ShareExportProps {
 }
 
 /**
- * Generate a shareable link for the graph by encoding current state in URL params.
- * Encodes the search query and visible node IDs so the graph can be reconstructed.
+ * Generate a shareable link for the graph by encoding the search target in URL params.
+ * The explore page reads `?q=<target>` and re-fetches the graph from the API.
  */
 async function generateShareLink(
   searchQuery?: string,
-  graph?: Graph | null,
 ): Promise<string> {
   const url = new URL("/explore", window.location.origin);
 
   if (searchQuery) {
     url.searchParams.set("q", searchQuery);
-  }
-
-  // Encode node IDs (OpenAlex work IDs) so the graph can be reconstructed
-  if (graph) {
-    const nodeIds = graph
-      .nodes()
-      .slice(0, 50) // Cap at 50 to keep URL reasonable
-      .join(",");
-    if (nodeIds) {
-      url.searchParams.set("nodes", nodeIds);
-    }
   }
 
   return url.toString();
@@ -119,7 +107,7 @@ export function ShareExportDialog({
     setIsGeneratingLink(true);
     setError(null);
     try {
-      const url = await generateShareLink(searchQuery, graph);
+      const url = await generateShareLink(searchQuery);
       setShareUrl(url);
     } catch (err) {
       setError("Failed to generate share link");
@@ -127,14 +115,17 @@ export function ShareExportDialog({
     } finally {
       setIsGeneratingLink(false);
     }
-  }, [searchQuery, graph]);
+  }, [searchQuery]);
 
-  // Generate link on first open
+  // Generate link on open (regenerate if searchQuery changed)
   useEffect(() => {
-    if (open && !shareUrl && !isGeneratingLink) {
+    if (open) {
       handleGenerateLink();
+    } else {
+      // Reset when closed so it regenerates next time
+      setShareUrl(null);
     }
-  }, [open, shareUrl, isGeneratingLink, handleGenerateLink]);
+  }, [open, handleGenerateLink]);
 
   const handleCopy = useCallback(async () => {
     if (!shareUrl) return;
@@ -176,7 +167,7 @@ export function ShareExportDialog({
 
   // Generate preview for visual exports - matches actual export
   const generatePreview = useCallback(async () => {
-    if (!sigma || !graph || !previewCanvasRef.current) return;
+    if (!graph || !previewCanvasRef.current) return;
 
     const ctx = previewCanvasRef.current.getContext("2d");
     if (!ctx) return;
@@ -221,27 +212,43 @@ export function ShareExportDialog({
 
     // Draw edges from graph data
     ctx.save();
+
+    // Create coordinate mapper: normalize graph positions into the preview graph area
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    let nodeCount_ = 0;
+    graph.forEachNode((_n, attrs) => {
+      if (attrs.hidden) return;
+      const x = attrs.x ?? 0;
+      const y = attrs.y ?? 0;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+      nodeCount_++;
+    });
+
+    const rangeX = maxX - minX || 1;
+    const rangeY = maxY - minY || 1;
+    const pad = 20;
+    const usableW = previewWidth - pad * 2;
+    const usableH = graphAreaHeight - pad * 2;
+    const scaleF = Math.min(usableW / rangeX, usableH / rangeY);
+    const ofsX = pad + (usableW - rangeX * scaleF) / 2;
+    const ofsY = headerHeight + pad + (usableH - rangeY * scaleF) / 2;
+
+    const mapPrev = (gx: number, gy: number) => ({
+      x: ofsX + (gx - minX) * scaleF,
+      y: ofsY + (gy - minY) * scaleF,
+    });
+
     graph.forEachEdge((edge, attributes, source, target) => {
       if (attributes.hidden) return;
       const sourceAttrs = graph.getNodeAttributes(source);
       const targetAttrs = graph.getNodeAttributes(target);
       if (sourceAttrs.hidden || targetAttrs.hidden) return;
 
-      const sv = sigma.graphToViewport({ x: sourceAttrs.x, y: sourceAttrs.y });
-      const tv = sigma.graphToViewport({ x: targetAttrs.x, y: targetAttrs.y });
-
-      // Scale to preview size
-      const { width: sigmaW, height: sigmaH } = sigma.getDimensions();
-      const scaleX = previewWidth / sigmaW;
-      const scaleY = graphAreaHeight / sigmaH;
-      const scale = Math.min(scaleX, scaleY) * 0.9;
-      const offsetX = (previewWidth - sigmaW * scale) / 2;
-      const offsetY = headerHeight + (graphAreaHeight - sigmaH * scale) / 2;
-
-      const sx = sv.x * scale + offsetX;
-      const sy = sv.y * scale + offsetY;
-      const tx = tv.x * scale + offsetX;
-      const ty = tv.y * scale + offsetY;
+      const sv = mapPrev(sourceAttrs.x ?? 0, sourceAttrs.y ?? 0);
+      const tv = mapPrev(targetAttrs.x ?? 0, targetAttrs.y ?? 0);
 
       const edgeType = attributes.edgeType || attributes.type || "default";
       let edgeColor = isDark ? "#6b7280" : "#9ca3af";
@@ -256,8 +263,8 @@ export function ShareExportDialog({
       else ctx.setLineDash([]);
 
       ctx.beginPath();
-      ctx.moveTo(sx, sy);
-      ctx.lineTo(tx, ty);
+      ctx.moveTo(sv.x, sv.y);
+      ctx.lineTo(tv.x, tv.y);
       ctx.stroke();
     });
     ctx.setLineDash([]);
@@ -266,21 +273,11 @@ export function ShareExportDialog({
     // Draw nodes from graph data
     graph.forEachNode((node, attributes) => {
       if (attributes.hidden) return;
-      const v = sigma.graphToViewport({ x: attributes.x, y: attributes.y });
-
-      const { width: sigmaW, height: sigmaH } = sigma.getDimensions();
-      const scaleX = previewWidth / sigmaW;
-      const scaleY = graphAreaHeight / sigmaH;
-      const scale = Math.min(scaleX, scaleY) * 0.9;
-      const offsetX = (previewWidth - sigmaW * scale) / 2;
-      const offsetY = headerHeight + (graphAreaHeight - sigmaH * scale) / 2;
-
-      const cx = v.x * scale + offsetX;
-      const cy = v.y * scale + offsetY;
-      const size = Math.max((attributes.size || 5) * scale * 0.8, 2);
+      const pos = mapPrev(attributes.x ?? 0, attributes.y ?? 0);
+      const size = Math.max((attributes.size || 5) * (scaleF / 20), 2);
 
       ctx.beginPath();
-      ctx.arc(cx, cy, size, 0, Math.PI * 2);
+      ctx.arc(pos.x, pos.y, size, 0, Math.PI * 2);
       ctx.fillStyle = attributes.color || "#999";
       ctx.fill();
     });
@@ -340,14 +337,14 @@ export function ShareExportDialog({
       8,
       previewHeight - 6,
     );
-  }, [sigma, graph, graphTitle, nodeCount, edgeCount]);
+  }, [graph, graphTitle, nodeCount, edgeCount]);
 
   // Generate preview when dialog opens
   useEffect(() => {
-    if (open && sigma) {
+    if (open && graph) {
       setTimeout(generatePreview, 100);
     }
-  }, [open, sigma, generatePreview]);
+  }, [open, graph, generatePreview]);
 
   const handleSocialShare = useCallback(
     (platform: string) => {
@@ -394,7 +391,7 @@ export function ShareExportDialog({
 
         <div className="space-y-6 py-4">
           {/* Export Preview */}
-          {sigma && (
+          {graph && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <label className="text-sm font-medium flex items-center gap-2">

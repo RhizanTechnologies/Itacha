@@ -306,9 +306,10 @@ export function ExploreCanvas() {
             />
             <EdgeLabels />
 
+            {/* Sigma controls: hide zoom buttons on mobile (pinch-to-zoom instead) */}
             <ControlsContainer position={"top-right"}>
               {!isMobile && <ZoomControl />}
-              <FullScreenControl />
+              {!isMobile && <FullScreenControl />}
               {!isMobile && (
                 <ForceAtlasControl
                   externalIsRunning={state.physicsEnabled}
@@ -350,55 +351,57 @@ export function ExploreCanvas() {
 
         {/* ========== STRUCTURED OVERLAY SYSTEM ========== */}
         <OverlayManager>
-          <TopLeftZone>
-            <GlobalFilters
-              filters={state.filters}
-              onFiltersChange={actions.setFilters}
-              hiddenEdgeCount={state.filterStats.hiddenEdges}
-              open={state.filtersOpen}
-              onToggle={() => actions.toggleFilters()}
-              maxCitations={state.dataRanges.maxCitations}
-              minYear={state.dataRanges.minYear}
-              maxYear={state.dataRanges.maxYear}
-            />
-            <PaperCountControl
-              count={state.paperCount}
-              onChange={(count) => {
-                actions.setPaperCount(count);
-                actions.triggerRefresh();
-              }}
-              onRefresh={() => actions.triggerRefresh()}
-              isLoading={state.isLoading}
-            />
-            <RelationshipFocusControl
-              value={state.relationshipFocus}
-              onChange={(focus) => actions.setRelationshipFocus(focus)}
-            />
-          </TopLeftZone>
+          {/* Top-left: filters & paper count (desktop/tablet only) */}
+          {!isMobile && (
+            <TopLeftZone>
+              <GlobalFilters
+                filters={state.filters}
+                onFiltersChange={actions.setFilters}
+                hiddenEdgeCount={state.filterStats.hiddenEdges}
+                open={state.filtersOpen}
+                onToggle={() => actions.toggleFilters()}
+                maxCitations={state.dataRanges.maxCitations}
+                minYear={state.dataRanges.minYear}
+                maxYear={state.dataRanges.maxYear}
+              />
+              <PaperCountControl
+                count={state.paperCount}
+                onChange={(count) => {
+                  actions.setPaperCount(count);
+                  actions.triggerRefresh();
+                }}
+                onRefresh={() => actions.triggerRefresh()}
+                isLoading={state.isLoading}
+              />
+            </TopLeftZone>
+          )}
 
-          <TopRightZone>
-            <div className="flex flex-col gap-2">
-              <Button
-                variant={state.listPanelOpen ? "default" : "outline"}
-                size="icon"
-                className="h-9 w-9 rounded-full shadow-md z-30 pointer-events-auto"
-                onClick={() => actions.setListPanelOpen(!state.listPanelOpen)}
-                title="Toggle List View"
-              >
-                <List className="h-4 w-4" />
-              </Button>
-              <ChatToggleButton
-                isOpen={state.chatOpen}
-                onClick={() => actions.toggleChat()}
-              />
-              <NodeSelectionTool
-                isActive={state.selectionMode}
-                onToggle={() => actions.toggleSelectionMode()}
-                selectedNodes={state.selectedNodes}
-                nodeLabels={state.nodeLabels}
-              />
-            </div>
-          </TopRightZone>
+          {/* Top-right: contextual action buttons (desktop only) */}
+          {!isMobile && (
+            <TopRightZone>
+              <div className="flex flex-col gap-2">
+                <Button
+                  variant={state.listPanelOpen ? "default" : "outline"}
+                  size="icon"
+                  className="h-9 w-9 rounded-full shadow-md z-30 pointer-events-auto"
+                  onClick={() => actions.setListPanelOpen(!state.listPanelOpen)}
+                  title="Toggle List View"
+                >
+                  <List className="h-4 w-4" />
+                </Button>
+                <ChatToggleButton
+                  isOpen={state.chatOpen}
+                  onClick={() => actions.toggleChat()}
+                />
+                <NodeSelectionTool
+                  isActive={state.selectionMode}
+                  onToggle={() => actions.toggleSelectionMode()}
+                  selectedNodes={state.selectedNodes}
+                  nodeLabels={state.nodeLabels}
+                />
+              </div>
+            </TopRightZone>
+          )}
 
           {state.focusModeNode && (
             <TopCenterZone className="animate-in slide-in-from-top-2 fade-in duration-300">
@@ -419,19 +422,28 @@ export function ExploreCanvas() {
             </TopCenterZone>
           )}
 
-          <BottomLeftZone>
-            <CanvasFooter
-              nodeCount={state.graphStats.nodeCount}
-              edgeCount={state.graphStats.edgeCount}
-              status={state.isLoading ? "loading" : "live"}
-              onKeyboardHelpClick={() => actions.setKeyboardHelpOpen(true)}
-              onTutorialClick={tutorial.start}
-              onTutorialRestart={tutorial.reset}
-              hasSeenTutorial={tutorial.hasSeenTutorial}
-            />
-          </BottomLeftZone>
+          {/* Bottom-left: footer (desktop/tablet only) */}
+          {!isMobile && (
+            <BottomLeftZone>
+              <CanvasFooter
+                nodeCount={state.graphStats.nodeCount}
+                edgeCount={state.graphStats.edgeCount}
+                status={state.isLoading ? "loading" : "live"}
+                onKeyboardHelpClick={() => actions.setKeyboardHelpOpen(true)}
+                onTutorialClick={tutorial.start}
+                onTutorialRestart={tutorial.reset}
+                hasSeenTutorial={tutorial.hasSeenTutorial}
+              />
+            </BottomLeftZone>
+          )}
 
+          {/* Bottom-center: mode tabs + selection panel */}
           <BottomCenterZone>
+            {/* Relationship mode tabs — always visible */}
+            <RelationshipFocusControl
+              value={state.relationshipFocus}
+              onChange={(focus) => actions.setRelationshipFocus(focus)}
+            />
             <SelectionPanel
               selectedNodes={state.selectedNodes}
               nodeLabels={state.nodeLabels}
@@ -454,9 +466,12 @@ export function ExploreCanvas() {
             />
           </BottomCenterZone>
 
-          <BottomRightZone>
-            <ShareButton onClick={() => actions.setShareOpen(true)} />
-          </BottomRightZone>
+          {/* Bottom-right: share (desktop only) */}
+          {!isMobile && (
+            <BottomRightZone>
+              <ShareButton onClick={() => actions.setShareOpen(true)} />
+            </BottomRightZone>
+          )}
         </OverlayManager>
 
         {/* List Panel */}
@@ -488,7 +503,14 @@ export function ExploreCanvas() {
         <ShareExportDialog
           open={state.shareOpen}
           onOpenChange={actions.setShareOpen}
-          graphTitle="Citation Network"
+          graphTitle={
+            state.searchTarget
+              ? state.searchTarget.startsWith("topic-")
+                ? state.searchTarget.replace("topic-", "")
+                : "Citation Network"
+              : "Citation Network"
+          }
+          searchQuery={state.searchTarget ?? undefined}
           nodeCount={state.graphStats.nodeCount}
           edgeCount={state.graphStats.edgeCount}
           sigma={refs.sigmaRef.current}
