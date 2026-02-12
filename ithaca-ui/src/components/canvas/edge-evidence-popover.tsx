@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -81,6 +81,15 @@ export function EdgeEvidencePopover({
   const [isEditing, setIsEditing] = useState(false);
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [comment, setComment] = useState("");
+
+  // Reset local state when evidence changes (new edge clicked)
+  const evidenceId = evidence?.id ?? null;
+  React.useEffect(() => {
+    setActiveSnippet(0);
+    setIsEditing(false);
+    setSelectedType(evidence?.edgeType ?? null);
+    setComment("");
+  }, [evidenceId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Helper to highlight keywords
   const highlightText = (text: string, type: EdgeEvidence["edgeType"]) => {
@@ -227,40 +236,54 @@ export function EdgeEvidencePopover({
                 <span className={`font-bold ${config.color}`}>
                   {config.label}
                 </span>
-                <Badge
-                  variant="secondary"
-                  className={`ml-auto ${config.bgColor} ${config.color} border-0`}
-                >
-                  {evidence.confidence}% confidence
-                </Badge>
+                <div className="ml-auto flex items-center gap-2">
+                  <span className={`text-sm font-bold font-mono ${config.color}`}>
+                    {evidence.confidence}%
+                  </span>
+                </div>
+              </div>
+              {/* Confidence Bar */}
+              <div className="w-full h-1.5 bg-background/30 rounded-full overflow-hidden mt-1 mb-3">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${config.bgColor.replace('/10', '')}`}
+                  style={{ width: `${evidence.confidence}%` }}
+                />
               </div>
 
               {/* Papers */}
               <div className="space-y-2 text-sm">
                 <div className="flex items-start gap-2">
-                  <span className="text-muted-foreground shrink-0 mt-0.5">
-                    From:
+                  <span className="text-muted-foreground shrink-0 mt-0.5 text-xs font-medium w-10">
+                    From
                   </span>
-                  <button
-                    onClick={() => onViewPaper(evidence.sourcePaper.id)}
-                    className="text-left hover:text-primary transition-colors line-clamp-1"
-                  >
-                    {evidence.sourcePaper.title}
-                  </button>
+                  <div className="min-w-0 flex-1">
+                    <button
+                      onClick={() => onViewPaper(evidence.sourcePaper.id)}
+                      className="text-left hover:text-primary transition-colors block">
+                      <span className="font-semibold text-sm">
+                        {evidence.sourcePaper.authors.split(",")[0]?.trim()} ({evidence.sourcePaper.year})
+                      </span>
+                    </button>
+                    <p className="text-xs text-muted-foreground truncate mt-0.5">{evidence.sourcePaper.title}</p>
+                  </div>
                 </div>
-                <div className="flex items-center justify-center">
-                  <ChevronRight className={`h-4 w-4 ${config.color}`} />
+                <div className="flex items-center pl-10">
+                  <ChevronRight className={`h-3.5 w-3.5 ${config.color}`} />
                 </div>
                 <div className="flex items-start gap-2">
-                  <span className="text-muted-foreground shrink-0 mt-0.5">
-                    To:
+                  <span className="text-muted-foreground shrink-0 mt-0.5 text-xs font-medium w-10">
+                    To
                   </span>
-                  <button
-                    onClick={() => onViewPaper(evidence.targetPaper.id)}
-                    className="text-left hover:text-primary transition-colors line-clamp-1"
-                  >
-                    {evidence.targetPaper.title}
-                  </button>
+                  <div className="min-w-0 flex-1">
+                    <button
+                      onClick={() => onViewPaper(evidence.targetPaper.id)}
+                      className="text-left hover:text-primary transition-colors block">
+                      <span className="font-semibold text-sm">
+                        {evidence.targetPaper.authors.split(",")[0]?.trim()} ({evidence.targetPaper.year})
+                      </span>
+                    </button>
+                    <p className="text-xs text-muted-foreground truncate mt-0.5">{evidence.targetPaper.title}</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -313,10 +336,7 @@ export function EdgeEvidencePopover({
                       ..."
                     </p>
 
-                    <div className="mt-3 flex items-center justify-between font-sans">
-                      <span className="text-xs text-muted-foreground">
-                        p. {Math.floor(Math.random() * 12) + 1}
-                      </span>
+                    <div className="mt-3 flex items-center justify-end font-sans">
                       <span className="text-xs font-medium text-foreground/70">
                         {evidence.snippets[activeSnippet].source}
                       </span>

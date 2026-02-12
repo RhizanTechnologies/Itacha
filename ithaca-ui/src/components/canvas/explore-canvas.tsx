@@ -62,7 +62,7 @@ import {
   BottomCenterZone,
   BottomRightZone,
 } from "@/components/canvas/overlay-manager";
-import { LABELS } from "@/lib/constants";
+import { LABELS, COLORS } from "@/lib/constants";
 import type { CanvasInteractionApi } from "@/types/graph";
 import type { PaperData } from "@/components/inspector/paper-inspector";
 import { graphAPI } from "@/lib/api/graph-api";
@@ -524,11 +524,31 @@ export function ExploreCanvas() {
           onViewPaper={(paperId) => handleSearchPaper(paperId)}
           onDispute={(edgeId) => {
             debug.log("Dispute edge requested:", edgeId);
-            actions.showToastMessage("Dispute flagged for review");
+            actions.showToastMessage("Dispute flagged — use Edit to correct the relationship");
           }}
           onCorrect={(edgeId, type, comment) => {
             debug.log("Correction submitted:", { edgeId, type, comment });
-            actions.showToastMessage(`Relationship corrected to ${type}`);
+
+            // Apply the correction to the user's local graph in real-time
+            const graph = refs.graphRef.current;
+            const sigma = refs.sigmaRef.current;
+            if (graph && sigma && graph.hasEdge(edgeId)) {
+              const EDGE_COLOR_MAP: Record<string, string> = {
+                supports: COLORS.SUPPORTS,
+                contradicts: COLORS.CONTRADICTS,
+                extends: COLORS.EXTENDS,
+              };
+              const newColor = EDGE_COLOR_MAP[type] || "#e5e7eb";
+
+              graph.setEdgeAttribute(edgeId, "edgeType", type);
+              graph.setEdgeAttribute(edgeId, "color", newColor);
+              graph.setEdgeAttribute(edgeId, "originalColor", newColor);
+              sigma.refresh();
+            }
+
+            // Close the popover and show confirmation
+            actions.clearEdgeEvidence();
+            actions.showToastMessage(`Relationship corrected to "${type}"`);
           }}
         />
 
