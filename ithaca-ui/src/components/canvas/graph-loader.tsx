@@ -338,7 +338,8 @@ export function GraphLoader({
           return {
             ...attrs,
             hidden: true,
-            ...(focusModeNode ? { size: 0 } : {}),
+            // Don't destructively set size: 0 — sigma respects hidden:true
+            // and we preserve originalSize for correct restoration on un-hide.
           };
         }
 
@@ -649,6 +650,7 @@ export function GraphLoader({
           if (!graph.hasNode(node.id)) {
             graph.addNode(node.id, {
               ...node,
+              originalSize: node.size || GRAPH.DEFAULT_NODE_SIZE,
               hidden: false,
               // If focusing on a new slice, maybe force position if provided, else use layout
               x: node.x || Math.random() * 100,
