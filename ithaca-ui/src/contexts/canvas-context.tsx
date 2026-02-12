@@ -16,7 +16,7 @@ import type {
   EvidenceItem,
 } from "@/components/inspector/paper-inspector";
 import type { EdgeEvidence } from "@/components/canvas/edge-evidence-popover";
-import type { PathMode } from "@/components/canvas/path-comparison";
+import type { SemanticPath, PathMode } from "@/lib/graph-algorithms";
 import type { CanvasInteractionApi } from "@/types/graph";
 import { FILTERS } from "@/lib/constants";
 import { DEFAULT_FILTERS } from "@/components/filters/global-filters";
@@ -86,8 +86,9 @@ export interface CanvasState {
   edgeEvidencePos: EdgeEvidencePosition | null;
 
   // Path Comparison State
-  calculatedPaths: any[];
+  calculatedPaths: SemanticPath[];
   pathMode: PathMode;
+  highlightedPath: { nodeIds: Set<string>; edgeIds: Set<string> } | null;
 
   // Search & Focus State
   searchTarget: string | null;
@@ -152,8 +153,9 @@ type CanvasAction =
     }
   | { type: "CLEAR_EDGE_EVIDENCE" }
   // Path Comparison
-  | { type: "SET_CALCULATED_PATHS"; payload: any[] }
+  | { type: "SET_CALCULATED_PATHS"; payload: SemanticPath[] }
   | { type: "SET_PATH_MODE"; payload: PathMode }
+  | { type: "SET_HIGHLIGHTED_PATH"; payload: { nodeIds: Set<string>; edgeIds: Set<string> } | null }
   // Search & Focus
   | { type: "SET_SEARCH_TARGET"; payload: string | null }
   | { type: "SET_FOCUS_MODE_NODE"; payload: string | null }
@@ -212,6 +214,7 @@ const initialState: CanvasState = {
   // Path Comparison State
   calculatedPaths: [],
   pathMode: "shortest",
+  highlightedPath: null,
 
   // Search & Focus State
   searchTarget: null,
@@ -261,11 +264,14 @@ function canvasReducer(state: CanvasState, action: CanvasAction): CanvasState {
         filtersOpen: false,
         shareOpen: false,
         chatOpen: false,
+        pathCompareOpen: false,
         edgeEvidence: null,
         edgeEvidencePos: null,
         focusModeNode: null,
         selectedNodes: [],
         selectionMode: false,
+        highlightedPath: null,
+        calculatedPaths: [],
       };
 
     // Loading
@@ -319,7 +325,7 @@ function canvasReducer(state: CanvasState, action: CanvasAction): CanvasState {
         ),
       };
     case "CLEAR_SELECTION":
-      return { ...state, selectedNodes: [], selectionMode: false };
+      return { ...state, selectedNodes: [], selectionMode: false, highlightedPath: null, calculatedPaths: [], pathCompareOpen: false };
     case "SET_NODE_LABELS":
       return { ...state, nodeLabels: action.payload };
 
@@ -354,6 +360,8 @@ function canvasReducer(state: CanvasState, action: CanvasAction): CanvasState {
       return { ...state, calculatedPaths: action.payload };
     case "SET_PATH_MODE":
       return { ...state, pathMode: action.payload };
+    case "SET_HIGHLIGHTED_PATH":
+      return { ...state, highlightedPath: action.payload };
 
     // Search & Focus
     case "SET_SEARCH_TARGET":
@@ -561,10 +569,12 @@ export function useCanvasActions() {
       clearEdgeEvidence: () => dispatch({ type: "CLEAR_EDGE_EVIDENCE" }),
 
       // Path Comparison
-      setCalculatedPaths: (paths: any[]) =>
+      setCalculatedPaths: (paths: SemanticPath[]) =>
         dispatch({ type: "SET_CALCULATED_PATHS", payload: paths }),
       setPathMode: (mode: PathMode) =>
         dispatch({ type: "SET_PATH_MODE", payload: mode }),
+      setHighlightedPath: (path: { nodeIds: Set<string>; edgeIds: Set<string> } | null) =>
+        dispatch({ type: "SET_HIGHLIGHTED_PATH", payload: path }),
 
       // Search & Focus
       setSearchTarget: (target: string | null) =>

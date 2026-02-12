@@ -24,7 +24,7 @@ import type {
   EvidenceItem,
 } from "@/components/inspector/paper-inspector";
 import type { EdgeEvidence } from "@/components/canvas/edge-evidence-popover";
-import type { PathMode } from "@/components/canvas/path-comparison";
+import type { PathMode } from "@/lib/graph-algorithms";
 
 // =============================================================================
 // GRAPH LOADER COMPONENT
@@ -68,6 +68,9 @@ export interface GraphLoaderProps {
   hoveredNode: string | null;
   onHoverNode: (nodeId: string | null) => void;
   onGraphLoaded?: (nodes: PaperData[]) => void;
+  // Selection & path visualization
+  selectedNodes?: string[];
+  highlightedPath?: { nodeIds: Set<string>; edgeIds: Set<string> } | null;
 }
 
 /**
@@ -97,6 +100,8 @@ export function GraphLoader({
   hoveredNode,
   onHoverNode,
   onGraphLoaded,
+  selectedNodes = [],
+  highlightedPath = null,
 }: GraphLoaderProps) {
   const loadGraph = useLoadGraph();
   const sigma = useSigma();
@@ -330,6 +335,10 @@ export function GraphLoader({
         });
       }
 
+      // Build selection set for O(1) lookup
+      const selectedSet = new Set(selectedNodes);
+      const isPathActive = highlightedPath && highlightedPath.nodeIds.size > 0;
+
       // Batch node updates — use updateEachNodeAttributes to fire a single graphology event
       graph.updateEachNodeAttributes((node, attrs) => {
         const isHidden = effectiveHiddenNodes.has(node);
@@ -338,28 +347,44 @@ export function GraphLoader({
           return {
             ...attrs,
             hidden: true,
-            // Don't destructively set size: 0 — sigma respects hidden:true
-            // and we preserve originalSize for correct restoration on un-hide.
           };
         }
 
         const isSolid = solidNodes?.has(node);
         const isGhost = !isSolid && attrs.status === "ghost";
+        const isSelected = selectedSet.has(node);
+        const isOnPath = isPathActive && highlightedPath!.nodeIds.has(node);
 
-        const color =
-          attrs.controversyScore > 0
-            ? COLORS.CONTRADICTS
-            : isGhost
-              ? `${attrs.color}${COLORS.GHOST_ALPHA}`
-              : attrs.originalColor ||
-                COLORS.CLUSTERS[attrs.cluster] ||
-                COLORS.CLUSTERS[0];
+        // Selection ring colors: source = emerald, target = blue
+        let color: string;
+        if (isSelected && selectedNodes[0] === node) {
+          color = "#10b981"; // emerald-500 (source)
+        } else if (isSelected) {
+          color = "#3b82f6"; // blue-500 (target)
+        } else if (attrs.controversyScore > 0) {
+          color = COLORS.CONTRADICTS;
+        } else if (isGhost) {
+          color = `${attrs.color}${COLORS.GHOST_ALPHA}`;
+        } else {
+          color = attrs.originalColor ||
+            COLORS.CLUSTERS[attrs.cluster] ||
+            COLORS.CLUSTERS[0];
+        }
+
+        // Dim nodes not on the active path
+        if (isPathActive && !isOnPath && !isSelected) {
+          color = `${color}30`; // 18% opacity
+        }
+
+        const baseSize = attrs.originalSize || attrs.size || GRAPH.DEFAULT_NODE_SIZE;
+        // Slightly enlarge selected nodes for emphasis
+        const size = isSelected ? Math.max(baseSize * 1.3, 14) : baseSize;
 
         return {
           ...attrs,
           hidden: false,
           color,
-          size: attrs.originalSize || attrs.size || GRAPH.DEFAULT_NODE_SIZE,
+          size,
           ...(isSolid && attrs.status !== "solid" ? { status: "solid" } : {}),
         };
       });
@@ -378,11 +403,26 @@ export function GraphLoader({
           };
         }
 
+        const isOnPath = isPathActive && highlightedPath!.edgeIds.has(edgeKey);
+        let edgeColor = attrs.originalColor || "#e5e7eb";
+        let edgeSize = attrs.originalSize || 1;
+
+        if (isPathActive) {
+          if (isOnPath) {
+            // Thicken and brighten path edges
+            edgeSize = Math.max(edgeSize * 2.5, 3);
+          } else {
+            // Dim non-path edges
+            edgeColor = `${edgeColor}18`; // ~10% opacity
+            edgeSize = 0.3;
+          }
+        }
+
         return {
           ...attrs,
           hidden: false,
-          color: attrs.originalColor || "#e5e7eb",
-          size: attrs.originalSize || 1,
+          color: edgeColor,
+          size: edgeSize,
         };
       });
 
@@ -442,6 +482,8 @@ export function GraphLoader({
     refreshTrigger,
     focusModeNode,
     solidNodes,
+    selectedNodes,
+    highlightedPath,
   ]);
 
   // Register Interaction API

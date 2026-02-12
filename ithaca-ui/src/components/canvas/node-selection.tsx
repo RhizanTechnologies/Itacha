@@ -7,8 +7,8 @@ import {
   X,
   Download,
   ZoomIn,
-  Eye,
   GitCompare,
+  ArrowRight,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -26,7 +26,7 @@ interface NodeSelectionToolProps {
   onFocusSelection: () => void;
   onCompare: () => void;
   onExport: (format: "csv" | "bibtex") => void;
-  nodeLabels?: Record<string, string>; // Map of nodeId to label
+  nodeLabels?: Record<string, string>;
 }
 
 interface SelectionPanelProps {
@@ -41,22 +41,16 @@ interface SelectionPanelProps {
 
 interface SelectionInstructionProps {
   isActive: boolean;
-  hasSelection: boolean;
+  selectedCount: number;
 }
 
 /**
- * NodeSelectionTool - Simple click-to-select for multiple nodes
- * When active, clicking nodes in the graph adds them to selection
- * Used for path comparison and batch operations
- */
-/**
- * NodeSelectionToggle - The toggle button for selection mode
+ * NodeSelectionTool - Toggle button for selection mode (top-right)
  */
 export function NodeSelectionTool({
   isActive,
   onToggle,
   selectedNodes,
-  nodeLabels = {},
 }: Pick<
   NodeSelectionToolProps,
   "isActive" | "onToggle" | "selectedNodes" | "nodeLabels"
@@ -76,7 +70,7 @@ export function NodeSelectionTool({
       </span>
       {selectedNodes.length > 0 && (
         <Badge variant={isActive ? "secondary" : "default"} className="text-xs">
-          {selectedNodes.length}
+          {selectedNodes.length}/2
         </Badge>
       )}
     </button>
@@ -84,7 +78,57 @@ export function NodeSelectionTool({
 }
 
 /**
- * SelectionPanel - Shows selected nodes with actions
+ * NodeSlot - Renders a single Source or Target slot
+ */
+function NodeSlot({
+  role,
+  nodeId,
+  label,
+  onRemove,
+}: {
+  role: "Source" | "Target";
+  nodeId: string | null;
+  label: string | null;
+  onRemove?: () => void;
+}) {
+  const isSource = role === "Source";
+
+  if (!nodeId) {
+    return (
+      <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-border/60 bg-muted/20 min-w-0">
+        <div className={`h-3 w-3 rounded-full border-2 ${isSource ? "border-emerald-500/40" : "border-blue-500/40"}`} />
+        <span className="text-xs text-muted-foreground">
+          Click a node to set {role.toLowerCase()}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border min-w-0 ${
+      isSource ? "border-emerald-500/40 bg-emerald-500/5" : "border-blue-500/40 bg-blue-500/5"
+    }`}>
+      <div className={`h-3 w-3 rounded-full shrink-0 ${isSource ? "bg-emerald-500" : "bg-blue-500"}`} />
+      <div className="min-w-0 flex-1">
+        <span className={`text-[10px] font-bold uppercase tracking-wider ${isSource ? "text-emerald-600 dark:text-emerald-400" : "text-blue-600 dark:text-blue-400"}`}>
+          {role}
+        </span>
+        <p className="text-xs font-medium truncate">{label || nodeId}</p>
+      </div>
+      {onRemove && (
+        <button
+          onClick={onRemove}
+          className="shrink-0 p-0.5 rounded hover:bg-muted transition-colors"
+        >
+          <X className="h-3 w-3 text-muted-foreground" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+/**
+ * SelectionPanel - Bottom bar with Source → Target slots and actions
  */
 export function SelectionPanel({
   selectedNodes,
@@ -97,79 +141,73 @@ export function SelectionPanel({
 }: SelectionPanelProps) {
   if (selectedNodes.length === 0) return null;
 
+  const sourceId = selectedNodes[0] || null;
+  const targetId = selectedNodes[1] || null;
+
   return (
-    <div className="bg-card/95 backdrop-blur border border-border rounded-xl shadow-2xl p-4 w-[90vw] md:w-auto md:min-w-80 max-w-md animate-in slide-in-from-bottom-4 fade-in">
+    <div className="bg-card/95 backdrop-blur border border-border rounded-xl shadow-2xl p-4 w-[90vw] md:w-auto md:min-w-96 max-w-lg animate-in slide-in-from-bottom-4 fade-in">
+      {/* Header */}
       <div className="flex items-center justify-between mb-3">
-        <div>
-          <h3 className="font-bold text-sm">Selected Nodes</h3>
-          <p className="text-xs text-muted-foreground">
-            {selectedNodes.length} node
-            {selectedNodes.length !== 1 ? "s" : ""} selected
-          </p>
+        <div className="flex items-center gap-2">
+          <GitCompare className="h-4 w-4 text-primary" />
+          <h3 className="font-bold text-sm">Find Path</h3>
         </div>
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8"
+          className="h-7 w-7"
           onClick={onClearSelection}
           title="Clear selection"
         >
-          <X className="h-4 w-4" />
+          <X className="h-3.5 w-3.5" />
         </Button>
       </div>
 
-      {/* Selected Node Tags */}
-      <div className="flex flex-wrap gap-1.5 mb-4 max-h-24 overflow-y-auto">
-        {selectedNodes.map((nodeId) => (
-          <Badge
-            key={nodeId}
-            variant="secondary"
-            className="text-xs pr-1 flex items-center gap-1"
-          >
-            <span className="truncate max-w-32">
-              {nodeLabels[nodeId] || nodeId}
-            </span>
-            <button
-              onClick={() => onRemoveNode(nodeId)}
-              className="ml-1 hover:bg-muted rounded-full p-0.5"
-            >
-              <X className="h-3 w-3" />
-            </button>
-          </Badge>
-        ))}
+      {/* Source → Target slots */}
+      <div className="flex items-center gap-2 mb-3">
+        <div className="flex-1 min-w-0">
+          <NodeSlot
+            role="Source"
+            nodeId={sourceId}
+            label={sourceId ? nodeLabels[sourceId] || null : null}
+            onRemove={sourceId ? () => onRemoveNode(sourceId) : undefined}
+          />
+        </div>
+        <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
+        <div className="flex-1 min-w-0">
+          <NodeSlot
+            role="Target"
+            nodeId={targetId}
+            label={targetId ? nodeLabels[targetId] || null : null}
+            onRemove={targetId ? () => onRemoveNode(targetId) : undefined}
+          />
+        </div>
       </div>
 
       {/* Actions */}
-      <div className="grid grid-cols-3 gap-2">
+      <div className="flex items-center gap-2">
         <Button
-          variant="outline"
+          className="flex-1 gap-2"
           size="sm"
-          className="flex-col h-auto py-2 gap-1"
-          onClick={onFocusSelection}
-        >
-          <ZoomIn className="h-4 w-4" />
-          <span className="text-[10px]">Focus</span>
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="flex-col h-auto py-2 gap-1"
           onClick={onCompare}
           disabled={selectedNodes.length < 2}
         >
-          <GitCompare className="h-4 w-4" />
-          <span className="text-[10px]">Compare</span>
+          <GitCompare className="h-3.5 w-3.5" />
+          Find Path
         </Button>
-
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1"
+          onClick={onFocusSelection}
+          title="Focus on selected nodes"
+        >
+          <ZoomIn className="h-3.5 w-3.5" />
+        </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-col h-auto py-2 gap-1"
-            >
-              <Download className="h-4 w-4" />
-              <span className="text-[10px]">Export</span>
+            <Button variant="outline" size="sm" className="gap-1" title="Export selected">
+              <Download className="h-3.5 w-3.5" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
@@ -187,19 +225,26 @@ export function SelectionPanel({
 }
 
 /**
- * SelectionInstruction - Shows instruction when selection mode is active
+ * SelectionInstruction - Shows guidance when selection mode is active
  */
 export function SelectionInstruction({
   isActive,
-  hasSelection,
+  selectedCount,
 }: SelectionInstructionProps) {
-  if (!isActive || hasSelection) return null;
+  if (!isActive) return null;
+
+  const message =
+    selectedCount === 0
+      ? "Click a node to set the source"
+      : selectedCount === 1
+        ? "Click another node to set the target"
+        : "Ready to find path — or click a node to replace target";
 
   return (
     <div className="bg-primary text-primary-foreground px-4 py-2 rounded-full shadow-lg animate-in fade-in">
       <div className="flex items-center gap-2 text-sm">
         <MousePointer className="h-4 w-4" />
-        <span>Click nodes to select them</span>
+        <span>{message}</span>
       </div>
     </div>
   );

@@ -107,7 +107,9 @@ export function ExploreCanvas() {
     handleNodeSelect,
     handleFocusSelection,
     handleExportSelection,
-    calculatePathWithMode,
+    calculateAllPaths,
+    switchPathMode,
+    clearPathHighlight,
   } = useCanvasSelection();
 
   // Initialize keyboard shortcuts
@@ -268,6 +270,8 @@ export function ExploreCanvas() {
               solidNodes={state.solidNodes}
               hoveredNode={state.hoveredNode}
               relationshipFocus={state.relationshipFocus}
+              selectedNodes={state.selectedNodes}
+              highlightedPath={state.highlightedPath}
             />
 
             {/* Sigma-managed internal components */}
@@ -447,17 +451,20 @@ export function ExploreCanvas() {
             <SelectionPanel
               selectedNodes={state.selectedNodes}
               nodeLabels={state.nodeLabels}
-              onClearSelection={() => actions.clearSelection()}
+              onClearSelection={() => {
+                actions.clearSelection();
+                clearPathHighlight();
+              }}
               onRemoveNode={(nodeId: string) =>
                 actions.removeSelectedNode(nodeId)
               }
               onFocusSelection={handleFocusSelection}
-              onCompare={() => calculatePathWithMode(state.pathMode)}
+              onCompare={calculateAllPaths}
               onExport={(format) => handleExportSelection(format)}
             />
             <SelectionInstruction
               isActive={state.selectionMode}
-              hasSelection={state.selectedNodes.length > 0}
+              selectedCount={state.selectedNodes.length}
             />
             <NewArgumentToast
               show={state.showToast}
@@ -554,10 +561,13 @@ export function ExploreCanvas() {
 
         <PathComparisonView
           isOpen={state.pathCompareOpen}
-          onClose={() => actions.setPathCompareOpen(false)}
+          onClose={() => {
+            actions.setPathCompareOpen(false);
+            clearPathHighlight();
+          }}
           paths={state.calculatedPaths}
           currentMode={state.pathMode}
-          onModeChange={calculatePathWithMode}
+          onModeChange={switchPathMode}
         />
 
         <KeyboardShortcutsHelp

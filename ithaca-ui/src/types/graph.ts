@@ -20,7 +20,7 @@ export type {
 
 import type { PaperNode, EdgeData, EvidenceItem } from "@/lib/api/graph-api";
 import type { FilterState } from "@/components/filters/global-filters";
-import type { PathMode } from "@/components/canvas/path-comparison";
+import type { PathMode } from "@/lib/graph-algorithms";
 import type Graph from "graphology";
 
 // =============================================================================
