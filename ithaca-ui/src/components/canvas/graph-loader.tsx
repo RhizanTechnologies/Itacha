@@ -258,9 +258,12 @@ export function GraphLoader({
       graphRef.current = graph;
       loadGraph(graph);
 
-      // Register sigma and graph for export
+      // Register sigma and its INTERNAL graph for export.
+      // useLoadGraph().import() copies data into sigma's own graph instance,
+      // so we must use sigma.getGraph() — that's where ForceAtlas2 writes
+      // live layout positions (x, y).
       if (onRegisterSigmaGraph) {
-        onRegisterSigmaGraph(sigma, graph);
+        onRegisterSigmaGraph(sigma, sigma.getGraph());
       }
 
       // Report stats
@@ -295,7 +298,9 @@ export function GraphLoader({
 
     filterRafRef.current = requestAnimationFrame(() => {
       filterRafRef.current = null;
-      const graph = graphRef.current || sigma.getGraph();
+      // Always use sigma's internal graph — graphRef.current is the external
+      // copy that never receives FA2 positions or rendering updates.
+      const graph = sigma.getGraph();
       if (!graph || graph.order === 0) return;
 
       const currentFilters = latestFiltersRef.current;
@@ -388,6 +393,37 @@ export function GraphLoader({
         });
       }
 
+      // Update visible papers list to match filter state in real-time
+      if (onGraphLoaded) {
+        const visible: PaperData[] = [];
+        graph.forEachNode((node, attrs) => {
+          if (attrs.hidden) return;
+          visible.push({
+            id: attrs.paperId || node,
+            title: attrs.title || attrs.label || "Untitled",
+            authors: attrs.authors || "Unknown",
+            year: attrs.year || 2024,
+            venue: attrs.venue,
+            arxivId: attrs.arxivId,
+            doi: attrs.doi,
+            openAccessUrl: attrs.openAccessUrl,
+            citations: attrs.citations || 0,
+            references: attrs.references,
+            supports: graph.edges(node).filter((e) => {
+              const ea = graph.getEdgeAttributes(e);
+              return ea.edgeType === "supports" && graph.target(e) === node;
+            }).length,
+            refutes: graph.edges(node).filter((e) => {
+              const ea = graph.getEdgeAttributes(e);
+              return ea.edgeType === "contradicts" && graph.target(e) === node;
+            }).length,
+            abstract: attrs.abstract,
+            status: attrs.status,
+          });
+        });
+        onGraphLoaded(visible);
+      }
+
       // Single refresh after all batch updates
       sigma.refresh();
     });
@@ -401,6 +437,7 @@ export function GraphLoader({
     filters,
     sigma,
     onFilterStatsChange,
+    onGraphLoaded,
     refreshTrigger,
     focusModeNode,
     solidNodes,

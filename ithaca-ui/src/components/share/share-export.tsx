@@ -274,7 +274,8 @@ export function ShareExportDialog({
     graph.forEachNode((node, attributes) => {
       if (attributes.hidden) return;
       const pos = mapPrev(attributes.x ?? 0, attributes.y ?? 0);
-      const size = Math.max((attributes.size || 5) * (scaleF / 20), 2);
+      // Scale node size proportionally to the preview (preview is ~1/3 of export)
+      const size = Math.max(Math.min((attributes.size || 5) * 0.35, 6), 1.5);
 
       ctx.beginPath();
       ctx.arc(pos.x, pos.y, size, 0, Math.PI * 2);
