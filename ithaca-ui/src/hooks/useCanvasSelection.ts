@@ -76,7 +76,11 @@ export function useCanvasSelection() {
 
     for (const mode of modes) {
       try {
-        const paths = refs.graphApiRef.current.findPaths(sourceId, targetId, mode);
+        const paths = refs.graphApiRef.current.findPaths(
+          sourceId,
+          targetId,
+          mode,
+        );
         allPaths.push(...(paths as SemanticPath[]));
       } catch (err) {
         debug.error(`Error calculating ${mode} path:`, err);
@@ -88,7 +92,8 @@ export function useCanvasSelection() {
     actions.setPathCompareOpen(true);
 
     // Highlight the default mode's path on canvas
-    const defaultPath = allPaths.find((p) => p.id.includes("shortest")) || allPaths[0];
+    const defaultPath =
+      allPaths.find((p) => p.id.includes("shortest")) || allPaths[0];
     if (defaultPath) {
       highlightPathOnCanvas(defaultPath);
       actions.setPathMode("shortest");
