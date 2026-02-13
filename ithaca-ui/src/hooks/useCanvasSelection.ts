@@ -133,7 +133,9 @@ export function useCanvasSelection() {
   const switchPathMode = useCallback(
     (mode: PathMode) => {
       actions.setPathMode(mode);
-      const target = state.calculatedPaths.find((p: SemanticPath) => p.id.includes(mode));
+      const target = state.calculatedPaths.find((p: SemanticPath) =>
+        p.id.includes(mode),
+      );
       if (target) {
         highlightPathOnCanvas(target);
       }
