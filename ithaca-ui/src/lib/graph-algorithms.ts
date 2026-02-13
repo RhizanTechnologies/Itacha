@@ -151,9 +151,18 @@ export function findSemanticPath(
         "No direct chain of refutations found (showing best alternative).";
     }
   } else if (mode === "consensus") {
-    name = "Consensus Lineage";
-    color = COLORS.PATH.CONSENSUS; // Green
-    description = "A path of supporting evidence and extensions.";
+    const conflictCount = formattedEdges.filter(
+      (e) => e.type === "contradicts",
+    ).length;
+    if (conflictCount > 0) {
+      name = "Best Available Path";
+      color = COLORS.PATH.CONSENSUS; // Green
+      description = `Best consensus path found — includes ${conflictCount} contradiction${conflictCount > 1 ? "s" : ""}.`;
+    } else {
+      name = "Consensus Lineage";
+      color = COLORS.PATH.CONSENSUS; // Green
+      description = "A path of supporting evidence and extensions.";
+    }
   }
 
   return [

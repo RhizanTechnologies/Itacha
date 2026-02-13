@@ -24,6 +24,10 @@ interface ContainedPanelProps {
   className?: string;
   title?: string;
   description?: string;
+  /** Control backdrop intensity: true (default), "light", or false */
+  backdrop?: boolean | "light";
+  /** Allow drag-to-resize (bottom panels only) */
+  resizable?: boolean;
 }
 
 export function ContainedPanel({
@@ -32,7 +36,13 @@ export function ContainedPanel({
   children,
   side = "right",
   className,
+  backdrop = true,
+  resizable = false,
 }: ContainedPanelProps) {
+  const panelRef = React.useRef<HTMLDivElement>(null);
+  const [dragHeight, setDragHeight] = React.useState<number | null>(null);
+  const isDragging = React.useRef(false);
+
   // Handle escape key
   React.useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -44,18 +54,62 @@ export function ContainedPanel({
     return () => document.removeEventListener("keydown", handleEscape);
   }, [open, onOpenChange]);
 
+  // Drag-to-resize for bottom panels
+  const handlePointerDown = React.useCallback(
+    (e: React.PointerEvent) => {
+      if (!resizable || side !== "bottom") return;
+      e.preventDefault();
+      isDragging.current = true;
+
+      const parentEl = panelRef.current?.parentElement;
+      if (!parentEl) return;
+      const parentRect = parentEl.getBoundingClientRect();
+
+      const onPointerMove = (ev: PointerEvent) => {
+        if (!isDragging.current) return;
+        const newHeight = parentRect.bottom - ev.clientY;
+        const minH = 140;
+        const maxH = parentRect.height * 0.85;
+        setDragHeight(Math.min(maxH, Math.max(minH, newHeight)));
+      };
+
+      const onPointerUp = () => {
+        isDragging.current = false;
+        document.removeEventListener("pointermove", onPointerMove);
+        document.removeEventListener("pointerup", onPointerUp);
+      };
+
+      document.addEventListener("pointermove", onPointerMove);
+      document.addEventListener("pointerup", onPointerUp);
+    },
+    [resizable, side],
+  );
+
   if (!open) return null;
+
+  const backdropClass =
+    backdrop === true
+      ? "bg-black/30 backdrop-blur-[2px]"
+      : backdrop === "light"
+        ? "bg-black/10"
+        : "bg-transparent pointer-events-none";
 
   return (
     <>
       {/* Backdrop - contained within parent */}
-      <div
-        className="absolute inset-0 z-40 bg-black/30 backdrop-blur-[2px] animate-in fade-in-0 duration-200"
-        onClick={() => onOpenChange(false)}
-      />
+      {backdrop !== false && (
+        <div
+          className={cn(
+            "absolute inset-0 z-40 animate-in fade-in-0 duration-200",
+            backdropClass,
+          )}
+          onClick={() => onOpenChange(false)}
+        />
+      )}
 
       {/* Panel */}
       <div
+        ref={panelRef}
         className={cn(
           "absolute z-50 bg-background shadow-2xl flex flex-col",
           "animate-in duration-300 ease-out",
@@ -64,13 +118,24 @@ export function ContainedPanel({
           side === "left" &&
             "inset-y-0 left-0 w-full max-w-xl border-r slide-in-from-left",
           side === "bottom" &&
-            "inset-x-0 bottom-0 h-[60%] border-t slide-in-from-bottom",
+            "inset-x-0 bottom-0 border-t slide-in-from-bottom",
+          // Only apply className height when not actively dragging
+          side === "bottom" && !dragHeight && "h-[60%]",
           className,
         )}
+        style={side === "bottom" && dragHeight ? { height: dragHeight } : undefined}
       >
-        {/* Mobile Drag Handle Visual */}
+        {/* Drag Handle — functional when resizable */}
         {side === "bottom" && (
-          <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-muted shrink-0" />
+          <div
+            className={cn(
+              "flex items-center justify-center py-2 shrink-0",
+              resizable && "cursor-ns-resize select-none hover:bg-muted/50 transition-colors",
+            )}
+            onPointerDown={resizable ? handlePointerDown : undefined}
+          >
+            <div className="h-1.5 w-12 rounded-full bg-muted-foreground/30" />
+          </div>
         )}
 
         {/* Close button */}

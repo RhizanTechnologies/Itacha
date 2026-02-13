@@ -371,9 +371,9 @@ export function GraphLoader({
             COLORS.CLUSTERS[0];
         }
 
-        // Dim nodes not on the active path
+        // Dim nodes not on the active path (subtle, keep context visible)
         if (isPathActive && !isOnPath && !isSelected) {
-          color = `${color}30`; // 18% opacity
+          color = `${color}70`; // 44% opacity — light dim, not a blackout
         }
 
         const baseSize = attrs.originalSize || attrs.size || GRAPH.DEFAULT_NODE_SIZE;
@@ -412,9 +412,9 @@ export function GraphLoader({
             // Thicken and brighten path edges
             edgeSize = Math.max(edgeSize * 2.5, 3);
           } else {
-            // Dim non-path edges
-            edgeColor = `${edgeColor}18`; // ~10% opacity
-            edgeSize = 0.3;
+            // Dim non-path edges (subtle)
+            edgeColor = `${edgeColor}40`; // ~25% opacity
+            edgeSize = 0.4;
           }
         }
 

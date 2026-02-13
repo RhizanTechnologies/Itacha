@@ -16,6 +16,7 @@ import {
   Route,
   Zap,
   Handshake,
+  Info,
 } from "lucide-react";
 
 import type { SemanticPath, PathMode } from "@/lib/graph-algorithms";
@@ -121,12 +122,29 @@ export function PathComparisonView({
     return map;
   }, [paths]);
 
+  // Detect if all modes returned the same route (identical node sequence)
+  const allPathsIdentical = useMemo(() => {
+    const validPaths = [pathsByMode.shortest, pathsByMode.conflict, pathsByMode.consensus].filter(
+      (p): p is SemanticPath => p !== null && p.nodes.length > 0,
+    );
+    if (validPaths.length < 2) return false;
+    const ref = validPaths[0].nodes.map((n) => n.id).join(",");
+    return validPaths.every((p) => p.nodes.map((n) => n.id).join(",") === ref);
+  }, [pathsByMode]);
+
   const activePath = pathsByMode[currentMode];
 
   if (!isOpen) return null;
 
   return (
-    <ContainedPanel open={isOpen} onOpenChange={(open) => !open && onClose()} side="bottom" className="h-[50%]">
+    <ContainedPanel
+      open={isOpen}
+      onOpenChange={(open) => !open && onClose()}
+      side="bottom"
+      className="h-[45%]"
+      backdrop="light"
+      resizable
+    >
       <ContainedPanelContent className="p-0 overflow-hidden flex flex-col h-full">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b bg-card">
@@ -202,6 +220,17 @@ export function PathComparisonView({
                     <p className="text-sm font-medium">{activePath.name}</p>
                     <p className="text-xs text-muted-foreground">{activePath.description}</p>
                   </div>
+                </div>
+              )}
+
+              {/* Identical-path notice */}
+              {allPathsIdentical && (
+                <div className="mb-4 flex items-start gap-2 px-3 py-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                  <Info className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                  <p className="text-xs text-amber-700 dark:text-amber-300">
+                    Only one path exists between these nodes — all three modes traverse the same route.
+                    Add more papers to create alternative paths for meaningful comparison.
+                  </p>
                 </div>
               )}
 

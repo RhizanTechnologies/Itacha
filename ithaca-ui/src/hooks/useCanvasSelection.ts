@@ -61,6 +61,33 @@ export function useCanvasSelection() {
   );
 
   /**
+   * Build highlighted node/edge ID sets from a SemanticPath and push to state.
+   */
+  const highlightPathOnCanvas = useCallback(
+    (path: SemanticPath) => {
+      if (!refs.graphApiRef.current) return;
+
+      const nodeIds = new Set(path.nodes.map((n) => n.id));
+
+      // Find the actual edge IDs on the graph that connect these path nodes
+      const graph = refs.sigmaRef.current?.getGraph();
+      const edgeIds = new Set<string>();
+
+      if (graph) {
+        for (let i = 0; i < path.nodes.length - 1; i++) {
+          const a = path.nodes[i].id;
+          const b = path.nodes[i + 1].id;
+          const edge = graph.edge(a, b) || graph.edge(b, a);
+          if (edge) edgeIds.add(edge);
+        }
+      }
+
+      actions.setHighlightedPath({ nodeIds, edgeIds });
+    },
+    [refs, actions],
+  );
+
+  /**
    * Calculate paths in all 3 modes between the two selected nodes.
    * Returns the paths and highlights the active mode on the canvas.
    */
@@ -98,7 +125,7 @@ export function useCanvasSelection() {
       highlightPathOnCanvas(defaultPath);
       actions.setPathMode("shortest");
     }
-  }, [state.selectedNodes, refs, actions]);
+  }, [state.selectedNodes, refs, actions, highlightPathOnCanvas]);
 
   /**
    * Switch which mode's path is highlighted on the canvas.
@@ -106,39 +133,12 @@ export function useCanvasSelection() {
   const switchPathMode = useCallback(
     (mode: PathMode) => {
       actions.setPathMode(mode);
-      const target = state.calculatedPaths.find((p) => p.id.includes(mode));
+      const target = state.calculatedPaths.find((p: SemanticPath) => p.id.includes(mode));
       if (target) {
         highlightPathOnCanvas(target);
       }
     },
-    [state.calculatedPaths, actions],
-  );
-
-  /**
-   * Build highlighted node/edge ID sets from a SemanticPath and push to state.
-   */
-  const highlightPathOnCanvas = useCallback(
-    (path: SemanticPath) => {
-      if (!refs.graphApiRef.current) return;
-
-      const nodeIds = new Set(path.nodes.map((n) => n.id));
-
-      // We need to find the actual edge IDs on the graph that connect these path nodes
-      const graph = refs.sigmaRef.current?.getGraph();
-      const edgeIds = new Set<string>();
-
-      if (graph) {
-        for (let i = 0; i < path.nodes.length - 1; i++) {
-          const a = path.nodes[i].id;
-          const b = path.nodes[i + 1].id;
-          const edge = graph.edge(a, b) || graph.edge(b, a);
-          if (edge) edgeIds.add(edge);
-        }
-      }
-
-      actions.setHighlightedPath({ nodeIds, edgeIds });
-    },
-    [refs, actions],
+    [state.calculatedPaths, actions, highlightPathOnCanvas],
   );
 
   /**
