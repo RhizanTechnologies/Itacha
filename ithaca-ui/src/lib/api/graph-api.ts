@@ -43,12 +43,12 @@ export interface PaperNode {
 
 /** How the classification was determined — drives UI trust indicators */
 export type SignalSource =
-  | "llm+contexts"   // LLM had S2 citation context sentences (highest reliability)
-  | "llm+abstracts"  // LLM had abstracts but no citation context
-  | "llm+titles"     // LLM had only titles (both abstracts empty)
-  | "heuristic"      // Keyword fallback, no LLM available
+  | "llm+contexts" // LLM had S2 citation context sentences (highest reliability)
+  | "llm+abstracts" // LLM had abstracts but no citation context
+  | "llm+titles" // LLM had only titles (both abstracts empty)
+  | "heuristic" // Keyword fallback, no LLM available
   | "user-correction" // User manually corrected
-  | "default";       // Classification failed entirely
+  | "default"; // Classification failed entirely
 
 export interface EdgeData {
   id: string;
@@ -80,7 +80,13 @@ export interface EvidenceItem {
   confidence: number;
   snippet: string;
   source?: string;
-  context?: "Introduction" | "Methodology" | "Results" | "Discussion" | "Background" | "ResultComparison";
+  context?:
+    | "Introduction"
+    | "Methodology"
+    | "Results"
+    | "Discussion"
+    | "Background"
+    | "ResultComparison";
   /** What data the classifier actually had */
   signalSource?: SignalSource;
   /** Original citation context sentences from Semantic Scholar */

@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid request", details: parsed.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
     console.error("[classify/correct] Error:", error);
     return NextResponse.json(
       { error: "Failed to persist correction" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

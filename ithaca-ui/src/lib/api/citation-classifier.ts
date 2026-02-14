@@ -37,7 +37,13 @@ export interface ClassificationResult {
   provider: string; // Which LLM classified it
   cached: boolean; // Whether this was a cache hit
   /** What data the classifier actually had */
-  signalSource: "llm+contexts" | "llm+abstracts" | "llm+titles" | "heuristic" | "user-correction" | "default";
+  signalSource:
+    | "llm+contexts"
+    | "llm+abstracts"
+    | "llm+titles"
+    | "heuristic"
+    | "user-correction"
+    | "default";
   /** S2 citation context sentences used as input (if any) */
   contexts?: string[];
 }
@@ -123,9 +129,12 @@ export async function classifyCitation(
   }
 
   // Determine signal source based on available data
-  const hasContexts = input.citationContexts && input.citationContexts.length > 0;
-  const hasCitingAbstract = !!input.citingAbstract && input.citingAbstract.length > 20;
-  const hasCitedAbstract = !!input.citedAbstract && input.citedAbstract.length > 20;
+  const hasContexts =
+    input.citationContexts && input.citationContexts.length > 0;
+  const hasCitingAbstract =
+    !!input.citingAbstract && input.citingAbstract.length > 20;
+  const hasCitedAbstract =
+    !!input.citedAbstract && input.citedAbstract.length > 20;
   const hasAbstracts = hasCitingAbstract || hasCitedAbstract;
 
   // 2. Build user message — include citation contexts from S2 if available
@@ -190,17 +199,21 @@ ${input.citationContexts.map((ctx, i) => `${i + 1}. "${ctx}"`).join("\n")}`;
 
     // Determine signal source for this classification
     const signalSource = hasContexts
-      ? "llm+contexts" as const
+      ? ("llm+contexts" as const)
       : hasAbstracts
-        ? "llm+abstracts" as const
-        : "llm+titles" as const;
+        ? ("llm+abstracts" as const)
+        : ("llm+titles" as const);
 
     // Auto-cap confidence based on signal quality
     const maxConfidence = hasContexts ? 1.0 : hasAbstracts ? 0.7 : 0.4;
-    const rawConfidence = Math.max(0, Math.min(1, Number(result.confidence) || 0.5));
-    const confidence = edgeType === "unknown"
-      ? Math.min(0.3, rawConfidence)
-      : Math.min(maxConfidence, rawConfidence);
+    const rawConfidence = Math.max(
+      0,
+      Math.min(1, Number(result.confidence) || 0.5),
+    );
+    const confidence =
+      edgeType === "unknown"
+        ? Math.min(0.3, rawConfidence)
+        : Math.min(maxConfidence, rawConfidence);
 
     const classification: ClassificationResult = {
       citingId: input.citingId,
@@ -548,8 +561,12 @@ async function getCachedClassification(
       confidence: cached.confidence,
       snippet: cached.snippet,
       provider: cached.provider,
-      signalSource: (cached.provider === "user-correction" ? "user-correction" : "default") as ClassificationResult["signalSource"],
-      contexts: cached.contexts ? JSON.parse(cached.contexts) as string[] : undefined,
+      signalSource: (cached.provider === "user-correction"
+        ? "user-correction"
+        : "default") as ClassificationResult["signalSource"],
+      contexts: cached.contexts
+        ? (JSON.parse(cached.contexts) as string[])
+        : undefined,
       classifierVersion: cached.classifierVersion ?? 1,
     };
   } catch {

@@ -51,7 +51,13 @@ type ClassificationResult = {
   confidence: number;
   snippet?: string;
   provider?: string;
-  signalSource?: "llm+contexts" | "llm+abstracts" | "llm+titles" | "heuristic" | "user-correction" | "default";
+  signalSource?:
+    | "llm+contexts"
+    | "llm+abstracts"
+    | "llm+titles"
+    | "heuristic"
+    | "user-correction"
+    | "default";
   contexts?: string[];
 };
 
@@ -672,9 +678,10 @@ export class OpenAlexProvider implements IGraphProvider {
       if (!otherNode) continue;
 
       // Map S2 intent labels to section context
-      const contextFromSignal = edge.signalSource === "llm+contexts"
-        ? "Discussion" as const
-        : undefined;
+      const contextFromSignal =
+        edge.signalSource === "llm+contexts"
+          ? ("Discussion" as const)
+          : undefined;
 
       evidence.push({
         id: `ev-${edge.id}`,
