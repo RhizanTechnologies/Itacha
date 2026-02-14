@@ -8,7 +8,10 @@ export interface SemanticPath {
   id: string;
   name: string;
   nodes: { id: string; title: string; year: number; authors: string }[];
-  edges: { type: "supports" | "contradicts" | "extends" | "cites"; confidence: number }[];
+  edges: {
+    type: "supports" | "contradicts" | "extends" | "cites";
+    confidence: number;
+  }[];
   color: string;
   description: string;
 }

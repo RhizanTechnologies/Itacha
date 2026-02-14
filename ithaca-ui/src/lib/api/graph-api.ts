@@ -563,7 +563,8 @@ class GraphAPIService {
         (edgeType === "supports" && !filters.relationships.supports) ||
         (edgeType === "contradicts" && !filters.relationships.contradicts) ||
         (edgeType === "extends" && !filters.relationships.extends) ||
-        ((edgeType === "cites" || edgeType === "unknown") && !filters.relationships.cites)
+        ((edgeType === "cites" || edgeType === "unknown") &&
+          !filters.relationships.cites)
       ) {
         hiddenEdges.add(edge);
       }

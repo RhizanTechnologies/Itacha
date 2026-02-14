@@ -146,8 +146,7 @@ export async function classifyCitation(
   const hasResultComparison = intents.includes("ResultComparison");
   const hasMethodology = intents.includes("Methodology");
   const hasBackgroundOnly =
-    intents.length > 0 &&
-    intents.every((i) => i === "Background");
+    intents.length > 0 && intents.every((i) => i === "Background");
 
   // =========================================================================
   // EVIDENCE GATING — The core of the "cites as default" approach
@@ -161,7 +160,8 @@ export async function classifyCitation(
       citedId: input.citedId,
       edgeType: "cites",
       confidence: 0.9, // High confidence it IS a citation, just unclassified
-      snippet: "Citation relationship — insufficient evidence for detailed classification.",
+      snippet:
+        "Citation relationship — insufficient evidence for detailed classification.",
       provider: "evidence-gate",
       cached: false,
       signalSource: "default",
@@ -177,7 +177,8 @@ export async function classifyCitation(
       citedId: input.citedId,
       edgeType: "cites",
       confidence: 0.85,
-      snippet: "Background citation — referenced as prior work without explicit evaluation.",
+      snippet:
+        "Background citation — referenced as prior work without explicit evaluation.",
       provider: "evidence-gate/s2-background",
       cached: false,
       signalSource: "llm+contexts", // S2 contexts were available
@@ -260,22 +261,20 @@ ${input.citationContexts.map((ctx, i) => `${i + 1}. "${ctx}"`).join("\n")}`;
         signalSource: isAbstractsOnly ? "llm+abstracts" : "llm+contexts",
         contexts: input.citationContexts,
       };
-      await cacheClassification(fallback, input.citationContexts, input.s2Intents);
+      await cacheClassification(
+        fallback,
+        input.citationContexts,
+        input.s2Intents,
+      );
       return fallback;
     }
 
     // Validate edgeType — "cites" is the new default instead of "unknown"
-    const validTypes = [
-      "supports",
-      "contradicts",
-      "extends",
-      "cites",
-    ] as const;
-    let edgeType: "supports" | "contradicts" | "extends" | "cites" = validTypes.includes(
-      result.edgeType as (typeof validTypes)[number],
-    )
-      ? (result.edgeType as (typeof validTypes)[number])
-      : "cites";
+    const validTypes = ["supports", "contradicts", "extends", "cites"] as const;
+    let edgeType: "supports" | "contradicts" | "extends" | "cites" =
+      validTypes.includes(result.edgeType as (typeof validTypes)[number])
+        ? (result.edgeType as (typeof validTypes)[number])
+        : "cites";
 
     // Map "unknown" from LLM response to "cites"
     if ((result.edgeType as string) === "unknown") {
@@ -332,7 +331,11 @@ ${input.citationContexts.map((ctx, i) => `${i + 1}. "${ctx}"`).join("\n")}`;
       signalSource: "default",
       contexts: input.citationContexts,
     };
-    await cacheClassification(fallback, input.citationContexts, input.s2Intents);
+    await cacheClassification(
+      fallback,
+      input.citationContexts,
+      input.s2Intents,
+    );
     return fallback;
   }
 }

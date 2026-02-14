@@ -80,7 +80,7 @@ const EDGE_COLORS: Record<string, string> = {
   supports: "#22c55e", // green  — matches --supports CSS var
   contradicts: "#ef4444", // red    — matches --contradicts CSS var
   extends: "#3b82f6", // blue   — matches --extends CSS var
-  cites: "#a1a1aa",    // neutral zinc — the default/normal state
+  cites: "#a1a1aa", // neutral zinc — the default/normal state
   unknown: "#94a3b8", // grey   — legacy fallback
 };
 
