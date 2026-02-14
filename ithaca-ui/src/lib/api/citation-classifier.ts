@@ -31,11 +31,15 @@ export interface ClassificationInput {
 export interface ClassificationResult {
   citingId: string;
   citedId: string;
-  edgeType: "supports" | "contradicts" | "extends";
+  edgeType: "supports" | "contradicts" | "extends" | "unknown";
   confidence: number; // 0.0 - 1.0
   snippet: string; // Key sentence explaining the relationship
   provider: string; // Which LLM classified it
   cached: boolean; // Whether this was a cache hit
+  /** What data the classifier actually had */
+  signalSource: "llm+contexts" | "llm+abstracts" | "llm+titles" | "heuristic" | "user-correction" | "default";
+  /** S2 citation context sentences used as input (if any) */
+  contexts?: string[];
 }
 
 // =============================================================================
@@ -103,7 +107,7 @@ function sanitizeJSON(raw: string): string {
 // =============================================================================
 
 /** Current classifier version — bump when logic changes to invalidate stale cache */
-const CLASSIFIER_VERSION = 2;
+const CLASSIFIER_VERSION = 3;
 
 /**
  * Classify a single citation relationship.
@@ -115,8 +119,14 @@ export async function classifyCitation(
   // 1. Check cache — skip stale entries from old classifier versions
   const cached = await getCachedClassification(input.citingId, input.citedId);
   if (cached && cached.classifierVersion === CLASSIFIER_VERSION) {
-    return { ...cached, cached: true };
+    return { ...cached, cached: true, contexts: input.citationContexts };
   }
+
+  // Determine signal source based on available data
+  const hasContexts = input.citationContexts && input.citationContexts.length > 0;
+  const hasCitingAbstract = !!input.citingAbstract && input.citingAbstract.length > 20;
+  const hasCitedAbstract = !!input.citedAbstract && input.citedAbstract.length > 20;
+  const hasAbstracts = hasCitingAbstract || hasCitedAbstract;
 
   // 2. Build user message — include citation contexts from S2 if available
   let userContent = `CITING PAPER: "${input.citingTitle}"
@@ -162,31 +172,35 @@ ${input.citationContexts.map((ctx, i) => `${i + 1}. "${ctx}"`).join("\n")}`;
         input.citationContexts,
         input.s2Intents,
       );
-      return heuristic;
+      return { ...heuristic, contexts: input.citationContexts };
     }
 
-    // Validate edgeType — "unknown" is a valid internal type now
+    // Validate edgeType — "unknown" is a valid type now (not mapped away)
     const validTypes = [
       "supports",
       "contradicts",
       "extends",
       "unknown",
     ] as const;
-    const rawType = validTypes.includes(
+    const edgeType = validTypes.includes(
       result.edgeType as (typeof validTypes)[number],
     )
       ? (result.edgeType as (typeof validTypes)[number])
       : "unknown";
 
-    // Map "unknown" → "extends" for display layer
-    const edgeType: ClassificationResult["edgeType"] =
-      rawType === "unknown" ? "extends" : rawType;
+    // Determine signal source for this classification
+    const signalSource = hasContexts
+      ? "llm+contexts" as const
+      : hasAbstracts
+        ? "llm+abstracts" as const
+        : "llm+titles" as const;
 
-    // Clamp confidence to [0, 1] — lower confidence for "unknown" mapped to "extends"
-    const confidence =
-      rawType === "unknown"
-        ? Math.min(0.3, Math.max(0, Number(result.confidence) || 0.3))
-        : Math.max(0, Math.min(1, Number(result.confidence) || 0.5));
+    // Auto-cap confidence based on signal quality
+    const maxConfidence = hasContexts ? 1.0 : hasAbstracts ? 0.7 : 0.4;
+    const rawConfidence = Math.max(0, Math.min(1, Number(result.confidence) || 0.5));
+    const confidence = edgeType === "unknown"
+      ? Math.min(0.3, rawConfidence)
+      : Math.min(maxConfidence, rawConfidence);
 
     const classification: ClassificationResult = {
       citingId: input.citingId,
@@ -196,6 +210,8 @@ ${input.citationContexts.map((ctx, i) => `${i + 1}. "${ctx}"`).join("\n")}`;
       snippet: result.snippet || "No explanation available.",
       provider: `${response.provider}/${response.model}`,
       cached: false,
+      signalSource,
+      contexts: input.citationContexts,
     };
 
     // 4. Cache the result
@@ -214,7 +230,7 @@ ${input.citationContexts.map((ctx, i) => `${i + 1}. "${ctx}"`).join("\n")}`;
       input.citationContexts,
       input.s2Intents,
     );
-    return heuristic;
+    return { ...heuristic, contexts: input.citationContexts };
   }
 }
 
@@ -282,7 +298,6 @@ const CONTRADICT_SIGNALS: { phrase: string; weight: number }[] = [
   { phrase: "fraudulent", weight: 3 },
   { phrase: "fabricat", weight: 3 },
   { phrase: "misconduct", weight: 3 },
-  { phrase: "challenge", weight: 1 },
   { phrase: "reject", weight: 2 },
   { phrase: "invalidate", weight: 2 },
   { phrase: "overturned", weight: 2 },
@@ -417,7 +432,7 @@ function heuristicClassify(input: ClassificationInput): ClassificationResult {
 
   // NOTE: cited paper text is NOT scanned — it causes directionality errors
 
-  let edgeType: "supports" | "contradicts" | "extends";
+  let edgeType: "supports" | "contradicts" | "extends" | "unknown";
   let confidence: number;
   let snippet: string;
 
@@ -442,9 +457,9 @@ function heuristicClassify(input: ClassificationInput): ClassificationResult {
     confidence = Math.min(0.35 + (supportScore - contradictScore) * 0.05, 0.7);
     snippet = `Likely supports — detected signals: "${supportSnippet}" (heuristic)`;
   } else {
-    // No strong signals — unknown, mapped to "extends" at display layer
-    edgeType = "extends";
-    confidence = 0.3;
+    // No strong signals — unknown relationship
+    edgeType = "unknown";
+    confidence = 0.2;
     snippet =
       "No clear directional signals found — relationship uncertain (heuristic)";
   }
@@ -457,6 +472,7 @@ function heuristicClassify(input: ClassificationInput): ClassificationResult {
     snippet,
     provider: "heuristic",
     cached: false,
+    signalSource: "heuristic" as const,
   };
 }
 
@@ -487,10 +503,11 @@ export async function classifyBatch(
         results.push({
           citingId: chunk[i].citingId,
           citedId: chunk[i].citedId,
-          edgeType: "extends",
-          confidence: 0.3,
+          edgeType: "unknown",
+          confidence: 0.2,
           snippet: "Classification unavailable — rate limit or error.",
           provider: "fallback",
+          signalSource: "default" as const,
           cached: false,
         });
       }
@@ -531,6 +548,8 @@ async function getCachedClassification(
       confidence: cached.confidence,
       snippet: cached.snippet,
       provider: cached.provider,
+      signalSource: (cached.provider === "user-correction" ? "user-correction" : "default") as ClassificationResult["signalSource"],
+      contexts: cached.contexts ? JSON.parse(cached.contexts) as string[] : undefined,
       classifierVersion: cached.classifierVersion ?? 1,
     };
   } catch {

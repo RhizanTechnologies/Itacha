@@ -24,6 +24,7 @@ import type {
   EvidenceItem,
 } from "@/components/inspector/paper-inspector";
 import type { EdgeEvidence } from "@/components/canvas/edge-evidence-popover";
+import { SIGNAL_SOURCE_LABELS } from "@/components/canvas/edge-evidence-popover";
 import type { PathMode } from "@/lib/graph-algorithms";
 
 // =============================================================================
@@ -378,7 +379,18 @@ export function GraphLoader({
 
         const baseSize = attrs.originalSize || attrs.size || GRAPH.DEFAULT_NODE_SIZE;
         // Slightly enlarge selected nodes for emphasis
-        const size = isSelected ? Math.max(baseSize * 1.3, 14) : baseSize;
+        let size = isSelected ? Math.max(baseSize * 1.3, 14) : baseSize;
+
+        // Orphan nodes (topic search, no edges): smaller + semi-transparent
+        const isOrphan = (attrs as any).isOrphan === true;
+        if (isOrphan && !isSelected) {
+          size = Math.max(baseSize * 0.6, 5);
+          // Add transparency to the color if not already dimmed
+          if (!isPathActive) {
+            const baseColor = color.length === 7 ? color : color.slice(0, 7);
+            color = `${baseColor}88`; // ~53% opacity
+          }
+        }
 
         return {
           ...attrs,
@@ -407,13 +419,39 @@ export function GraphLoader({
         let edgeColor = attrs.originalColor || "#e5e7eb";
         let edgeSize = attrs.originalSize || 1;
 
+        // Confidence-based opacity scaling:
+        // High confidence (80-100%) → full opacity
+        // Medium confidence (50-79%) → moderate transparency
+        // Low confidence (<50%) → very transparent
+        const confidence = (attrs as any).confidence as number | undefined;
+        const edgeType = (attrs as any).edgeType as string | undefined;
+        const isUnknown = edgeType === "unknown";
+
+        if (!isPathActive) {
+          if (isUnknown) {
+            // Unknown edges: always dimmed + thinner
+            const alpha = Math.round(0.3 * 255).toString(16).padStart(2, "0");
+            edgeColor = `${edgeColor.slice(0, 7)}${alpha}`;
+            edgeSize = Math.max(edgeSize * 0.6, 0.3);
+          } else if (confidence != null && confidence < 80) {
+            // Scale opacity: 0% confidence → 35% opacity, 80% → 100% opacity
+            const opacity = 0.35 + (confidence / 80) * 0.65;
+            const alpha = Math.round(opacity * 255).toString(16).padStart(2, "0");
+            edgeColor = `${edgeColor.slice(0, 7)}${alpha}`;
+            // Slightly thinner for low confidence
+            if (confidence < 50) {
+              edgeSize = Math.max(edgeSize * 0.75, 0.4);
+            }
+          }
+        }
+
         if (isPathActive) {
           if (isOnPath) {
             // Thicken and brighten path edges
             edgeSize = Math.max(edgeSize * 2.5, 3);
           } else {
             // Dim non-path edges (subtle)
-            edgeColor = `${edgeColor}40`; // ~25% opacity
+            edgeColor = `${edgeColor.slice(0, 7)}40`; // ~25% opacity
             edgeSize = 0.4;
           }
         }
@@ -763,8 +801,12 @@ export function GraphLoader({
 
         const evidence: EvidenceItem[] = incomingEdges.slice(0, 5).map((edge) => {
           const edgeAttrs = graph.getEdgeAttributes(edge) as {
-            edgeType?: "supports" | "contradicts" | "extends";
+            edgeType?: "supports" | "contradicts" | "extends" | "unknown";
             confidence?: number;
+            snippet?: string;
+            signalSource?: string;
+            contexts?: string[];
+            provider?: string;
           };
           const sourceId = graph.source(edge);
           const sourceAttrs = graph.getNodeAttributes(sourceId) as PaperNode;
@@ -774,20 +816,9 @@ export function GraphLoader({
               ? "refutes"
               : edgeAttrs.edgeType === "supports"
                 ? "supports"
-                : "extends";
-
-          const verb =
-            edgeAttrs.edgeType === "supports"
-              ? "builds upon"
-              : edgeAttrs.edgeType === "contradicts"
-                ? "challenges"
-                : "extends";
-
-          const inspectedAuthor = (attrs.authors || "").split(",")[0]?.trim();
-          const inspectedYear = attrs.year || 2024;
-          const inspectedLabel = inspectedAuthor
-            ? `${inspectedAuthor} (${inspectedYear})`
-            : attrs.title || attrs.label || "the cited work";
+                : edgeAttrs.edgeType === "unknown"
+                  ? "unknown"
+                  : "extends";
 
           return {
             id: `ev-${edge}`,
@@ -798,9 +829,11 @@ export function GraphLoader({
               year: sourceAttrs.year || 2024,
             },
             relation,
-            confidence: Math.round(edgeAttrs.confidence ?? 50),
-            snippet: `This paper ${verb} the work by ${inspectedLabel}.`,
-            context: "Discussion",
+            confidence: Math.round(edgeAttrs.confidence ?? 20),
+            snippet: edgeAttrs.snippet || "No classification explanation available.",
+            source: edgeAttrs.provider,
+            signalSource: edgeAttrs.signalSource as EvidenceItem["signalSource"],
+            citationSentences: edgeAttrs.contexts,
           };
         });
 
@@ -847,26 +880,52 @@ export function GraphLoader({
         const sourceAttrs = graph.getNodeAttributes(graph.source(event.edge));
         const targetAttrs = graph.getNodeAttributes(graph.target(event.edge));
 
-        const type = (attrs.edgeType || "extends") as
+        const type = (attrs.edgeType || "unknown") as
           | "supports"
           | "contradicts"
-          | "extends";
+          | "extends"
+          | "unknown";
 
-        // Build snippet from real edge data (classifier provides this via confidence)
-        const snippetVerb =
-          type === "supports"
-            ? "builds upon and validates"
-            : type === "contradicts"
-              ? "challenges the findings of"
-              : "extends the methodology of";
+        // Use real snippet from the classifier (stored as edge attribute)
+        // Only fall back to template if no real snippet exists
+        const realSnippet = attrs.snippet as string | undefined;
+        const signalSource = (attrs.signalSource || "default") as string;
+        const contexts = attrs.contexts as string[] | undefined;
 
-        const sourceAuthor = sourceAttrs.authors?.split(",")[0]?.trim() || "Authors";
-        const targetAuthor = targetAttrs.authors?.split(",")[0]?.trim() || "Authors";
+        // Build evidence snippets: prefer real S2 citation contexts, then LLM snippet
+        const snippets: EdgeEvidence["snippets"] = [];
+
+        // Add S2 citation context sentences first (highest value)
+        if (contexts && contexts.length > 0) {
+          for (const ctx of contexts) {
+            snippets.push({
+              text: ctx,
+              source: "Semantic Scholar — extracted from paper full text",
+              context: "Discussion" as const,
+            });
+          }
+        }
+
+        // Add the LLM/heuristic snippet as the classifier's interpretation
+        if (realSnippet) {
+          snippets.push({
+            text: realSnippet,
+            source: SIGNAL_SOURCE_LABELS[signalSource]?.label || "AI classification",
+          });
+        }
+
+        // If nothing available at all, show a transparent message
+        if (snippets.length === 0) {
+          snippets.push({
+            text: "No evidence data available for this citation relationship.",
+            source: "Classification data unavailable",
+          });
+        }
 
         const evidence: EdgeEvidence = {
           id: event.edge,
           edgeType: type,
-          confidence: attrs.confidence || 50,
+          confidence: attrs.confidence || 20,
           sourcePaper: {
             id: graph.source(event.edge),
             title: sourceAttrs.title || sourceAttrs.label || "Source Paper",
@@ -879,13 +938,8 @@ export function GraphLoader({
             authors: targetAttrs.authors || "Unknown",
             year: targetAttrs.year || 2024,
           },
-          snippets: [
-            {
-              text: `${sourceAuthor} (${sourceAttrs.year || "n.d."}) ${snippetVerb} ${targetAuthor} (${targetAttrs.year || "n.d."}).`,
-              source: `Citation relationship classified by AI with ${attrs.confidence || 50}% confidence`,
-              context: "Discussion",
-            },
-          ],
+          snippets,
+          signalSource: signalSource as EdgeEvidence["signalSource"],
         };
 
         // Get payload position (screen coordinates)

@@ -96,6 +96,8 @@ export const COLORS = {
   CONTRADICTS: "#ef4444",
   /** Edge color for extending relationships */
   EXTENDS: "#eab308",
+  /** Edge color for unknown/uncertain relationships */
+  UNKNOWN: "#94a3b8",
   /** Cluster colors for node grouping */
   CLUSTERS: ["#3b82f6", "#8b5cf6", "#ec4899", "#f97316", "#14b8a6"] as const,
   /** Ghost node opacity (hex alpha suffix) */

@@ -2,11 +2,11 @@
 
 import { useRegisterEvents, useSigma } from "@react-sigma/core";
 import { useEffect, useState } from "react";
-import { CheckCircle, XCircle, ArrowRightCircle } from "lucide-react";
+import { CheckCircle, XCircle, ArrowRightCircle, AlertTriangle } from "lucide-react";
 
 interface EdgeLabelData {
   visible: boolean;
-  edgeType: "supports" | "contradicts" | "extends";
+  edgeType: "supports" | "contradicts" | "extends" | "unknown";
   confidence: number;
   x: number;
   y: number;
@@ -88,9 +88,16 @@ export function EdgeLabels() {
       borderColor: "border-extends/30",
       label: "Extends",
     },
+    unknown: {
+      icon: AlertTriangle,
+      color: "text-muted-foreground",
+      bgColor: "bg-muted/20",
+      borderColor: "border-muted-foreground/30",
+      label: "Unknown",
+    },
   };
 
-  const typeConfig = config[label.edgeType];
+  const typeConfig = config[label.edgeType] || config.unknown;
   const Icon = typeConfig.icon;
 
   return (

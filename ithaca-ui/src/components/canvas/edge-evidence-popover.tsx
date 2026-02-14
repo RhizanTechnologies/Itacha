@@ -13,9 +13,11 @@ import {
   AlertTriangle,
 } from "lucide-react";
 
+import type { SignalSource } from "@/lib/api/graph-api";
+
 export interface EdgeEvidence {
   id: string;
-  edgeType: "supports" | "contradicts" | "extends";
+  edgeType: "supports" | "contradicts" | "extends" | "unknown";
   confidence: number;
   sourcePaper: {
     id: string;
@@ -32,8 +34,10 @@ export interface EdgeEvidence {
   snippets: {
     text: string;
     source: string;
-    context?: "Introduction" | "Methodology" | "Results" | "Discussion";
+    context?: "Introduction" | "Methodology" | "Results" | "Discussion" | "Background" | "ResultComparison";
   }[];
+  /** What data the classifier had when making this judgment */
+  signalSource?: SignalSource;
 }
 
 interface EdgeEvidencePopoverProps {
@@ -67,6 +71,22 @@ const EDGE_CONFIG = {
     bgColor: "bg-extends/10",
     borderColor: "border-extends/30",
   },
+  unknown: {
+    icon: AlertTriangle,
+    label: "Uncertain",
+    color: "text-muted-foreground",
+    bgColor: "bg-muted/30",
+    borderColor: "border-muted-foreground/30",
+  },
+};
+
+export const SIGNAL_SOURCE_LABELS: Record<string, { label: string; color: string }> = {
+  "llm+contexts": { label: "AI + citation sentences", color: "text-emerald-600 dark:text-emerald-400" },
+  "llm+abstracts": { label: "AI + abstracts only", color: "text-blue-600 dark:text-blue-400" },
+  "llm+titles": { label: "AI + titles only", color: "text-amber-600 dark:text-amber-400" },
+  "heuristic": { label: "Keyword heuristic", color: "text-orange-600 dark:text-orange-400" },
+  "user-correction": { label: "User corrected", color: "text-purple-600 dark:text-purple-400" },
+  "default": { label: "Unclassified", color: "text-muted-foreground" },
 };
 
 export function EdgeEvidencePopover({
@@ -243,12 +263,22 @@ export function EdgeEvidencePopover({
                 </div>
               </div>
               {/* Confidence Bar */}
-              <div className="w-full h-1.5 bg-background/30 rounded-full overflow-hidden mt-1 mb-3">
+              <div className="w-full h-1.5 bg-background/30 rounded-full overflow-hidden mt-1 mb-2">
                 <div
                   className={`h-full rounded-full transition-all duration-500 ${config.bgColor.replace('/10', '')}`}
                   style={{ width: `${evidence.confidence}%` }}
                 />
               </div>
+
+              {/* Signal Source Badge — shows what data the classifier had */}
+              {evidence.signalSource && (
+                <div className="mb-3">
+                  <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-background/50 ${SIGNAL_SOURCE_LABELS[evidence.signalSource]?.color ?? "text-muted-foreground"}`}>
+                    <span className="h-1.5 w-1.5 rounded-full bg-current opacity-60" />
+                    {SIGNAL_SOURCE_LABELS[evidence.signalSource]?.label ?? "Unknown source"}
+                  </span>
+                </div>
+              )}
 
               {/* Papers */}
               <div className="space-y-2 text-sm">

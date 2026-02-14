@@ -41,14 +41,31 @@ export interface PaperNode {
   color: string;
 }
 
+/** How the classification was determined — drives UI trust indicators */
+export type SignalSource =
+  | "llm+contexts"   // LLM had S2 citation context sentences (highest reliability)
+  | "llm+abstracts"  // LLM had abstracts but no citation context
+  | "llm+titles"     // LLM had only titles (both abstracts empty)
+  | "heuristic"      // Keyword fallback, no LLM available
+  | "user-correction" // User manually corrected
+  | "default";       // Classification failed entirely
+
 export interface EdgeData {
   id: string;
   source: string;
   target: string;
-  edgeType: "supports" | "contradicts" | "extends";
+  edgeType: "supports" | "contradicts" | "extends" | "unknown";
   confidence: number;
   size: number;
   color: string;
+  /** LLM-generated explanation of the relationship */
+  snippet?: string;
+  /** What data the classifier actually had */
+  signalSource?: SignalSource;
+  /** S2 citation context sentences (the actual in-text references) */
+  contexts?: string[];
+  /** Which LLM/model classified this edge */
+  provider?: string;
 }
 
 export interface EvidenceItem {
@@ -59,11 +76,15 @@ export interface EvidenceItem {
     authors: string;
     year: number;
   };
-  relation: "supports" | "refutes" | "extends";
+  relation: "supports" | "refutes" | "extends" | "unknown";
   confidence: number;
   snippet: string;
   source?: string;
-  context?: "Introduction" | "Methodology" | "Results" | "Discussion";
+  context?: "Introduction" | "Methodology" | "Results" | "Discussion" | "Background" | "ResultComparison";
+  /** What data the classifier actually had */
+  signalSource?: SignalSource;
+  /** Original citation context sentences from Semantic Scholar */
+  citationSentences?: string[];
 }
 
 export interface GraphStats {

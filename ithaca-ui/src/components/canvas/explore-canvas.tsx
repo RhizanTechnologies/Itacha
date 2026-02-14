@@ -544,13 +544,36 @@ export function ExploreCanvas() {
                 supports: COLORS.SUPPORTS,
                 contradicts: COLORS.CONTRADICTS,
                 extends: COLORS.EXTENDS,
+                unknown: COLORS.UNKNOWN || "#94a3b8",
               };
               const newColor = EDGE_COLOR_MAP[type] || "#e5e7eb";
 
               graph.setEdgeAttribute(edgeId, "edgeType", type);
               graph.setEdgeAttribute(edgeId, "color", newColor);
               graph.setEdgeAttribute(edgeId, "originalColor", newColor);
+              graph.setEdgeAttribute(edgeId, "confidence", 100);
+              graph.setEdgeAttribute(edgeId, "signalSource", "user-correction");
+              graph.setEdgeAttribute(edgeId, "snippet",
+                comment ? `User correction: ${comment}` : `User corrected relationship to "${type}".`
+              );
+              graph.setEdgeAttribute(edgeId, "provider", "user-correction");
               sigma.refresh();
+
+              // Persist to DB in background
+              const source = graph.source(edgeId);
+              const target = graph.target(edgeId);
+              fetch("/api/classify/correct", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  citingId: source,
+                  citedId: target,
+                  edgeType: type === "refutes" ? "contradicts" : type,
+                  comment,
+                }),
+              }).catch((err) => {
+                debug.log("Failed to persist correction:", err);
+              });
             }
 
             // Close the popover and show confirmation

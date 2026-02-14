@@ -44,9 +44,15 @@ type ClassificationInput = {
   s2Intents?: string[];
 };
 
-type ClassificationResult = ClassificationInput & {
-  edgeType: "supports" | "contradicts" | "extends";
+type ClassificationResult = {
+  citingId: string;
+  citedId: string;
+  edgeType: "supports" | "contradicts" | "extends" | "unknown";
   confidence: number;
+  snippet?: string;
+  provider?: string;
+  signalSource?: "llm+contexts" | "llm+abstracts" | "llm+titles" | "heuristic" | "user-correction" | "default";
+  contexts?: string[];
 };
 
 // =============================================================================
@@ -68,6 +74,7 @@ const EDGE_COLORS: Record<string, string> = {
   supports: "#22c55e", // green  — matches --supports CSS var
   contradicts: "#ef4444", // red    — matches --contradicts CSS var
   extends: "#3b82f6", // blue   — matches --extends CSS var
+  unknown: "#94a3b8", // grey   — uncertain/unclassified
 };
 
 // =============================================================================
@@ -170,9 +177,12 @@ async function classifyViaAPI(
         `[classify] API returned ${response.status}, using defaults`,
       );
       return inputs.map((i) => ({
-        ...i,
-        edgeType: "extends" as const,
-        confidence: 0.5,
+        citingId: i.citingId,
+        citedId: i.citedId,
+        edgeType: "unknown" as const,
+        confidence: 0.2,
+        snippet: "Classification unavailable — API error.",
+        signalSource: "default" as const,
       }));
     }
 
@@ -181,9 +191,12 @@ async function classifyViaAPI(
   } catch (err) {
     console.warn("[classify] API unreachable, using default edge types", err);
     return inputs.map((i) => ({
-      ...i,
-      edgeType: "extends" as const,
-      confidence: 0.5,
+      citingId: i.citingId,
+      citedId: i.citedId,
+      edgeType: "unknown" as const,
+      confidence: 0.2,
+      snippet: "Classification unavailable — could not reach classifier.",
+      signalSource: "default" as const,
     }));
   }
 }
@@ -251,16 +264,27 @@ async function classifyEdges(
   // Classify via API route (server-side LLM call)
   const classifications = await classifyViaAPI(inputs);
 
-  // Map to EdgeData
-  return classifications.map((c) => ({
-    id: `${c.citingId}-${c.citedId}`,
-    source: c.citingId,
-    target: c.citedId,
-    edgeType: c.edgeType,
-    confidence: Math.round(c.confidence * 100),
-    size: 1 + c.confidence,
-    color: EDGE_COLORS[c.edgeType] ?? EDGE_COLORS.extends,
-  }));
+  // Map to EdgeData — carry the real snippet, signal source, and contexts
+  // Also inject S2 contexts from our local fetch for cached results that may not include them
+  return classifications.map((c, idx) => {
+    const key = `${c.citingId}→${c.citedId}`;
+    const s2Context = contextMap.get(key);
+    const contexts = c.contexts ?? s2Context?.contexts;
+
+    return {
+      id: `${c.citingId}-${c.citedId}`,
+      source: c.citingId,
+      target: c.citedId,
+      edgeType: c.edgeType,
+      confidence: Math.round(c.confidence * 100),
+      size: 1 + c.confidence,
+      color: EDGE_COLORS[c.edgeType] ?? EDGE_COLORS.unknown,
+      snippet: c.snippet,
+      signalSource: c.signalSource ?? "default",
+      contexts,
+      provider: c.provider,
+    };
+  });
 }
 
 /**
@@ -271,10 +295,12 @@ function createDefaultEdge(sourceId: string, targetId: string): EdgeData {
     id: `${sourceId}-${targetId}`,
     source: sourceId,
     target: targetId,
-    edgeType: "extends",
-    confidence: 50,
+    edgeType: "unknown",
+    confidence: 20,
     size: 1,
-    color: EDGE_COLORS.extends,
+    color: EDGE_COLORS.unknown,
+    snippet: "Unclassified citation — no classification was performed.",
+    signalSource: "default",
   };
 }
 
@@ -637,7 +663,6 @@ export class OpenAlexProvider implements IGraphProvider {
   async getEvidence(paperId: string): Promise<EvidenceItem[]> {
     // Find incoming edges (papers citing this paper)
     const relatedEdges = this.edgeCache.filter((e) => e.target === paperId);
-    const inspectedPaper = this.nodeCache.get(paperId);
 
     const evidence: EvidenceItem[] = [];
 
@@ -646,10 +671,10 @@ export class OpenAlexProvider implements IGraphProvider {
       const otherNode = this.nodeCache.get(otherNodeId);
       if (!otherNode) continue;
 
-      const inspectedAuthor = inspectedPaper?.authors?.split(",")[0]?.trim();
-      const inspectedLabel = inspectedAuthor
-        ? `${inspectedAuthor} (${inspectedPaper?.year ?? ""})`
-        : inspectedPaper?.title || "the cited work";
+      // Map S2 intent labels to section context
+      const contextFromSignal = edge.signalSource === "llm+contexts"
+        ? "Discussion" as const
+        : undefined;
 
       evidence.push({
         id: `ev-${edge.id}`,
@@ -664,10 +689,16 @@ export class OpenAlexProvider implements IGraphProvider {
             ? "refutes"
             : edge.edgeType === "supports"
               ? "supports"
-              : "extends",
+              : edge.edgeType === "unknown"
+                ? "unknown"
+                : "extends",
         confidence: edge.confidence,
-        snippet: `This paper ${edge.edgeType === "supports" ? "builds upon" : edge.edgeType === "contradicts" ? "challenges" : "extends"} the work by ${inspectedLabel}.`,
-        context: "Discussion",
+        // Use the real classifier snippet, not a fabricated template
+        snippet: edge.snippet || "No classification explanation available.",
+        source: edge.provider,
+        context: contextFromSignal,
+        signalSource: edge.signalSource,
+        citationSentences: edge.contexts,
       });
     }
 

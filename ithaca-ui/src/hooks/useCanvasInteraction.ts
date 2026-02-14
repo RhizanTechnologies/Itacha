@@ -79,16 +79,27 @@ export function useCanvasInteraction() {
         const focus = state.relationshipFocus;
         if (focus !== "all") {
           edges = edges.filter((e: any) => e.edgeType === focus);
+        }
 
-          // Also remove orphan nodes — nodes with no remaining edges
+        // Handle orphan nodes (nodes with no edges)
+        {
           const connectedNodeIds = new Set<string>();
           for (const e of edges) {
             connectedNodeIds.add(e.source);
             connectedNodeIds.add(e.target);
           }
-          // Always keep the search target node
-          if (!isTopic) connectedNodeIds.add(paperId);
-          nodes = nodes.filter((n: any) => connectedNodeIds.has(n.id));
+
+          if (isTopic) {
+            // Topic search: keep all nodes but mark orphans for visual distinction
+            nodes = nodes.map((n: any) => ({
+              ...n,
+              isOrphan: !connectedNodeIds.has(n.id),
+            }));
+          } else {
+            // Paper-specific search: remove orphans (every node should be there via citation)
+            connectedNodeIds.add(paperId);
+            nodes = nodes.filter((n: any) => connectedNodeIds.has(n.id));
+          }
         }
 
         if (refs.graphApiRef.current) {

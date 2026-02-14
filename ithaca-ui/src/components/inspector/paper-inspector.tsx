@@ -57,10 +57,12 @@ export interface EvidenceItem {
     authors: string;
     year: number;
   };
-  relation: "supports" | "refutes" | "extends";
+  relation: "supports" | "refutes" | "extends" | "unknown";
   confidence: number;
   snippet: string;
   source?: string;
+  signalSource?: string;
+  citationSentences?: string[];
 }
 
 interface PaperInspectorProps {
@@ -471,7 +473,7 @@ function highlightSnippet(text: string, relation: EvidenceItem["relation"]) {
 
 // Evidence Row Component — table layout matching design 2
 function EvidenceRow({ item }: { item: EvidenceItem }) {
-  const relationConfig = {
+  const relationConfig: Record<string, { color: string; bgColor: string; barColor: string; label: string }> = {
     supports: {
       color: "text-supports",
       bgColor: "bg-supports/10",
@@ -490,9 +492,15 @@ function EvidenceRow({ item }: { item: EvidenceItem }) {
       barColor: "bg-extends",
       label: "EXTENDS",
     },
+    unknown: {
+      color: "text-muted-foreground",
+      bgColor: "bg-muted/20",
+      barColor: "bg-muted-foreground/50",
+      label: "UNKNOWN",
+    },
   };
 
-  const config = relationConfig[item.relation];
+  const config = relationConfig[item.relation] || relationConfig.unknown;
 
   return (
     <div className="grid grid-cols-[1fr_90px_70px] gap-2 px-6 py-4 hover:bg-muted/30 transition-colors group">
@@ -507,14 +515,37 @@ function EvidenceRow({ item }: { item: EvidenceItem }) {
         {/* Snippet with keyword highlighting */}
         <div className="mt-2">
           <p className="text-xs text-foreground/70 leading-relaxed italic">
-            "{highlightSnippet(item.snippet, item.relation)}"
+            &ldquo;{highlightSnippet(item.snippet, item.relation)}&rdquo;
           </p>
-          {item.source && (
-            <p className="text-[10px] text-muted-foreground/60 mt-1 flex items-center gap-1">
-              <LinkIcon className="h-2.5 w-2.5" />
-              {item.source}
-            </p>
+          {/* Citation sentences from Semantic Scholar */}
+          {item.citationSentences && item.citationSentences.length > 0 && (
+            <div className="mt-1.5 space-y-1">
+              {item.citationSentences.slice(0, 2).map((s, i) => (
+                <p key={i} className="text-[11px] text-foreground/60 leading-relaxed pl-2 border-l-2 border-muted-foreground/20">
+                  {s}
+                </p>
+              ))}
+            </div>
           )}
+          {/* Signal source + provider */}
+          <div className="flex items-center gap-2 mt-1">
+            {item.signalSource && (
+              <span className="text-[10px] text-muted-foreground/60 bg-muted/40 px-1.5 py-0.5 rounded">
+                {item.signalSource === "llm+contexts" ? "LLM + citation contexts" :
+                 item.signalSource === "llm+abstracts" ? "LLM + abstracts" :
+                 item.signalSource === "llm+titles" ? "LLM + titles only" :
+                 item.signalSource === "heuristic" ? "Heuristic" :
+                 item.signalSource === "user-correction" ? "User corrected" :
+                 "Default"}
+              </span>
+            )}
+            {item.source && (
+              <p className="text-[10px] text-muted-foreground/60 flex items-center gap-1">
+                <LinkIcon className="h-2.5 w-2.5" />
+                {item.source}
+              </p>
+            )}
+          </div>
         </div>
       </div>
 
