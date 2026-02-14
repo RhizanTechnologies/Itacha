@@ -31,7 +31,7 @@ export interface ClassificationInput {
 export interface ClassificationResult {
   citingId: string;
   citedId: string;
-  edgeType: "supports" | "contradicts" | "extends" | "unknown";
+  edgeType: "supports" | "contradicts" | "extends" | "cites" | "unknown";
   confidence: number; // 0.0 - 1.0
   snippet: string; // Key sentence explaining the relationship
   provider: string; // Which LLM classified it
@@ -52,27 +52,28 @@ export interface ClassificationResult {
 // SYSTEM PROMPT
 // =============================================================================
 
-const CLASSIFICATION_PROMPT = `You are a scientific citation classifier. Given two academic papers (a CITING paper and a CITED paper), determine the relationship between them.
+const CLASSIFICATION_PROMPT = `You are a scientific citation classifier. Given two academic papers (a CITING paper and a CITED paper), and CITATION CONTEXT SENTENCES extracted from the citing paper, determine the relationship between them.
+
+You will ONLY be called when Semantic Scholar indicates this may be a meaningful relationship (ResultComparison intent). Most citations are routine background references — those are handled automatically as "cites" without calling you.
 
 Classify as one of:
-- "supports": The citing paper builds on, confirms, validates, or agrees with the cited paper's findings or methods.
-- "contradicts": The citing paper challenges, refutes, questions, or presents evidence against the cited paper.
-- "extends": The citing paper meaningfully applies the cited paper's methods/ideas to a new domain, dataset, or problem — there must be clear evidence of extension or generalization.
-- "unknown": The relationship cannot be determined from the available information, or it is a routine/background citation with no clear directional signal.
+- "supports": The citing paper explicitly confirms, validates, builds upon, or agrees with the cited paper's specific findings or methods. There must be clear language of agreement or validation.
+- "contradicts": The citing paper explicitly challenges, refutes, presents counter-evidence to, or questions the cited paper's claims. Proposing an alternative approach is NOT contradiction — there must be clear disagreement.
+- "extends": The citing paper meaningfully applies the cited paper's methods/ideas to a new domain, dataset, or problem — there must be clear evidence of extension or generalization beyond the original work.
+- "cites": The relationship is a routine citation, background reference, or cannot be clearly determined as supports/contradicts/extends from the evidence. This is the safe default when unsure.
 
 Also provide:
-- "confidence": A number from 0.0 to 1.0 indicating how confident you are in the classification. Use 0.3 or lower for "unknown".
-- "snippet": One concise sentence (max 30 words) explaining the relationship, written from the citing paper's perspective (e.g., "Builds on the transformer architecture proposed in the cited work to improve efficiency").
+- "confidence": A number from 0.0 to 1.0. Only use 0.7+ when the citation context sentences contain explicit language of support, contradiction, or extension. Use 0.5 or lower when the signal is ambiguous.
+- "snippet": One concise sentence (max 30 words) explaining the relationship, written from the citing paper's perspective.
 
-Rules:
-- If CITATION CONTEXT SENTENCES are provided, use them as the PRIMARY signal — they contain the actual text from the citing paper where it references the cited paper. These are far more reliable than abstracts alone.
-- If Semantic Scholar INTENT LABELS are provided, use them as a supplementary signal: "ResultComparison" often indicates contradiction or support, "Background" often indicates routine citation (unknown), "Methodology" may indicate extension.
-- Base your classification on the provided titles, abstracts, and citation contexts.
-- Pay close attention to negation: "does not support", "no evidence", "failed to replicate" all indicate contradiction, NOT support.
+CRITICAL RULES:
+- You MUST have strong, explicit evidence to classify as supports/contradicts/extends. When in doubt, use "cites".
+- CITATION CONTEXT SENTENCES are your PRIMARY evidence. These are the actual sentences from the citing paper where it references the cited paper.
+- Proposing an alternative method/approach is NOT "contradicts". That's extending the field, not refuting existing work.
+- Citing a paper as background or prior work without explicit evaluation is "cites", not "supports".
+- Using a method from a previous paper is NOT automatically "extends" — it could just be "cites" unless there's clear evidence of novel application to a new domain.
+- Pay close attention to negation: "does not support", "no evidence", "failed to replicate" indicate contradiction.
 - The citing paper's language determines the relationship. Focus on what the citing paper says ABOUT the cited paper.
-- Do NOT assume most citations are supportive. Many papers cite previous work specifically to refute, correct, or challenge it.
-- If the abstracts are missing AND no citation contexts are available, classify as "unknown" with confidence 0.3.
-- Do NOT use "extends" as a default or fallback — use "unknown" when you cannot determine the relationship.
 
 Respond with ONLY valid JSON: {"edgeType": "...", "confidence": 0.0, "snippet": "..."}`;
 
@@ -113,11 +114,16 @@ function sanitizeJSON(raw: string): string {
 // =============================================================================
 
 /** Current classifier version — bump when logic changes to invalidate stale cache */
-const CLASSIFIER_VERSION = 3;
+const CLASSIFIER_VERSION = 4;
 
 /**
  * Classify a single citation relationship.
- * Checks database cache first, falls back to LLM.
+ * Uses evidence-gated logic:
+ *   - S2 "Background" intent or no S2 data → "cites" (don't guess)
+ *   - S2 "Methodology" intent → auto "extends"
+ *   - S2 "ResultComparison" intent → send to LLM for real classification
+ *   - Abstracts only (no S2) → LLM can suggest, but lower confidence
+ *   - Titles only → always "cites"
  */
 export async function classifyCitation(
   input: ClassificationInput,
@@ -128,7 +134,7 @@ export async function classifyCitation(
     return { ...cached, cached: true, contexts: input.citationContexts };
   }
 
-  // Determine signal source based on available data
+  // Determine what evidence we have
   const hasContexts =
     input.citationContexts && input.citationContexts.length > 0;
   const hasCitingAbstract =
@@ -136,6 +142,74 @@ export async function classifyCitation(
   const hasCitedAbstract =
     !!input.citedAbstract && input.citedAbstract.length > 20;
   const hasAbstracts = hasCitingAbstract || hasCitedAbstract;
+  const intents = input.s2Intents ?? [];
+  const hasResultComparison = intents.includes("ResultComparison");
+  const hasMethodology = intents.includes("Methodology");
+  const hasBackgroundOnly =
+    intents.length > 0 &&
+    intents.every((i) => i === "Background");
+
+  // =========================================================================
+  // EVIDENCE GATING — The core of the "cites as default" approach
+  // Only promote to supports/contradicts/extends with real evidence
+  // =========================================================================
+
+  // Gate 1: Titles only (no abstracts, no contexts) → always "cites"
+  if (!hasContexts && !hasAbstracts) {
+    const result: ClassificationResult = {
+      citingId: input.citingId,
+      citedId: input.citedId,
+      edgeType: "cites",
+      confidence: 0.9, // High confidence it IS a citation, just unclassified
+      snippet: "Citation relationship — insufficient evidence for detailed classification.",
+      provider: "evidence-gate",
+      cached: false,
+      signalSource: "default",
+    };
+    await cacheClassification(result, input.citationContexts, input.s2Intents);
+    return result;
+  }
+
+  // Gate 2: S2 says "Background" only → "cites" (routine reference, don't waste LLM)
+  if (hasContexts && hasBackgroundOnly) {
+    const result: ClassificationResult = {
+      citingId: input.citingId,
+      citedId: input.citedId,
+      edgeType: "cites",
+      confidence: 0.85,
+      snippet: "Background citation — referenced as prior work without explicit evaluation.",
+      provider: "evidence-gate/s2-background",
+      cached: false,
+      signalSource: "llm+contexts", // S2 contexts were available
+      contexts: input.citationContexts,
+    };
+    await cacheClassification(result, input.citationContexts, input.s2Intents);
+    return result;
+  }
+
+  // Gate 3: S2 says "Methodology" (no ResultComparison) → auto "extends"
+  if (hasContexts && hasMethodology && !hasResultComparison) {
+    const result: ClassificationResult = {
+      citingId: input.citingId,
+      citedId: input.citedId,
+      edgeType: "extends",
+      confidence: 0.7,
+      snippet: "Applies or builds upon the methodology from the cited work.",
+      provider: "evidence-gate/s2-methodology",
+      cached: false,
+      signalSource: "llm+contexts",
+      contexts: input.citationContexts,
+    };
+    await cacheClassification(result, input.citationContexts, input.s2Intents);
+    return result;
+  }
+
+  // Gate 4: No S2 contexts at all, but has abstracts → LLM can try, lower confidence
+  // Gate 5: S2 "ResultComparison" → send to LLM for full classification
+  // Both gates proceed to LLM, but with different confidence caps
+
+  const isAbstractsOnly = !hasContexts && hasAbstracts;
+  const maxConfidence = hasContexts ? 1.0 : 0.55; // Abstracts-only capped at 55%
 
   // 2. Build user message — include citation contexts from S2 if available
   let userContent = `CITING PAPER: "${input.citingTitle}"
@@ -153,7 +227,7 @@ ${input.citationContexts.map((ctx, i) => `${i + 1}. "${ctx}"`).join("\n")}`;
     userContent += `\n\nSEMANTIC SCHOLAR INTENT LABELS: ${input.s2Intents.join(", ")}`;
   }
 
-  // 3. Try LLM classification first
+  // 3. Try LLM classification
   try {
     const router = getLLMRouter();
 
@@ -171,31 +245,42 @@ ${input.citationContexts.map((ctx, i) => `${i + 1}. "${ctx}"`).join("\n")}`;
       result = JSON.parse(sanitized);
     } catch {
       console.warn(
-        "[Citation Classifier] Failed to parse LLM JSON, falling back to heuristic. Raw:",
+        "[Citation Classifier] Failed to parse LLM JSON, defaulting to cites. Raw:",
         response.content.substring(0, 200),
       );
-      // Fall through to heuristic instead of defaulting to "extends"
-      const heuristic = heuristicClassify(input);
-      await cacheClassification(
-        heuristic,
-        input.citationContexts,
-        input.s2Intents,
-      );
-      return { ...heuristic, contexts: input.citationContexts };
+      // Default to "cites" instead of heuristic guessing
+      const fallback: ClassificationResult = {
+        citingId: input.citingId,
+        citedId: input.citedId,
+        edgeType: "cites",
+        confidence: 0.5,
+        snippet: "Citation relationship — LLM response unparseable.",
+        provider: `${response.provider}/${response.model}`,
+        cached: false,
+        signalSource: isAbstractsOnly ? "llm+abstracts" : "llm+contexts",
+        contexts: input.citationContexts,
+      };
+      await cacheClassification(fallback, input.citationContexts, input.s2Intents);
+      return fallback;
     }
 
-    // Validate edgeType — "unknown" is a valid type now (not mapped away)
+    // Validate edgeType — "cites" is the new default instead of "unknown"
     const validTypes = [
       "supports",
       "contradicts",
       "extends",
-      "unknown",
+      "cites",
     ] as const;
-    const edgeType = validTypes.includes(
+    let edgeType: "supports" | "contradicts" | "extends" | "cites" = validTypes.includes(
       result.edgeType as (typeof validTypes)[number],
     )
       ? (result.edgeType as (typeof validTypes)[number])
-      : "unknown";
+      : "cites";
+
+    // Map "unknown" from LLM response to "cites"
+    if ((result.edgeType as string) === "unknown") {
+      edgeType = "cites";
+    }
 
     // Determine signal source for this classification
     const signalSource = hasContexts
@@ -205,14 +290,13 @@ ${input.citationContexts.map((ctx, i) => `${i + 1}. "${ctx}"`).join("\n")}`;
         : ("llm+titles" as const);
 
     // Auto-cap confidence based on signal quality
-    const maxConfidence = hasContexts ? 1.0 : hasAbstracts ? 0.7 : 0.4;
     const rawConfidence = Math.max(
       0,
       Math.min(1, Number(result.confidence) || 0.5),
     );
     const confidence =
-      edgeType === "unknown"
-        ? Math.min(0.3, rawConfidence)
+      edgeType === "cites"
+        ? Math.max(0.5, rawConfidence) // "cites" should have reasonable confidence
         : Math.min(maxConfidence, rawConfidence);
 
     const classification: ClassificationResult = {
@@ -227,7 +311,7 @@ ${input.citationContexts.map((ctx, i) => `${i + 1}. "${ctx}"`).join("\n")}`;
       contexts: input.citationContexts,
     };
 
-    // 4. Cache the result
+    // 5. Cache the result
     await cacheClassification(
       classification,
       input.citationContexts,
@@ -236,14 +320,20 @@ ${input.citationContexts.map((ctx, i) => `${i + 1}. "${ctx}"`).join("\n")}`;
 
     return classification;
   } catch {
-    // LLM unavailable — fall back to heuristic classifier
-    const heuristic = heuristicClassify(input);
-    await cacheClassification(
-      heuristic,
-      input.citationContexts,
-      input.s2Intents,
-    );
-    return { ...heuristic, contexts: input.citationContexts };
+    // LLM unavailable — default to "cites" instead of heuristic guessing
+    const fallback: ClassificationResult = {
+      citingId: input.citingId,
+      citedId: input.citedId,
+      edgeType: "cites",
+      confidence: 0.5,
+      snippet: "Citation relationship — classifier unavailable.",
+      provider: "fallback",
+      cached: false,
+      signalSource: "default",
+      contexts: input.citationContexts,
+    };
+    await cacheClassification(fallback, input.citationContexts, input.s2Intents);
+    return fallback;
   }
 }
 
@@ -445,7 +535,7 @@ function heuristicClassify(input: ClassificationInput): ClassificationResult {
 
   // NOTE: cited paper text is NOT scanned — it causes directionality errors
 
-  let edgeType: "supports" | "contradicts" | "extends" | "unknown";
+  let edgeType: "supports" | "contradicts" | "extends" | "cites";
   let confidence: number;
   let snippet: string;
 
@@ -470,11 +560,11 @@ function heuristicClassify(input: ClassificationInput): ClassificationResult {
     confidence = Math.min(0.35 + (supportScore - contradictScore) * 0.05, 0.7);
     snippet = `Likely supports — detected signals: "${supportSnippet}" (heuristic)`;
   } else {
-    // No strong signals — unknown relationship
-    edgeType = "unknown";
-    confidence = 0.2;
+    // No strong signals — neutral citation (was "unknown", now "cites")
+    edgeType = "cites";
+    confidence = 0.7;
     snippet =
-      "No clear directional signals found — relationship uncertain (heuristic)";
+      "Citation relationship — no strong directional signals detected (heuristic)";
   }
 
   return {
@@ -512,13 +602,13 @@ export async function classifyBatch(
       if (result.status === "fulfilled") {
         results.push(result.value);
       } else {
-        // If classification fails, return a default
+        // If classification fails, return a default "cites"
         results.push({
           citingId: chunk[i].citingId,
           citedId: chunk[i].citedId,
-          edgeType: "unknown",
-          confidence: 0.2,
-          snippet: "Classification unavailable — rate limit or error.",
+          edgeType: "cites",
+          confidence: 0.5,
+          snippet: "Citation relationship — classification error.",
           provider: "fallback",
           signalSource: "default" as const,
           cached: false,

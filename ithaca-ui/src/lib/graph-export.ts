@@ -51,6 +51,7 @@ const LEGEND_CONFIG = {
     { color: "#22c55e", label: "Supports", dashed: false },
     { color: "#ef4444", label: "Refutes", dashed: true },
     { color: "#3b82f6", label: "Extends", dashed: false },
+    { color: "#a1a1aa", label: "Cites", dashed: false },
   ],
   nodeInfo: { label: "Citation Node" },
 };
@@ -427,6 +428,8 @@ export async function exportAsPNG(
           edgeColor = "#ef4444"; // red
         } else if (edgeType === "extends") {
           edgeColor = "#3b82f6"; // blue
+        } else if (edgeType === "cites") {
+          edgeColor = "#a1a1aa"; // neutral zinc
         } else {
           // Default edge color - make it visible in both themes
           edgeColor = isDark ? "#6b7280" : "#9ca3af";
@@ -434,7 +437,7 @@ export async function exportAsPNG(
 
         ctx.strokeStyle = edgeColor;
         ctx.lineWidth = (attributes.size || 1) * 1.5;
-        ctx.globalAlpha = 0.7;
+        ctx.globalAlpha = edgeType === "cites" ? 0.5 : 0.7;
 
         // Dashed line for contradicts/refutes
         if (edgeType === "contradicts") {
@@ -749,6 +752,8 @@ export async function exportAsSVG(
         edgeColor = "#ef4444"; // red
       } else if (edgeType === "extends") {
         edgeColor = "#3b82f6"; // blue
+      } else if (edgeType === "cites") {
+        edgeColor = "#a1a1aa"; // neutral zinc
       } else {
         // Default edge color - theme aware
         edgeColor = isDark ? "#6b7280" : "#9ca3af";

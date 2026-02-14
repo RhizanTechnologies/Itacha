@@ -57,7 +57,7 @@ export interface EvidenceItem {
     authors: string;
     year: number;
   };
-  relation: "supports" | "refutes" | "extends" | "unknown";
+  relation: "supports" | "refutes" | "extends" | "cites" | "unknown";
   confidence: number;
   snippet: string;
   source?: string;
@@ -445,6 +445,7 @@ const HIGHLIGHT_KEYWORDS: Record<string, string[]> = {
   supports: ["supports", "validates", "confirms", "consistent", "agreement", "builds upon", "aligns"],
   refutes: ["however", "contrary", "unlike", "conflict", "disagree", "refutes", "challenges", "contradicts", "does not"],
   extends: ["extends", "builds on", "following", "based on", "expands", "generalizes"],
+  cites: [],
 };
 
 function highlightSnippet(text: string, relation: EvidenceItem["relation"]) {
@@ -497,6 +498,12 @@ function EvidenceRow({ item }: { item: EvidenceItem }) {
       bgColor: "bg-muted/20",
       barColor: "bg-muted-foreground/50",
       label: "UNKNOWN",
+    },
+    cites: {
+      color: "text-muted-foreground",
+      bgColor: "bg-muted/10",
+      barColor: "bg-muted-foreground/30",
+      label: "CITES",
     },
   };
 

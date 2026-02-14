@@ -93,7 +93,7 @@ export interface CanvasState {
   // Search & Focus State
   searchTarget: string | null;
   focusModeNode: string | null;
-  relationshipFocus: "all" | "supports" | "contradicts" | "extends";
+  relationshipFocus: "all" | "supports" | "contradicts" | "extends" | "cites";
 
   // Feature State
   physicsEnabled: boolean;
@@ -159,7 +159,7 @@ type CanvasAction =
   // Search & Focus
   | { type: "SET_SEARCH_TARGET"; payload: string | null }
   | { type: "SET_FOCUS_MODE_NODE"; payload: string | null }
-  | { type: "SET_RELATIONSHIP_FOCUS"; payload: "all" | "supports" | "contradicts" | "extends" }
+  | { type: "SET_RELATIONSHIP_FOCUS"; payload: "all" | "supports" | "contradicts" | "extends" | "cites" }
   // Features
   | { type: "SET_PHYSICS_ENABLED"; payload: boolean }
   | { type: "SET_TUTORIAL_ACTIVE"; payload: boolean };
@@ -581,7 +581,7 @@ export function useCanvasActions() {
         dispatch({ type: "SET_SEARCH_TARGET", payload: target }),
       setFocusModeNode: (nodeId: string | null) =>
         dispatch({ type: "SET_FOCUS_MODE_NODE", payload: nodeId }),
-      setRelationshipFocus: (focus: "all" | "supports" | "contradicts" | "extends") =>
+      setRelationshipFocus: (focus: "all" | "supports" | "contradicts" | "extends" | "cites") =>
         dispatch({ type: "SET_RELATIONSHIP_FOCUS", payload: focus }),
 
       // Features

@@ -8,7 +8,7 @@ export interface SemanticPath {
   id: string;
   name: string;
   nodes: { id: string; title: string; year: number; authors: string }[];
-  edges: { type: "supports" | "contradicts" | "extends"; confidence: number }[];
+  edges: { type: "supports" | "contradicts" | "extends" | "cites"; confidence: number }[];
   color: string;
   description: string;
 }
@@ -72,17 +72,17 @@ export function findSemanticPath(
       if (!edge) return;
 
       const attrs = graph.getEdgeAttributes(edge);
-      const type = attrs.edgeType || "supports";
+      const type = attrs.edgeType || "cites";
 
       // Calculate weight based on mode
       let weight = 1; // Default
 
       if (mode === "conflict") {
         // Prioritize CONTRADICTS (low weight), penalize others
-        weight = type === "contradicts" ? 1 : 20;
+        weight = type === "contradicts" ? 1 : type === "cites" ? 10 : 20;
       } else if (mode === "consensus") {
         // Prioritize SUPPORTS/EXTENDS, penalize contradicts considerably
-        weight = type === "contradicts" ? 50 : 1;
+        weight = type === "contradicts" ? 50 : type === "cites" ? 5 : 1;
       }
 
       const alt = distances[u!] + weight;

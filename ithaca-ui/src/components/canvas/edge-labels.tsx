@@ -2,11 +2,11 @@
 
 import { useRegisterEvents, useSigma } from "@react-sigma/core";
 import { useEffect, useState } from "react";
-import { CheckCircle, XCircle, ArrowRightCircle, AlertTriangle } from "lucide-react";
+import { CheckCircle, XCircle, ArrowRightCircle, AlertTriangle, Link2 } from "lucide-react";
 
 interface EdgeLabelData {
   visible: boolean;
-  edgeType: "supports" | "contradicts" | "extends" | "unknown";
+  edgeType: "supports" | "contradicts" | "extends" | "cites" | "unknown";
   confidence: number;
   x: number;
   y: number;
@@ -94,6 +94,13 @@ export function EdgeLabels() {
       bgColor: "bg-muted/20",
       borderColor: "border-muted-foreground/30",
       label: "Unknown",
+    },
+    cites: {
+      icon: Link2,
+      color: "text-muted-foreground",
+      bgColor: "bg-muted/10",
+      borderColor: "border-muted-foreground/20",
+      label: "Cites",
     },
   };
 

@@ -47,7 +47,7 @@ type ClassificationInput = {
 type ClassificationResult = {
   citingId: string;
   citedId: string;
-  edgeType: "supports" | "contradicts" | "extends" | "unknown";
+  edgeType: "supports" | "contradicts" | "extends" | "cites" | "unknown";
   confidence: number;
   snippet?: string;
   provider?: string;
@@ -80,7 +80,8 @@ const EDGE_COLORS: Record<string, string> = {
   supports: "#22c55e", // green  — matches --supports CSS var
   contradicts: "#ef4444", // red    — matches --contradicts CSS var
   extends: "#3b82f6", // blue   — matches --extends CSS var
-  unknown: "#94a3b8", // grey   — uncertain/unclassified
+  cites: "#a1a1aa",    // neutral zinc — the default/normal state
+  unknown: "#94a3b8", // grey   — legacy fallback
 };
 
 // =============================================================================
@@ -185,9 +186,9 @@ async function classifyViaAPI(
       return inputs.map((i) => ({
         citingId: i.citingId,
         citedId: i.citedId,
-        edgeType: "unknown" as const,
-        confidence: 0.2,
-        snippet: "Classification unavailable — API error.",
+        edgeType: "cites" as const,
+        confidence: 0.5,
+        snippet: "Citation relationship — API error.",
         signalSource: "default" as const,
       }));
     }
@@ -199,9 +200,9 @@ async function classifyViaAPI(
     return inputs.map((i) => ({
       citingId: i.citingId,
       citedId: i.citedId,
-      edgeType: "unknown" as const,
-      confidence: 0.2,
-      snippet: "Classification unavailable — could not reach classifier.",
+      edgeType: "cites" as const,
+      confidence: 0.5,
+      snippet: "Citation relationship — could not reach classifier.",
       signalSource: "default" as const,
     }));
   }
@@ -301,11 +302,11 @@ function createDefaultEdge(sourceId: string, targetId: string): EdgeData {
     id: `${sourceId}-${targetId}`,
     source: sourceId,
     target: targetId,
-    edgeType: "unknown",
-    confidence: 20,
+    edgeType: "cites",
+    confidence: 50,
     size: 1,
-    color: EDGE_COLORS.unknown,
-    snippet: "Unclassified citation — no classification was performed.",
+    color: EDGE_COLORS.cites,
+    snippet: "Citation relationship — unclassified.",
     signalSource: "default",
   };
 }
@@ -696,9 +697,11 @@ export class OpenAlexProvider implements IGraphProvider {
             ? "refutes"
             : edge.edgeType === "supports"
               ? "supports"
-              : edge.edgeType === "unknown"
-                ? "unknown"
-                : "extends",
+              : edge.edgeType === "cites"
+                ? "cites"
+                : edge.edgeType === "unknown"
+                  ? "cites" // Map legacy "unknown" to "cites"
+                  : "extends",
         confidence: edge.confidence,
         // Use the real classifier snippet, not a fabricated template
         snippet: edge.snippet || "No classification explanation available.",
@@ -727,6 +730,9 @@ export class OpenAlexProvider implements IGraphProvider {
       ).length,
       extendsCount: this.edgeCache.filter((e) => e.edgeType === "extends")
         .length,
+      citesCount: this.edgeCache.filter(
+        (e) => e.edgeType === "cites" || e.edgeType === "unknown",
+      ).length,
     };
   }
 

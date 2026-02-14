@@ -62,7 +62,7 @@ export interface GraphLoaderProps {
   filters: FilterState;
   paperCount: number;
   refreshTrigger: number;
-  relationshipFocus: "all" | "supports" | "contradicts" | "extends";
+  relationshipFocus: "all" | "supports" | "contradicts" | "extends" | "cites";
   solidNodes: Set<string>;
   onAddToProject: (nodeId: string) => void;
   // Hoisted state for List View integration
@@ -426,13 +426,14 @@ export function GraphLoader({
         const confidence = (attrs as any).confidence as number | undefined;
         const edgeType = (attrs as any).edgeType as string | undefined;
         const isUnknown = edgeType === "unknown";
+        const isCites = edgeType === "cites" || isUnknown;
 
         if (!isPathActive) {
-          if (isUnknown) {
-            // Unknown edges: always dimmed + thinner
-            const alpha = Math.round(0.3 * 255).toString(16).padStart(2, "0");
+          if (isCites) {
+            // "cites" edges: subtle neutral line — visible but doesn't compete with classified edges
+            const alpha = Math.round(0.45 * 255).toString(16).padStart(2, "0");
             edgeColor = `${edgeColor.slice(0, 7)}${alpha}`;
-            edgeSize = Math.max(edgeSize * 0.6, 0.3);
+            edgeSize = Math.max(edgeSize * 0.7, 0.4);
           } else if (confidence != null && confidence < 80) {
             // Scale opacity: 0% confidence → 35% opacity, 80% → 100% opacity
             const opacity = 0.35 + (confidence / 80) * 0.65;
@@ -801,7 +802,7 @@ export function GraphLoader({
 
         const evidence: EvidenceItem[] = incomingEdges.slice(0, 5).map((edge) => {
           const edgeAttrs = graph.getEdgeAttributes(edge) as {
-            edgeType?: "supports" | "contradicts" | "extends" | "unknown";
+            edgeType?: "supports" | "contradicts" | "extends" | "cites" | "unknown";
             confidence?: number;
             snippet?: string;
             signalSource?: string;
@@ -816,9 +817,11 @@ export function GraphLoader({
               ? "refutes"
               : edgeAttrs.edgeType === "supports"
                 ? "supports"
-                : edgeAttrs.edgeType === "unknown"
-                  ? "unknown"
-                  : "extends";
+                : edgeAttrs.edgeType === "cites"
+                  ? "cites"
+                  : edgeAttrs.edgeType === "unknown"
+                    ? "cites" // Map legacy "unknown" to "cites"
+                    : "extends";
 
           return {
             id: `ev-${edge}`,
@@ -880,10 +883,11 @@ export function GraphLoader({
         const sourceAttrs = graph.getNodeAttributes(graph.source(event.edge));
         const targetAttrs = graph.getNodeAttributes(graph.target(event.edge));
 
-        const type = (attrs.edgeType || "unknown") as
+        const type = (attrs.edgeType || "cites") as
           | "supports"
           | "contradicts"
           | "extends"
+          | "cites"
           | "unknown";
 
         // Use real snippet from the classifier (stored as edge attribute)

@@ -1,9 +1,9 @@
 "use client";
 
-import { CheckCircle, XCircle, ArrowRightCircle, Layers } from "lucide-react";
+import { CheckCircle, XCircle, ArrowRightCircle, Layers, Link2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type RelationshipFocusType = "all" | "supports" | "contradicts" | "extends";
+export type RelationshipFocusType = "all" | "supports" | "contradicts" | "extends" | "cites";
 
 interface RelationshipFocusControlProps {
   value: RelationshipFocusType;
@@ -44,6 +44,13 @@ const OPTIONS: {
     shortLabel: "Extends",
     icon: ArrowRightCircle,
     activeColor: "bg-blue-600 text-white",
+  },
+  {
+    value: "cites",
+    label: "Cites Only",
+    shortLabel: "Cites",
+    icon: Link2,
+    activeColor: "bg-zinc-500 text-white",
   },
 ];
 

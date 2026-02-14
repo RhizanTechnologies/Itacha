@@ -17,7 +17,7 @@ import type { SignalSource } from "@/lib/api/graph-api";
 
 export interface EdgeEvidence {
   id: string;
-  edgeType: "supports" | "contradicts" | "extends" | "unknown";
+  edgeType: "supports" | "contradicts" | "extends" | "cites" | "unknown";
   confidence: number;
   sourcePaper: {
     id: string;
@@ -77,6 +77,13 @@ const EDGE_CONFIG = {
     color: "text-muted-foreground",
     bgColor: "bg-muted/30",
     borderColor: "border-muted-foreground/30",
+  },
+  cites: {
+    icon: ArrowRightCircle,
+    label: "Cites",
+    color: "text-muted-foreground",
+    bgColor: "bg-muted/10",
+    borderColor: "border-muted-foreground/20",
   },
 };
 

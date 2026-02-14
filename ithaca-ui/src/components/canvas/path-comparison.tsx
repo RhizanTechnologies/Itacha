@@ -12,6 +12,7 @@ import {
   CheckCircle,
   XCircle,
   ArrowRightCircle,
+  Link2,
   X,
   Route,
   Zap,
@@ -32,6 +33,11 @@ const EDGE_CONFIG = {
     icon: ArrowRightCircle,
     color: "text-amber-600 dark:text-amber-400",
     bg: "bg-amber-500/10",
+  },
+  cites: {
+    icon: Link2,
+    color: "text-zinc-500 dark:text-zinc-400",
+    bg: "bg-zinc-500/10",
   },
 };
 

@@ -16,7 +16,7 @@ import { prisma } from "@/lib/prisma";
 const correctionSchema = z.object({
   citingId: z.string().min(1),
   citedId: z.string().min(1),
-  edgeType: z.enum(["supports", "contradicts", "extends", "unknown"]),
+  edgeType: z.enum(["supports", "contradicts", "extends", "cites", "unknown"]),
   comment: z.string().optional(),
 });
 

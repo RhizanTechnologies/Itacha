@@ -54,7 +54,7 @@ export interface EdgeData {
   id: string;
   source: string;
   target: string;
-  edgeType: "supports" | "contradicts" | "extends" | "unknown";
+  edgeType: "supports" | "contradicts" | "extends" | "cites" | "unknown";
   confidence: number;
   size: number;
   color: string;
@@ -76,7 +76,7 @@ export interface EvidenceItem {
     authors: string;
     year: number;
   };
-  relation: "supports" | "refutes" | "extends" | "unknown";
+  relation: "supports" | "refutes" | "extends" | "cites" | "unknown";
   confidence: number;
   snippet: string;
   source?: string;
@@ -99,6 +99,7 @@ export interface GraphStats {
   supportsCount: number;
   contradictsCount: number;
   extendsCount: number;
+  citesCount: number;
 }
 
 export interface SearchResult {
@@ -495,6 +496,9 @@ class MockGraphProvider implements IGraphProvider {
       contradictsCount: this.edges.filter((e) => e.edgeType === "contradicts")
         .length,
       extendsCount: this.edges.filter((e) => e.edgeType === "extends").length,
+      citesCount: this.edges.filter(
+        (e) => e.edgeType === "cites" || e.edgeType === "unknown",
+      ).length,
     };
   }
 }
@@ -558,7 +562,8 @@ class GraphAPIService {
       if (
         (edgeType === "supports" && !filters.relationships.supports) ||
         (edgeType === "contradicts" && !filters.relationships.contradicts) ||
-        (edgeType === "extends" && !filters.relationships.extends)
+        (edgeType === "extends" && !filters.relationships.extends) ||
+        ((edgeType === "cites" || edgeType === "unknown") && !filters.relationships.cites)
       ) {
         hiddenEdges.add(edge);
       }

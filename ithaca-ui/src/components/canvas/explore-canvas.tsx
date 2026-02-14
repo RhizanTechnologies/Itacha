@@ -544,6 +544,7 @@ export function ExploreCanvas() {
                 supports: COLORS.SUPPORTS,
                 contradicts: COLORS.CONTRADICTS,
                 extends: COLORS.EXTENDS,
+                cites: COLORS.CITES || "#a1a1aa",
                 unknown: COLORS.UNKNOWN || "#94a3b8",
               };
               const newColor = EDGE_COLOR_MAP[type] || "#e5e7eb";

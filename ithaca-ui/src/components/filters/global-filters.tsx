@@ -9,6 +9,7 @@ import {
   CheckCircle,
   XCircle,
   ArrowRightCircle,
+  Link2,
   SlidersHorizontal,
   X,
   Eye,
@@ -22,6 +23,7 @@ export interface FilterState {
     supports: boolean;
     contradicts: boolean;
     extends: boolean;
+    cites: boolean;
   };
   citationRange: [number, number];
   yearRange: [number, number];
@@ -47,6 +49,7 @@ export const DEFAULT_FILTERS: FilterState = {
     supports: true,
     contradicts: true,
     extends: true,
+    cites: true,
   },
   citationRange: [FILTERS.MIN_CITATIONS, FILTERS.DEFAULT_MAX_CITATIONS],
   yearRange: [FILTERS.MIN_YEAR, FILTERS.MAX_YEAR],
@@ -158,6 +161,7 @@ export function GlobalFilters({
     (filters.relationships.supports ? 0 : 1) +
     (filters.relationships.contradicts ? 0 : 1) +
     (filters.relationships.extends ? 0 : 1) +
+    (filters.relationships.cites ? 0 : 1) +
     (filters.citationRange[0] > FILTERS.MIN_CITATIONS ||
     filters.citationRange[1] < maxCitations
       ? 1
@@ -226,6 +230,13 @@ export function GlobalFilters({
               color="text-extends"
               checked={filters.relationships.extends}
               onCheckedChange={() => handleRelationshipToggle("extends")}
+            />
+            <FilterToggle
+              icon={Link2}
+              label="Cites"
+              color="text-muted-foreground"
+              checked={filters.relationships.cites}
+              onCheckedChange={() => handleRelationshipToggle("cites")}
             />
           </div>
 
@@ -350,6 +361,7 @@ export function GraphLegend() {
         <LegendItem color="bg-supports" label="Supports" dashed={false} />
         <LegendItem color="bg-contradicts" label="Refutes" dashed={true} />
         <LegendItem color="bg-extends" label="Extends" dashed={false} />
+        <LegendItem color="bg-zinc-400" label="Cites" dashed={false} />
         <div className="flex items-center gap-2 pt-1">
           <div className="w-4 h-4 rounded-full border-2 border-muted-foreground/50" />
           <span className="text-xs text-muted-foreground">Citation Node</span>
