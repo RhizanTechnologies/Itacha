@@ -598,15 +598,19 @@ export class OpenAlexProvider implements IGraphProvider {
     type?: "all" | "supports" | "contradicts" | "extends",
   ): Promise<{ nodes: PaperNode[]; edges: EdgeData[] }> {
     let existingNode = this.nodeCache.get(nodeId);
-    
+
     // If node not in cache, fetch it from OpenAlex
     if (!existingNode) {
-      console.log(`[expandNode] Node ${nodeId} not in cache, fetching from OpenAlex...`);
+      console.log(
+        `[expandNode] Node ${nodeId} not in cache, fetching from OpenAlex...`,
+      );
       try {
         const work = await getWork(nodeId);
         existingNode = workToPaperNode(work);
         this.nodeCache.set(nodeId, existingNode);
-        console.log(`[expandNode] Successfully fetched and cached node ${nodeId}`);
+        console.log(
+          `[expandNode] Successfully fetched and cached node ${nodeId}`,
+        );
       } catch (error) {
         console.error(`[expandNode] Failed to fetch node ${nodeId}:`, error);
         return { nodes: [], edges: [] };
@@ -629,7 +633,10 @@ export class OpenAlexProvider implements IGraphProvider {
         console.log(`[expandNode] Found ${works.length} referenced papers`);
       }
     } catch (error) {
-      console.error(`[expandNode] Failed to fetch ${direction === "in" ? "citing" : "referenced"} papers:`, error);
+      console.error(
+        `[expandNode] Failed to fetch ${direction === "in" ? "citing" : "referenced"} papers:`,
+        error,
+      );
       return { nodes: [], edges: [] };
     }
 
