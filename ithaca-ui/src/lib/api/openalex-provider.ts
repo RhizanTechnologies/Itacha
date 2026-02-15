@@ -597,20 +597,40 @@ export class OpenAlexProvider implements IGraphProvider {
     direction: "in" | "out",
     type?: "all" | "supports" | "contradicts" | "extends",
   ): Promise<{ nodes: PaperNode[]; edges: EdgeData[] }> {
-    const existingNode = this.nodeCache.get(nodeId);
+    let existingNode = this.nodeCache.get(nodeId);
+    
+    // If node not in cache, fetch it from OpenAlex
     if (!existingNode) {
-      return { nodes: [], edges: [] };
+      console.log(`[expandNode] Node ${nodeId} not in cache, fetching from OpenAlex...`);
+      try {
+        const work = await getWork(nodeId);
+        existingNode = workToPaperNode(work);
+        this.nodeCache.set(nodeId, existingNode);
+        console.log(`[expandNode] Successfully fetched and cached node ${nodeId}`);
+      } catch (error) {
+        console.error(`[expandNode] Failed to fetch node ${nodeId}:`, error);
+        return { nodes: [], edges: [] };
+      }
     }
 
     let works: OpenAlexWork[] = [];
 
-    if (direction === "in") {
-      // Papers citing this one
-      const response = await getCitingWorks(nodeId, { perPage: 10 });
-      works = response.results;
-    } else {
-      // Papers this one references
-      works = await getReferencedWorks(nodeId, 10);
+    try {
+      if (direction === "in") {
+        // Papers citing this one
+        console.log(`[expandNode] Fetching papers citing ${nodeId}...`);
+        const response = await getCitingWorks(nodeId, { perPage: 10 });
+        works = response.results;
+        console.log(`[expandNode] Found ${works.length} citing papers`);
+      } else {
+        // Papers this one references
+        console.log(`[expandNode] Fetching papers referenced by ${nodeId}...`);
+        works = await getReferencedWorks(nodeId, 10);
+        console.log(`[expandNode] Found ${works.length} referenced papers`);
+      }
+    } catch (error) {
+      console.error(`[expandNode] Failed to fetch ${direction === "in" ? "citing" : "referenced"} papers:`, error);
+      return { nodes: [], edges: [] };
     }
 
     const nodes: PaperNode[] = [];

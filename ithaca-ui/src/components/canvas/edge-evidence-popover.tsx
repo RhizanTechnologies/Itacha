@@ -326,7 +326,7 @@ export function EdgeEvidencePopover({
             </div>
 
             {/* Evidence Snippets */}
-            <div className="p-4">
+            <div className="p-4 overflow-y-auto flex-1">
               <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1">
                 <Quote className="h-3 w-3" />
                 Evidence ({evidence.snippets.length})
