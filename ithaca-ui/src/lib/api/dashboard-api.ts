@@ -177,11 +177,24 @@ const STORAGE_KEYS = {
 // API SERVICE
 // =============================================================================
 
-// =============================================================================
-// API SERVICE
-// =============================================================================
-
 class DashboardAPIService {
+  private async delay(ms: number = 200): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  // --- Helpers ---
+
+  private getList<T>(key: string): T[] {
+    if (typeof window === "undefined") return [];
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : [];
+  }
+
+  private setList<T>(key: string, list: T[]): void {
+    if (typeof window === "undefined") return;
+    localStorage.setItem(key, JSON.stringify(list));
+  }
+
   // --- Profile ---
 
   async getUserProfile(sessionUser?: {
@@ -189,57 +202,43 @@ class DashboardAPIService {
     email: string;
     image?: string;
   }): Promise<UserProfile> {
-    if (typeof window === "undefined") {
-      // Server-side default
-      return {
-        id: "",
-        name: sessionUser?.name || "",
-        email: sessionUser?.email || "",
-        avatar: sessionUser?.image,
-        badges: [],
-        memberSince: new Date().getFullYear().toString(),
-      };
+    await this.delay();
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem(STORAGE_KEYS.PROFILE);
+      if (stored) return JSON.parse(stored);
     }
 
-    try {
-      const res = await fetch("/api/dashboard/profile");
-      if (res.ok) {
-        return await res.json();
-      }
-    } catch (e) {
-      console.error("Failed to fetch profile", e);
-    }
-
-    // Fallback if API fails or auth not ready
-    return {
+    const initialProfile: UserProfile = {
       ...MOCK_USER,
       name: sessionUser?.name || MOCK_USER.name,
       email: sessionUser?.email || MOCK_USER.email,
       avatar: sessionUser?.image || MOCK_USER.avatar,
     };
+
+    if (typeof window !== "undefined") {
+      localStorage.setItem(
+        STORAGE_KEYS.PROFILE,
+        JSON.stringify(initialProfile),
+      );
+    }
+    return initialProfile;
   }
 
   async updateProfile(data: Partial<UserProfile>): Promise<UserProfile> {
-    const res = await fetch("/api/dashboard/profile", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-
-    if (!res.ok) throw new Error("Failed to update profile");
-    return await res.json();
+    await this.delay(300);
+    const current = await this.getUserProfile();
+    const updated = { ...current, ...data };
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(updated));
+    }
+    return updated;
   }
 
   // --- Projects ---
 
   async getProjects(): Promise<Project[]> {
-    try {
-      const res = await fetch("/api/dashboard/projects");
-      if (res.ok) return await res.json();
-    } catch (e) {
-      console.error("Failed to fetch projects", e);
-    }
-    return [];
+    await this.delay();
+    return this.getList<Project>(STORAGE_KEYS.PROJECTS);
   }
 
   async createProject(
@@ -248,87 +247,136 @@ class DashboardAPIService {
       "id" | "graphCount" | "collectionCount" | "lastModified" | "isFavorite"
     >,
   ): Promise<Project> {
-    const res = await fetch("/api/dashboard/projects", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) throw new Error("Failed to create project");
-    return await res.json();
+    await this.delay();
+    const projects = this.getList<Project>(STORAGE_KEYS.PROJECTS);
+    const newProject: Project = {
+      ...data,
+      id: crypto.randomUUID(),
+      graphCount: 0,
+      collectionCount: 0,
+      lastModified: "Just now",
+      isFavorite: false,
+    };
+    this.setList(STORAGE_KEYS.PROJECTS, [newProject, ...projects]);
+    return newProject;
   }
 
   async deleteProject(id: string): Promise<void> {
-    // TODO: Add DELETE endpoint
-    await fetch(`/api/dashboard/projects?id=${id}`, { method: "DELETE" });
+    await this.delay();
+    const projects = this.getList<Project>(STORAGE_KEYS.PROJECTS);
+    this.setList(
+      STORAGE_KEYS.PROJECTS,
+      projects.filter((p) => p.id !== id),
+    );
   }
 
   async toggleProjectFavorite(id: string): Promise<void> {
-    // TODO: Add PATCH endpoint
-    await fetch(`/api/dashboard/projects?id=${id}&action=toggle-favorite`, {
-      method: "PATCH",
-    });
+    await this.delay();
+    const projects = this.getList<Project>(STORAGE_KEYS.PROJECTS);
+    this.setList(
+      STORAGE_KEYS.PROJECTS,
+      projects.map((p) =>
+        p.id === id ? { ...p, isFavorite: !p.isFavorite } : p,
+      ),
+    );
   }
 
   // --- Collections ---
 
   async getCollections(projectId?: string): Promise<Collection[]> {
-    try {
-      const res = await fetch("/api/dashboard/collections");
-      if (res.ok) {
-        const data = await res.json();
-        // Client-side filter if needed (though API should handle query params ideally)
-        if (projectId)
-          return data.filter((c: any) => c.projectId === projectId);
-        return data;
-      }
-    } catch (e) {
-      console.error("Failed to fetch collections", e);
+    await this.delay();
+    const all = this.getList<Collection & { projectId?: string }>(
+      STORAGE_KEYS.COLLECTIONS,
+    );
+    if (projectId) {
+      return all.filter((c) => c.projectId === projectId);
     }
-    return MOCK_COLLECTIONS;
+    return all;
   }
 
   async createCollection(data: {
     title: string;
     projectId?: string;
   }): Promise<Collection> {
-    const res = await fetch("/api/dashboard/collections", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) throw new Error("Failed to create collection");
-    return await res.json();
+    await this.delay();
+    const collections = this.getList<Collection & { projectId?: string }>(
+      STORAGE_KEYS.COLLECTIONS,
+    );
+    const newCollection = {
+      id: crypto.randomUUID(),
+      title: data.title,
+      projectId: data.projectId,
+      paperCount: 0,
+      createdAt: new Date().toLocaleDateString("en-US", {
+        month: "short",
+        year: "numeric",
+      }),
+    };
+    this.setList(STORAGE_KEYS.COLLECTIONS, [newCollection, ...collections]);
+
+    // Update project count
+    if (data.projectId) {
+      const projects = this.getList<Project>(STORAGE_KEYS.PROJECTS);
+      this.setList(
+        STORAGE_KEYS.PROJECTS,
+        projects.map((p) =>
+          p.id === data.projectId
+            ? { ...p, collectionCount: (p.collectionCount || 0) + 1 }
+            : p,
+        ),
+      );
+    }
+
+    return newCollection;
   }
 
   // --- Stats & Derived Data ---
 
   async getStats(): Promise<DashboardStats> {
-    try {
-      const res = await fetch("/api/dashboard/stats");
-      if (res.ok) return await res.json();
-    } catch (e) {
-      console.error("Failed to fetch stats", e);
-    }
-    return MOCK_STATS;
+    await this.delay();
+    const projects = this.getList<Project>(STORAGE_KEYS.PROJECTS);
+    const collections = this.getList<Collection>(STORAGE_KEYS.COLLECTIONS);
+    // For now, mock edges corrected or store if needed
+
+    return {
+      savedGraphs: 0, // Implement saved graphs logic similar to projects if needed
+      collections: collections.length,
+      edgesCorrected: 154, // Keep static or implement separate storage
+      savedGraphsChange: "+0 this week",
+      edgesCorrectedChange: "+15%",
+    };
   }
 
   async getRecentActivity(): Promise<RecentActivity[]> {
-    try {
-      const res = await fetch("/api/dashboard/activity");
-      if (res.ok) return await res.json();
-    } catch (e) {
-      console.error("Failed to fetch activity", e);
-    }
-    return MOCK_ACTIVITIES;
+    await this.delay();
+    const projects = this.getList<Project>(STORAGE_KEYS.PROJECTS);
+    const collections = this.getList<Collection>(STORAGE_KEYS.COLLECTIONS);
+
+    // Convert to RecentActivity format
+    const projectActivities: RecentActivity[] = projects.map((p) => ({
+      id: p.id,
+      title: `Project: ${p.title}`,
+      type: "collection", // reusing type
+      updated: p.lastModified,
+      tags: ["Project"],
+      paperCount: p.collectionCount, // heuristic
+    }));
+
+    const collectionActivities: RecentActivity[] = collections.map((c) => ({
+      id: c.id,
+      title: `Collection: ${c.title}`,
+      type: "collection",
+      updated: c.createdAt,
+      tags: ["Collection"],
+      paperCount: c.paperCount,
+    }));
+
+    // Merge and simple sort (in real app, use timestamps)
+    return [...projectActivities, ...collectionActivities].slice(0, 10);
   }
 
   async getCorrections(): Promise<Correction[]> {
-    try {
-      const res = await fetch("/api/dashboard/corrections");
-      if (res.ok) return await res.json();
-    } catch (e) {
-      console.error("Failed to fetch corrections", e);
-    }
+    await this.delay();
     return MOCK_CORRECTIONS;
   }
 }
