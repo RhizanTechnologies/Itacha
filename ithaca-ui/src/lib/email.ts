@@ -6,10 +6,14 @@
  * - Email verification
  * - Password reset
  *
- * Uses Resend for email delivery (can be swapped with SendGrid, etc.)
+ * Uses Resend for email delivery.
  */
 
+import { Resend } from "resend";
 import { env } from "./env";
+
+// Initialize Resend with API key if available
+const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
 
 interface SendEmailParams {
   to: string;
@@ -19,36 +23,45 @@ interface SendEmailParams {
 }
 
 /**
- * Send an email using the configured SMTP service
+ * Send an email using Resend
  */
 export async function sendEmail({ to, subject, html, text }: SendEmailParams) {
-  // TODO: Implement with Resend or SendGrid
-  // For now, just log to console
-
-  if (env.NODE_ENV === "development") {
+  // Development mode: Log to console if no API key or in dev
+  if (env.NODE_ENV === "development" || !resend) {
     console.log("\n📧 [EMAIL] ================");
     console.log(`To: ${to}`);
     console.log(`Subject: ${subject}`);
     console.log(`Body:\n${text || html}`);
     console.log("==========================\n");
+
+    if (!resend) {
+      console.warn(
+        "⚠️ setup: RESEND_API_KEY is missing. Emails will not be sent.",
+      );
+    }
+
     return { success: true };
   }
 
-  // Production implementation would go here
-  // Example with Resend:
-  /*
-  const resend = new Resend(process.env.RESEND_API_KEY);
-  
-  await resend.emails.send({
-    from: env.EMAIL_FROM!,
-    to,
-    subject,
-    html,
-    text,
-  });
-  */
+  try {
+    const { data, error } = await resend.emails.send({
+      from: env.EMAIL_FROM || "Ithaca <onboarding@resend.dev>",
+      to,
+      subject,
+      html,
+      text,
+    });
 
-  return { success: true };
+    if (error) {
+      console.error("Failed to send email:", error);
+      return { success: false, error };
+    }
+
+    return { success: true, data };
+  } catch (error) {
+    console.error("Exception sending email:", error);
+    return { success: false, error };
+  }
 }
 
 /**

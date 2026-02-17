@@ -2,6 +2,7 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { prisma } from "./prisma";
 import { env } from "./env";
+import { sendPasswordResetEmail, sendVerificationEmail } from "./email";
 
 // User type for password reset
 interface ResetPasswordUser {
@@ -28,8 +29,16 @@ export const auth = betterAuth({
       user: ResetPasswordUser;
       url: string;
     }) => {
-      // TODO: Implement email sending with Resend/SendGrid
-      console.log(`[AUTH] Reset password for ${user.email}: ${url}`);
+      await sendPasswordResetEmail(user.email, url);
+    },
+    sendVerificationEmail: async ({
+      user,
+      url,
+    }: {
+      user: ResetPasswordUser;
+      url: string;
+    }) => {
+      await sendVerificationEmail(user.email, url);
     },
   },
 
