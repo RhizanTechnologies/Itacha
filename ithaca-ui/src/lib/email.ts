@@ -26,21 +26,24 @@ interface SendEmailParams {
  * Send an email using Resend
  */
 export async function sendEmail({ to, subject, html, text }: SendEmailParams) {
-  // Development mode: Log to console if no API key or in dev
-  if (env.NODE_ENV === "development" || !resend) {
-    console.log("\n📧 [EMAIL] ================");
+  // If no Resend API key, fall back to console logging
+  if (!resend) {
+    console.log(
+      "\n📧 [EMAIL — console only, no RESEND_API_KEY] ================",
+    );
     console.log(`To: ${to}`);
     console.log(`Subject: ${subject}`);
     console.log(`Body:\n${text || html}`);
     console.log("==========================\n");
-
-    if (!resend) {
-      console.warn(
-        "⚠️ setup: RESEND_API_KEY is missing. Emails will not be sent.",
-      );
-    }
-
+    console.warn(
+      "⚠️  RESEND_API_KEY is missing. Set it in .env to send real emails.",
+    );
     return { success: true };
+  }
+
+  // Always log in dev for debugging, but still send the email
+  if (env.NODE_ENV === "development") {
+    console.log(`📧 [EMAIL] Sending to ${to}: "${subject}" via Resend`);
   }
 
   try {

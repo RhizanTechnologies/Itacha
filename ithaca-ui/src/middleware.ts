@@ -17,7 +17,7 @@ const publicRoutes = [
 ];
 
 // Auth routes (redirect to dashboard if already authenticated)
-const authRoutes = ["/signin", "/signup", "/reset-password"];
+const authRoutes = ["/signin", "/signup", "/reset-password", "/verify-email"];
 
 // Protected routes (require authentication)
 const protectedRoutes = ["/dashboard", "/explore", "/projects", "/settings"];

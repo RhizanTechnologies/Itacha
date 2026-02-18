@@ -31,6 +31,12 @@ export const auth = betterAuth({
     }) => {
       await sendPasswordResetEmail(user.email, url);
     },
+  },
+
+  // Email Verification — top-level config required by Better Auth
+  // This powers both the auto-send on signup AND the /api/auth/send-verification-email endpoint
+  emailVerification: {
+    sendOnSignUp: true,
     sendVerificationEmail: async ({
       user,
       url,
@@ -40,6 +46,7 @@ export const auth = betterAuth({
     }) => {
       await sendVerificationEmail(user.email, url);
     },
+    autoSignInAfterVerification: true,
   },
 
   // OAuth Providers

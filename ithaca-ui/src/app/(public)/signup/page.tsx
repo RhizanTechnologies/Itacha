@@ -95,16 +95,21 @@ export default function SignUpPage() {
 
     try {
       // Better Auth email signup
-      await authClient.signUp.email({
+      const { data, error: signUpError } = await authClient.signUp.email({
         email,
         password,
         name,
-        callbackURL: "/explore",
       });
 
+      if (signUpError) {
+        setError(signUpError.message || "Failed to create account.");
+        return;
+      }
+
+      // With requireEmailVerification: true, the user is created
+      // but no session is established until they verify their email.
+      // Show the "check your email" screen.
       setSuccess(true);
-      // Redirect after brief success message
-      setTimeout(() => router.push("/explore"), 1500);
     } catch (err) {
       console.error("Signup error:", err);
       setError(
@@ -136,14 +141,49 @@ export default function SignUpPage() {
   if (success) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background px-4">
-        <div className="text-center">
-          <div className="size-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto mb-4">
-            <Check className="size-8 text-green-600 dark:text-green-400" />
+        <div className="text-center max-w-md">
+          <div className="size-16 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mx-auto mb-4">
+            <Mail className="size-8 text-blue-600 dark:text-blue-400" />
           </div>
-          <h1 className="text-2xl font-bold mb-2">Account Created!</h1>
-          <p className="text-muted-foreground">
-            Redirecting to your workspace...
+          <h1 className="text-2xl font-bold mb-2">Check your email</h1>
+          <p className="text-muted-foreground mb-6">
+            We&apos;ve sent a verification link to{" "}
+            <strong className="text-foreground">{email}</strong>. Click the link
+            to verify your account and get started.
           </p>
+          <div className="flex flex-col gap-3">
+            <Button
+              variant="outline"
+              onClick={async () => {
+                setIsLoading(true);
+                try {
+                  await authClient.sendVerificationEmail({
+                    email,
+                    callbackURL: "/verify-email",
+                  });
+                  setError(null);
+                } catch (err) {
+                  console.error("Resend verification error:", err);
+                } finally {
+                  setIsLoading(false);
+                }
+              }}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Mail className="mr-2 h-4 w-4" />
+              )}
+              Resend verification email
+            </Button>
+            <Link
+              href="/signin"
+              className="text-sm text-primary hover:underline"
+            >
+              Back to Sign In
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -155,11 +195,7 @@ export default function SignUpPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 mb-6">
-            <img
-              src="/logo.svg"
-              alt="Ithaca"
-              className="size-10"
-            />
+            <img src="/logo.svg" alt="Ithaca" className="size-10" />
             <span className="text-2xl font-bold">Ithaca</span>
           </Link>
           <h1 className="text-3xl font-bold mb-2">Create your account</h1>
