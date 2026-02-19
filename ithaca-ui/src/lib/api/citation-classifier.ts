@@ -54,7 +54,7 @@ export interface ClassificationResult {
 
 const CLASSIFICATION_PROMPT = `You are a scientific citation classifier. Given two academic papers (a CITING paper and a CITED paper), and CITATION CONTEXT SENTENCES extracted from the citing paper, determine the relationship between them.
 
-You will ONLY be called when Semantic Scholar indicates this may be a meaningful relationship (ResultComparison intent). Most citations are routine background references — those are handled automatically as "cites" without calling you.
+You will ONLY be called when Semantic Scholar indicates this may be a meaningful relationship (ResultComparison or Methodology+ResultComparison intents), or when only abstracts are available. Most citations are routine background references — those are handled automatically as "cites" without calling you. Note: sometimes you may receive S2 intent labels without full context sentences — use the intents as a signal alongside the abstracts.
 
 Classify as one of:
 - "supports": The citing paper explicitly confirms, validates, builds upon, or agrees with the cited paper's specific findings or methods. There must be clear language of agreement or validation.
@@ -114,7 +114,7 @@ function sanitizeJSON(raw: string): string {
 // =============================================================================
 
 /** Current classifier version — bump when logic changes to invalidate stale cache */
-const CLASSIFIER_VERSION = 4;
+const CLASSIFIER_VERSION = 5;
 
 /**
  * Classify a single citation relationship.
@@ -143,6 +143,7 @@ export async function classifyCitation(
     !!input.citedAbstract && input.citedAbstract.length > 20;
   const hasAbstracts = hasCitingAbstract || hasCitedAbstract;
   const intents = input.s2Intents ?? [];
+  const hasS2Intents = intents.length > 0; // S2 gave us intent labels (may lack context sentences)
   const hasResultComparison = intents.includes("ResultComparison");
   const hasMethodology = intents.includes("Methodology");
   const hasBackgroundOnly =
@@ -171,7 +172,8 @@ export async function classifyCitation(
   }
 
   // Gate 2: S2 says "Background" only → "cites" (routine reference, don't waste LLM)
-  if (hasContexts && hasBackgroundOnly) {
+  // Widened: works with intents alone (no context sentences needed)
+  if ((hasContexts || hasS2Intents) && hasBackgroundOnly) {
     const result: ClassificationResult = {
       citingId: input.citingId,
       citedId: input.citedId,
@@ -189,7 +191,8 @@ export async function classifyCitation(
   }
 
   // Gate 3: S2 says "Methodology" (no ResultComparison) → auto "extends"
-  if (hasContexts && hasMethodology && !hasResultComparison) {
+  // Widened: works with intents alone (no context sentences needed)
+  if ((hasContexts || hasS2Intents) && hasMethodology && !hasResultComparison) {
     const result: ClassificationResult = {
       citingId: input.citingId,
       citedId: input.citedId,
@@ -205,12 +208,19 @@ export async function classifyCitation(
     return result;
   }
 
-  // Gate 4: No S2 contexts at all, but has abstracts → LLM can try, lower confidence
-  // Gate 5: S2 "ResultComparison" → send to LLM for full classification
+  // Gate 3B: S2 says Methodology + ResultComparison → send to LLM (richer than Gate 3)
+  // This falls through to the LLM call below — no early return needed.
+
+  // Gate 4: S2 "ResultComparison" (with or without contexts) → full LLM classification
+  // Gate 5: No S2 data, but has abstracts → LLM can try, lower confidence
   // Both gates proceed to LLM, but with different confidence caps
 
-  const isAbstractsOnly = !hasContexts && hasAbstracts;
-  const maxConfidence = hasContexts ? 1.0 : 0.55; // Abstracts-only capped at 55%
+  const isAbstractsOnly = !hasContexts && !hasS2Intents && hasAbstracts;
+  // Three confidence tiers:
+  //   - Full contexts (S2 sentences) → 100%
+  //   - Intents only (S2 labels, no sentences) → 70%
+  //   - Abstracts only (no S2 data at all) → 55%
+  const maxConfidence = hasContexts ? 1.0 : hasS2Intents ? 0.7 : 0.55;
 
   // 2. Build user message — include citation contexts from S2 if available
   let userContent = `CITING PAPER: "${input.citingTitle}"

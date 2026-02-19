@@ -338,7 +338,11 @@ export async function batchGetCitationContexts(
       >();
       for (const ref of references) {
         const refDoi = cleanDOI(ref.doi || "");
-        if (refDoi && ref.contexts.length > 0) {
+        // Accept matches with intents OR contexts — many S2 records have
+        // intent labels (Background/Methodology/ResultComparison) without
+        // full-text context sentences, and those intents are still valuable
+        // for gate routing in the classifier.
+        if (refDoi && (ref.contexts.length > 0 || ref.intents.length > 0)) {
           refByDoi.set(refDoi.toLowerCase(), {
             contexts: ref.contexts,
             intents: ref.intents,
