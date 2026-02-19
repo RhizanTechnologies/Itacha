@@ -114,6 +114,21 @@ function getRateLimiter(): S2RateLimiter {
   return rateLimiter;
 }
 
+// =============================================================================
+// IN-MEMORY S2 REFERENCE CACHE
+// =============================================================================
+
+/**
+ * Module-level cache for S2 reference lookups.
+ * Key: cleaned citing DOI
+ * Value: the full array of S2CitationContext for that citing paper's references
+ *
+ * Persists for the lifetime of the server process (cleared on restart).
+ * Prevents re-fetching the same citing paper's references across multiple
+ * graph loads / edge-classification calls within the same session.
+ */
+const s2ReferenceCache = new Map<string, S2CitationContext[]>();
+
 function getApiKey(): string | undefined {
   return process.env.SEMANTIC_SCHOLAR_API_KEY;
 }
@@ -329,7 +344,21 @@ export async function batchGetCitationContexts(
   // Fetch references for each unique citing paper
   for (const [citingDoi, targets] of byCitingDoi) {
     try {
-      const references = await getS2ReferenceContexts(citingDoi);
+      // Check in-memory cache first — avoid re-fetching from S2 API
+      // for a citing paper we already looked up this session.
+      let references: S2CitationContext[];
+      if (s2ReferenceCache.has(citingDoi)) {
+        references = s2ReferenceCache.get(citingDoi)!;
+        console.log(
+          `[S2] Cache hit for DOI:${citingDoi} (${references.length} refs)`,
+        );
+      } else {
+        references = await getS2ReferenceContexts(citingDoi);
+        s2ReferenceCache.set(citingDoi, references);
+        console.log(
+          `[S2] Cached ${references.length} refs for DOI:${citingDoi}`,
+        );
+      }
 
       // Build a DOI→contexts lookup for this citing paper's references
       const refByDoi = new Map<
