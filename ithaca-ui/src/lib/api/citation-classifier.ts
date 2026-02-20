@@ -77,6 +77,46 @@ CRITICAL RULES:
 
 Respond with ONLY valid JSON: {"edgeType": "...", "confidence": 0.0, "snippet": "..."}`;
 
+/**
+ * Separate prompt for abstracts-only edges (Gate 5).
+ *
+ * The key difference: instead of requiring "strong, explicit evidence" (which
+ * rarely exists in abstracts), this prompt asks the LLM to INFER the most likely
+ * relationship from linguistic patterns in the abstracts. It still defaults to
+ * "cites" when truly ambiguous, but the threshold for detection is lower.
+ *
+ * This is what makes a knowledge graph product valuable — surfacing likely
+ * relationships that exist in the papers but aren't visible from a simple
+ * citation list.
+ */
+const ABSTRACTS_ONLY_PROMPT = `You are a scientific citation classifier. You are given two academic papers — a CITING paper and a CITED paper — with only their titles and abstracts available. No full-text citation context is available for this pair.
+
+Your job is to INFER the most likely relationship by reading between the lines of what each abstract describes. Academic abstracts often contain subtle signals:
+
+- A citing paper that "validates", "confirms", "replicates", or "builds on" prior findings → supports
+- A citing paper that "challenges", "questions", "finds no evidence for", or "contradicts" prior claims → contradicts
+- A citing paper that applies methods/frameworks to a NEW domain, population, or dataset → extends
+- When the abstracts describe unrelated subtopics, or the connection is purely as background → cites
+
+Classify as one of:
+- "supports": The abstracts suggest the citing paper confirms, validates, or builds upon the cited paper's specific findings. Look for: similar methodology with confirming results, shared conclusions, language of agreement.
+- "contradicts": The abstracts suggest the citing paper challenges or presents opposing evidence to the cited paper. Look for: same question with different answers, negative results on the same topic, language of disagreement.
+- "extends": The abstracts suggest the citing paper takes the cited paper's methods, framework, or ideas into a new domain or application. Look for: same approach in different context, generalization, novel application.
+- "cites": The relationship is genuinely unclear, the papers work on different specific problems, or there's no meaningful signal in the abstracts. Use this when you truly cannot determine a direction.
+
+Also provide:
+- "confidence": 0.0 to 1.0. Use 0.4-0.5 when inferring from weak signals. Use 0.6+ only when abstract language strongly suggests a relationship direction.
+- "snippet": One concise sentence (max 30 words) explaining what you inferred and why.
+
+IMPORTANT:
+- You are INFERRING, not extracting. It's okay to make a best guess when abstracts point in a direction.
+- But don't fabricate — if the abstracts genuinely discuss unrelated things, use "cites".
+- Two papers in the same subfield with similar methods are NOT automatically "supports" — they could be independent work.
+- Pay attention to temporal signals: if the cited paper proposes X and the citing paper "improves upon X" or "extends X to Y", that's "extends".
+- Negative framing ("unlike previous work", "in contrast to") signals contradiction.
+
+Respond with ONLY valid JSON: {"edgeType": "...", "confidence": 0.0, "snippet": "..."}`;
+
 // =============================================================================
 // JSON SANITIZER
 // =============================================================================
@@ -114,7 +154,7 @@ function sanitizeJSON(raw: string): string {
 // =============================================================================
 
 /** Current classifier version — bump when logic changes to invalidate stale cache */
-const CLASSIFIER_VERSION = 5;
+const CLASSIFIER_VERSION = 6;
 
 /**
  * Classify a single citation relationship.
@@ -219,8 +259,8 @@ export async function classifyCitation(
   // Three confidence tiers:
   //   - Full contexts (S2 sentences) → 100%
   //   - Intents only (S2 labels, no sentences) → 70%
-  //   - Abstracts only (no S2 data at all) → 55%
-  const maxConfidence = hasContexts ? 1.0 : hasS2Intents ? 0.7 : 0.55;
+  //   - Abstracts only (inferential prompt) → 65%
+  const maxConfidence = hasContexts ? 1.0 : hasS2Intents ? 0.7 : 0.65;
 
   // 2. Build user message — include citation contexts from S2 if available
   let userContent = `CITING PAPER: "${input.citingTitle}"
@@ -242,8 +282,15 @@ ${input.citationContexts.map((ctx, i) => `${i + 1}. "${ctx}"`).join("\n")}`;
   try {
     const router = getLLMRouter();
 
+    // Select prompt based on signal quality:
+    // - With S2 contexts/intents: use strict prompt (evidence-based)
+    // - Abstracts only: use inferential prompt (pattern-based)
+    const systemPrompt = isAbstractsOnly
+      ? ABSTRACTS_ONLY_PROMPT
+      : CLASSIFICATION_PROMPT;
+
     const messages: LLMMessage[] = [
-      { role: "system", content: CLASSIFICATION_PROMPT },
+      { role: "system", content: systemPrompt },
       { role: "user", content: userContent },
     ];
 
