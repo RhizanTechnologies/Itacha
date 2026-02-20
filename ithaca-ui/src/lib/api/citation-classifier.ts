@@ -375,8 +375,12 @@ ${input.citationContexts.map((ctx, i) => `${i + 1}. "${ctx}"`).join("\n")}`;
     );
 
     return classification;
-  } catch {
-    // LLM unavailable — default to "cites" instead of heuristic guessing
+  } catch (error) {
+    // LLM unavailable — log the actual error so we can debug
+    console.error(
+      `[Citation Classifier] LLM classification failed for ${input.citingId}→${input.citedId}:`,
+      error instanceof Error ? error.message : error,
+    );
     const fallback: ClassificationResult = {
       citingId: input.citingId,
       citedId: input.citedId,

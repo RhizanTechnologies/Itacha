@@ -695,17 +695,17 @@ export class OpenAlexProvider implements IGraphProvider {
   // ---------------------------------------------------------------------------
 
   async getEvidence(paperId: string): Promise<EvidenceItem[]> {
-    // Find incoming edges (papers citing this paper)
-    const relatedEdges = this.edgeCache.filter((e) => e.target === paperId);
+    // Find ALL edges involving this paper — both directions
+    const incomingEdges = this.edgeCache.filter((e) => e.target === paperId);
+    const outgoingEdges = this.edgeCache.filter((e) => e.source === paperId);
 
     const evidence: EvidenceItem[] = [];
 
-    for (const edge of relatedEdges.slice(0, 5)) {
-      const otherNodeId = edge.source;
-      const otherNode = this.nodeCache.get(otherNodeId);
+    // Incoming edges first (papers citing THIS paper)
+    for (const edge of incomingEdges.slice(0, 5)) {
+      const otherNode = this.nodeCache.get(edge.source);
       if (!otherNode) continue;
 
-      // Map S2 intent labels to section context
       const contextFromSignal =
         edge.signalSource === "llm+contexts"
           ? ("Discussion" as const)
@@ -727,16 +727,55 @@ export class OpenAlexProvider implements IGraphProvider {
               : edge.edgeType === "cites"
                 ? "cites"
                 : edge.edgeType === "unknown"
-                  ? "cites" // Map legacy "unknown" to "cites"
+                  ? "cites"
                   : "extends",
         confidence: edge.confidence,
-        // Use the real classifier snippet, not a fabricated template
         snippet: edge.snippet || "No classification explanation available.",
         source: edge.provider,
         context: contextFromSignal,
         signalSource: edge.signalSource,
         citationSentences: edge.contexts,
       });
+    }
+
+    // Outgoing edges (papers THIS paper cites) — fill remaining slots up to 5
+    const remainingSlots = 5 - evidence.length;
+    if (remainingSlots > 0) {
+      for (const edge of outgoingEdges.slice(0, remainingSlots)) {
+        const otherNode = this.nodeCache.get(edge.target);
+        if (!otherNode) continue;
+
+        const contextFromSignal =
+          edge.signalSource === "llm+contexts"
+            ? ("Discussion" as const)
+            : undefined;
+
+        evidence.push({
+          id: `ev-${edge.id}`,
+          sourcePaper: {
+            id: otherNode.id,
+            title: otherNode.title,
+            authors: otherNode.authors,
+            year: otherNode.year,
+          },
+          relation:
+            edge.edgeType === "contradicts"
+              ? "refutes"
+              : edge.edgeType === "supports"
+                ? "supports"
+                : edge.edgeType === "cites"
+                  ? "cites"
+                  : edge.edgeType === "unknown"
+                    ? "cites"
+                    : "extends",
+          confidence: edge.confidence,
+          snippet: edge.snippet || "No classification explanation available.",
+          source: edge.provider,
+          context: contextFromSignal,
+          signalSource: edge.signalSource,
+          citationSentences: edge.contexts,
+        });
+      }
     }
 
     return evidence;
