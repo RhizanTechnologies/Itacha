@@ -280,6 +280,9 @@ export function ExploreCanvas() {
               onExpand={(nodeId, direction, type) => {
                 refs.graphApiRef.current?.expandNode(nodeId, direction, type);
               }}
+              onExpandByTopic={(nodeId) => {
+                refs.graphApiRef.current?.expandByTopic(nodeId);
+              }}
               onFocus={handleEnterFocusMode}
               onViewDetails={(nodeId) => {
                 // Simulate a node click to open inspector
@@ -531,7 +534,9 @@ export function ExploreCanvas() {
           onViewPaper={(paperId) => handleSearchPaper(paperId)}
           onDispute={(edgeId) => {
             debug.log("Dispute edge requested:", edgeId);
-            actions.showToastMessage("Dispute flagged — use Edit to correct the relationship");
+            actions.showToastMessage(
+              "Dispute flagged — use Edit to correct the relationship",
+            );
           }}
           onCorrect={(edgeId, type, comment) => {
             debug.log("Correction submitted:", { edgeId, type, comment });
@@ -554,8 +559,12 @@ export function ExploreCanvas() {
               graph.setEdgeAttribute(edgeId, "originalColor", newColor);
               graph.setEdgeAttribute(edgeId, "confidence", 100);
               graph.setEdgeAttribute(edgeId, "signalSource", "user-correction");
-              graph.setEdgeAttribute(edgeId, "snippet",
-                comment ? `User correction: ${comment}` : `User corrected relationship to "${type}".`
+              graph.setEdgeAttribute(
+                edgeId,
+                "snippet",
+                comment
+                  ? `User correction: ${comment}`
+                  : `User corrected relationship to "${type}".`,
               );
               graph.setEdgeAttribute(edgeId, "provider", "user-correction");
               sigma.refresh();

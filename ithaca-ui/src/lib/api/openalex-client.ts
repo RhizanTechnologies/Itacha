@@ -276,6 +276,35 @@ export async function autocompleteWorks(
   });
 }
 
+/**
+ * Autocomplete concepts/topics (for command bar topic search).
+ * Returns fields of study matching the query.
+ */
+export async function autocompleteConcepts(
+  query: string,
+): Promise<OpenAlexAutocompleteResponse> {
+  return openAlexFetch<OpenAlexAutocompleteResponse>("/autocomplete/concepts", {
+    q: query,
+  });
+}
+
+/**
+ * Get works by concept/topic (for topic expansion).
+ * Fetches the most-cited papers tagged with a given concept.
+ */
+export async function getWorksByConcept(
+  conceptId: string,
+  options: { perPage?: number; sort?: string } = {},
+): Promise<OpenAlexListResponse<OpenAlexWork>> {
+  const cleanId = conceptId.replace("https://openalex.org/", "");
+  return openAlexFetch<OpenAlexListResponse<OpenAlexWork>>("/works", {
+    filter: `concepts.id:${cleanId}`,
+    per_page: String(options.perPage ?? 10),
+    sort: options.sort ?? "cited_by_count:desc",
+    select: SEARCH_FIELDS,
+  });
+}
+
 // =============================================================================
 // UTILITY: Abstract Reconstruction
 // =============================================================================

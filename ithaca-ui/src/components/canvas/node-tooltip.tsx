@@ -47,6 +47,7 @@ interface NodeTooltipProps {
     direction: "in" | "out",
     type?: "all" | "supports" | "contradicts",
   ) => void;
+  onExpandByTopic?: (nodeId: string) => void;
   onFocus?: (nodeId: string) => void;
   onAddToProject?: (nodeId: string) => void;
   onViewDetails?: (nodeId: string) => void;
@@ -54,6 +55,7 @@ interface NodeTooltipProps {
 
 export function NodeTooltip({
   onExpand,
+  onExpandByTopic,
   onFocus,
   onAddToProject,
   onViewDetails,
@@ -213,7 +215,10 @@ export function NodeTooltip({
                 {tooltip.supports > 0 && (
                   <span className="text-supports/60 text-xs font-mono flex items-center">
                     <TrendingUp className="h-3 w-3 mr-0.5" />
-                    {total > 0 ? Math.round((tooltip.supports / total) * 100) : 0}%
+                    {total > 0
+                      ? Math.round((tooltip.supports / total) * 100)
+                      : 0}
+                    %
                   </span>
                 )}
               </div>
@@ -230,7 +235,10 @@ export function NodeTooltip({
                 {tooltip.refutes > 0 && (
                   <span className="text-contradicts/60 text-xs font-mono flex items-center">
                     <TrendingDown className="h-3 w-3 mr-0.5" />
-                    {total > 0 ? Math.round((tooltip.refutes / total) * 100) : 0}%
+                    {total > 0
+                      ? Math.round((tooltip.refutes / total) * 100)
+                      : 0}
+                    %
                   </span>
                 )}
               </div>
@@ -323,6 +331,18 @@ export function NodeTooltip({
                 >
                   + Critics
                 </button>
+                {onExpandByTopic && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onExpandByTopic(tooltip.nodeId);
+                    }}
+                    className="flex-1 text-[10px] bg-background hover:bg-violet-500/10 border border-violet-500/20 text-violet-600 dark:text-violet-400 rounded px-2 py-1 transition-colors flex items-center justify-center gap-1"
+                    title="Find papers in the same field"
+                  >
+                    + Related
+                  </button>
+                )}
               </>
             )}
           </div>

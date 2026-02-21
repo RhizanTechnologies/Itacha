@@ -112,9 +112,11 @@ export function GraphLoader({
   const graphRef = useRef<Graph | null>(null);
 
   // Load graph data from API
-  const { saveGraph, loadGraph: loadSessionGraph, clearSession } = useGraphSession(
-    graphRef.current,
-  );
+  const {
+    saveGraph,
+    loadGraph: loadSessionGraph,
+    clearSession,
+  } = useGraphSession(graphRef.current);
 
   // Track previous refresh trigger to detect manual refresh
   const prevRefreshRef = useRef(refreshTrigger);
@@ -149,12 +151,22 @@ export function GraphLoader({
         const isTopic = focusNode.startsWith("topic-");
         if (isTopic) {
           const query = focusNode.replace("topic-", "");
-          debug.graph("Re-fetching topic slice:", query, "paperCount:", paperCount);
+          debug.graph(
+            "Re-fetching topic slice:",
+            query,
+            "paperCount:",
+            paperCount,
+          );
           const data = await graphAPI.fetchTopicSlice(query, paperCount);
           nodes = data.nodes;
           edges = data.edges;
         } else {
-          debug.graph("Re-fetching paper context:", focusNode, "paperCount:", paperCount);
+          debug.graph(
+            "Re-fetching paper context:",
+            focusNode,
+            "paperCount:",
+            paperCount,
+          );
           const data = await graphAPI.fetchPaperContext(focusNode, paperCount);
           nodes = data.nodes;
           edges = data.edges;
@@ -310,7 +322,10 @@ export function GraphLoader({
       if (!graph || graph.order === 0) return;
 
       const currentFilters = latestFiltersRef.current;
-      const { hiddenNodes, hiddenEdges } = graphAPI.applyFilters(graph, currentFilters);
+      const { hiddenNodes, hiddenEdges } = graphAPI.applyFilters(
+        graph,
+        currentFilters,
+      );
 
       // If Focus Mode is active, override filtering logic
       let effectiveHiddenNodes = hiddenNodes;
@@ -367,7 +382,8 @@ export function GraphLoader({
         } else if (isGhost) {
           color = `${attrs.color}${COLORS.GHOST_ALPHA}`;
         } else {
-          color = attrs.originalColor ||
+          color =
+            attrs.originalColor ||
             COLORS.CLUSTERS[attrs.cluster] ||
             COLORS.CLUSTERS[0];
         }
@@ -377,7 +393,8 @@ export function GraphLoader({
           color = `${color}70`; // 44% opacity — light dim, not a blackout
         }
 
-        const baseSize = attrs.originalSize || attrs.size || GRAPH.DEFAULT_NODE_SIZE;
+        const baseSize =
+          attrs.originalSize || attrs.size || GRAPH.DEFAULT_NODE_SIZE;
         // Slightly enlarge selected nodes for emphasis
         let size = isSelected ? Math.max(baseSize * 1.3, 14) : baseSize;
 
@@ -431,13 +448,17 @@ export function GraphLoader({
         if (!isPathActive) {
           if (isCites) {
             // "cites" edges: subtle neutral line — visible but doesn't compete with classified edges
-            const alpha = Math.round(0.45 * 255).toString(16).padStart(2, "0");
+            const alpha = Math.round(0.45 * 255)
+              .toString(16)
+              .padStart(2, "0");
             edgeColor = `${edgeColor.slice(0, 7)}${alpha}`;
             edgeSize = Math.max(edgeSize * 0.7, 0.4);
           } else if (confidence != null && confidence < 80) {
             // Scale opacity: 0% confidence → 35% opacity, 80% → 100% opacity
             const opacity = 0.35 + (confidence / 80) * 0.65;
-            const alpha = Math.round(opacity * 255).toString(16).padStart(2, "0");
+            const alpha = Math.round(opacity * 255)
+              .toString(16)
+              .padStart(2, "0");
             edgeColor = `${edgeColor.slice(0, 7)}${alpha}`;
             // Slightly thinner for low confidence
             if (confidence < 50) {
@@ -664,7 +685,11 @@ export function GraphLoader({
         sigma.refresh();
       },
 
-      expandNode: async (nodeId: string, direction: "in" | "out", type?: "all" | "supports" | "contradicts" | "extends") => {
+      expandNode: async (
+        nodeId: string,
+        direction: "in" | "out",
+        type?: "all" | "supports" | "contradicts" | "extends",
+      ) => {
         const graph = sigma.getGraph();
         if (!graph.hasNode(nodeId)) return;
 
@@ -719,6 +744,47 @@ export function GraphLoader({
           }
         } catch (e) {
           debug.error("Expansion failed", e);
+        }
+      },
+
+      expandByTopic: async (nodeId: string) => {
+        const graph = sigma.getGraph();
+        if (!graph.hasNode(nodeId)) return;
+
+        try {
+          const { nodes: newNodes } = await graphAPI.expandByTopic(nodeId);
+
+          // Position new nodes near the source paper
+          const sourceAttrs = graph.getNodeAttributes(nodeId);
+          const sx = sourceAttrs.x || 0;
+          const sy = sourceAttrs.y || 0;
+
+          let addedCount = 0;
+          newNodes.forEach((node, i) => {
+            if (!graph.hasNode(node.id)) {
+              const angle = (Math.PI * 2 * i) / Math.max(newNodes.length, 1);
+              const radius = 80 + Math.random() * 40;
+              graph.addNode(node.id, {
+                ...node,
+                originalSize: node.size,
+                hidden: false,
+                size: node.size,
+                x: sx + Math.cos(angle) * radius,
+                y: sy + Math.sin(angle) * radius,
+              });
+              addedCount++;
+            }
+          });
+
+          if (addedCount > 0) {
+            onStatsChange({
+              nodeCount: graph.order,
+              edgeCount: graph.size,
+            });
+            sigma.refresh();
+          }
+        } catch (e) {
+          debug.error("Topic expansion failed", e);
         }
       },
       addGraphData: (nodes: PaperNode[], edges: EdgeData[], clear = false) => {
@@ -800,45 +866,54 @@ export function GraphLoader({
           .edges(event.node)
           .filter((edge) => graph.target(edge) === event.node);
 
-        const evidence: EvidenceItem[] = incomingEdges.slice(0, 5).map((edge) => {
-          const edgeAttrs = graph.getEdgeAttributes(edge) as {
-            edgeType?: "supports" | "contradicts" | "extends" | "cites" | "unknown";
-            confidence?: number;
-            snippet?: string;
-            signalSource?: string;
-            contexts?: string[];
-            provider?: string;
-          };
-          const sourceId = graph.source(edge);
-          const sourceAttrs = graph.getNodeAttributes(sourceId) as PaperNode;
+        const evidence: EvidenceItem[] = incomingEdges
+          .slice(0, 5)
+          .map((edge) => {
+            const edgeAttrs = graph.getEdgeAttributes(edge) as {
+              edgeType?:
+                | "supports"
+                | "contradicts"
+                | "extends"
+                | "cites"
+                | "unknown";
+              confidence?: number;
+              snippet?: string;
+              signalSource?: string;
+              contexts?: string[];
+              provider?: string;
+            };
+            const sourceId = graph.source(edge);
+            const sourceAttrs = graph.getNodeAttributes(sourceId) as PaperNode;
 
-          const relation =
-            edgeAttrs.edgeType === "contradicts"
-              ? "refutes"
-              : edgeAttrs.edgeType === "supports"
-                ? "supports"
-                : edgeAttrs.edgeType === "cites"
-                  ? "cites"
-                  : edgeAttrs.edgeType === "unknown"
-                    ? "cites" // Map legacy "unknown" to "cites"
-                    : "extends";
+            const relation =
+              edgeAttrs.edgeType === "contradicts"
+                ? "refutes"
+                : edgeAttrs.edgeType === "supports"
+                  ? "supports"
+                  : edgeAttrs.edgeType === "cites"
+                    ? "cites"
+                    : edgeAttrs.edgeType === "unknown"
+                      ? "cites" // Map legacy "unknown" to "cites"
+                      : "extends";
 
-          return {
-            id: `ev-${edge}`,
-            sourcePaper: {
-              id: sourceId,
-              title: sourceAttrs.title || sourceAttrs.label,
-              authors: sourceAttrs.authors || "Unknown Authors",
-              year: sourceAttrs.year || 2024,
-            },
-            relation,
-            confidence: Math.round(edgeAttrs.confidence ?? 20),
-            snippet: edgeAttrs.snippet || "No classification explanation available.",
-            source: edgeAttrs.provider,
-            signalSource: edgeAttrs.signalSource as EvidenceItem["signalSource"],
-            citationSentences: edgeAttrs.contexts,
-          };
-        });
+            return {
+              id: `ev-${edge}`,
+              sourcePaper: {
+                id: sourceId,
+                title: sourceAttrs.title || sourceAttrs.label,
+                authors: sourceAttrs.authors || "Unknown Authors",
+                year: sourceAttrs.year || 2024,
+              },
+              relation,
+              confidence: Math.round(edgeAttrs.confidence ?? 20),
+              snippet:
+                edgeAttrs.snippet || "No classification explanation available.",
+              source: edgeAttrs.provider,
+              signalSource:
+                edgeAttrs.signalSource as EvidenceItem["signalSource"],
+              citationSentences: edgeAttrs.contexts,
+            };
+          });
 
         const supportsCount = incomingEdges.filter((edge) => {
           const edgeAttrs = graph.getEdgeAttributes(edge) as {
@@ -914,7 +989,8 @@ export function GraphLoader({
         if (realSnippet) {
           snippets.push({
             text: realSnippet,
-            source: SIGNAL_SOURCE_LABELS[signalSource]?.label || "AI classification",
+            source:
+              SIGNAL_SOURCE_LABELS[signalSource]?.label || "AI classification",
           });
         }
 
@@ -1063,7 +1139,11 @@ export function GraphLoader({
       if (hoveredNode) {
         if (source === hoveredNode || target === hoveredNode) {
           connectedEdges.add(edge);
-          graph.setEdgeAttribute(edge, "size", baseEdgeSize * GRAPH.HOVER_EDGE_SIZE_MULTIPLIER);
+          graph.setEdgeAttribute(
+            edge,
+            "size",
+            baseEdgeSize * GRAPH.HOVER_EDGE_SIZE_MULTIPLIER,
+          );
           graph.setEdgeAttribute(edge, "zIndex", GRAPH.HIGHLIGHT_Z_INDEX);
         } else {
           graph.setEdgeAttribute(edge, "size", GRAPH.UNHOVER_EDGE_SIZE);

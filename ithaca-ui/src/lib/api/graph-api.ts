@@ -139,10 +139,14 @@ export interface IGraphProvider {
   getPaperById(id: string): Promise<PaperNode | null>;
   getEvidence(paperId: string): Promise<EvidenceItem[]>;
   searchPapers(query: string): Promise<SearchResult[]>;
+  searchTopics(query: string): Promise<SearchResult[]>;
   expandNode(
     nodeId: string,
     direction: "in" | "out",
     type?: "all" | "supports" | "contradicts" | "extends",
+  ): Promise<{ nodes: PaperNode[]; edges: EdgeData[] }>;
+  expandByTopic(
+    nodeId: string,
   ): Promise<{ nodes: PaperNode[]; edges: EdgeData[] }>;
   getStats(): GraphStats;
 }
@@ -450,6 +454,10 @@ class MockGraphProvider implements IGraphProvider {
       }));
   }
 
+  async searchTopics(_query: string): Promise<SearchResult[]> {
+    return []; // Mock: no topics
+  }
+
   async expandNode(
     nodeId: string,
     direction: "in" | "out",
@@ -488,6 +496,13 @@ class MockGraphProvider implements IGraphProvider {
       ],
     };
   }
+
+  async expandByTopic(
+    _nodeId: string,
+  ): Promise<{ nodes: PaperNode[]; edges: EdgeData[] }> {
+    return { nodes: [], edges: [] }; // Mock: no topic expansion
+  }
+
   getStats(): GraphStats {
     return {
       nodeCount: this.papers.size,
@@ -543,8 +558,14 @@ class GraphAPIService {
   searchPapers(q: string) {
     return this.provider.searchPapers(q);
   }
+  searchTopics(q: string) {
+    return this.provider.searchTopics(q);
+  }
   expandNode(id: string, dir: "in" | "out", type?: any) {
     return this.provider.expandNode(id, dir, type);
+  }
+  expandByTopic(id: string) {
+    return this.provider.expandByTopic(id);
   }
 
   // Keep utility function here as it's separate from data source

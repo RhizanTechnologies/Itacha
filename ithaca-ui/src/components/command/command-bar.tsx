@@ -24,19 +24,12 @@ import {
   Moon,
   Sun,
   Loader2,
+  BookOpen,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { graphAPI, SearchResult } from "@/lib/api/graph-api";
-import {
-  useCanvasState,
-  useCanvasActions,
-} from "@/contexts/canvas-context";
-import {
-  CheckCircle,
-  XCircle,
-  ArrowRightCircle,
-  Layers,
-} from "lucide-react";
+import { useCanvasState, useCanvasActions } from "@/contexts/canvas-context";
+import { CheckCircle, XCircle, ArrowRightCircle, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { RelationshipFocusType } from "@/components/canvas/relationship-focus-control";
 
@@ -60,6 +53,7 @@ export function CommandBar({
   const setOpen = onOpenChange ?? setInternalOpen;
   const [search, setSearch] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [topicResults, setTopicResults] = useState<SearchResult[]>([]);
   const [recentPapers, setRecentPapers] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const { theme, setTheme } = useTheme();
@@ -144,17 +138,24 @@ export function CommandBar({
   useEffect(() => {
     if (!search.trim()) {
       setSearchResults([]);
+      setTopicResults([]);
       return;
     }
 
     const searchTimeout = setTimeout(async () => {
       setIsSearching(true);
       try {
-        const results = await graphAPI.searchPapers(search);
-        setSearchResults(results);
+        // Fetch papers and topics in parallel
+        const [papers, topics] = await Promise.all([
+          graphAPI.searchPapers(search),
+          graphAPI.searchTopics(search),
+        ]);
+        setSearchResults(papers);
+        setTopicResults(topics);
       } catch (error) {
         console.error("Search error:", error);
         setSearchResults([]);
+        setTopicResults([]);
       } finally {
         setIsSearching(false);
       }
@@ -230,9 +231,11 @@ export function CommandBar({
           </div>
         </div>
         <CommandInput
-          placeholder={canvasState.relationshipFocus === "all"
-            ? "Search papers, authors, or topics..."
-            : `Search for papers that ${canvasState.relationshipFocus === "supports" ? "support" : canvasState.relationshipFocus === "contradicts" ? "refute" : "extend"} others...`}
+          placeholder={
+            canvasState.relationshipFocus === "all"
+              ? "Search papers, authors, or topics..."
+              : `Search for papers that ${canvasState.relationshipFocus === "supports" ? "support" : canvasState.relationshipFocus === "contradicts" ? "refute" : "extend"} others...`
+          }
           value={search}
           onValueChange={setSearch}
         />
@@ -273,6 +276,30 @@ export function CommandBar({
                     </span>
                     <span className="text-xs text-muted-foreground">
                       {paper.authors} • {paper.year}
+                    </span>
+                  </div>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
+
+          {/* Topic Results */}
+          {topicResults.length > 0 && (
+            <CommandGroup heading="Topics">
+              {topicResults.map((topic) => (
+                <CommandItem
+                  key={topic.id}
+                  value={`topic:${topic.title}`}
+                  onSelect={() => handleSelectPaper(topic.id)}
+                  className="py-3 cursor-pointer"
+                >
+                  <BookOpen className="mr-3 h-5 w-5 text-violet-500/70" />
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-sm font-medium heading-text">
+                      {topic.title}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {topic.authors}
                     </span>
                   </div>
                 </CommandItem>

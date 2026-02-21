@@ -29,6 +29,8 @@ import {
   getCitingWorks,
   getReferencedWorks,
   reconstructAbstract,
+  autocompleteConcepts,
+  getWorksByConcept,
 } from "./openalex-client";
 import { batchGetCitationContexts } from "./semantic-scholar-client";
 // Classification is done via API route (server-side) since LLM keys can't be
@@ -688,6 +690,95 @@ export class OpenAlexProvider implements IGraphProvider {
 
     this.edgeCache.push(...edges);
     return { nodes, edges };
+  }
+
+  // ---------------------------------------------------------------------------
+  // searchTopics — Search for concepts/fields of study
+  // ---------------------------------------------------------------------------
+
+  async searchTopics(query: string): Promise<SearchResult[]> {
+    if (!query.trim()) return [];
+
+    try {
+      const response = await autocompleteConcepts(query);
+      return response.results.slice(0, 5).map((concept) => ({
+        id: concept.id,
+        title: concept.display_name,
+        authors: `${concept.works_count.toLocaleString()} papers`,
+        year: 0, // Topics don't have a year
+        type: "topic" as const,
+      }));
+    } catch (error) {
+      console.warn("[OpenAlex] Topic search failed:", error);
+      return [];
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // expandByTopic — Find related papers by shared concept (no fake edges)
+  // ---------------------------------------------------------------------------
+
+  async expandByTopic(
+    nodeId: string,
+  ): Promise<{ nodes: PaperNode[]; edges: EdgeData[] }> {
+    // Get the source paper
+    let sourceNode = this.nodeCache.get(nodeId);
+    if (!sourceNode) {
+      try {
+        const work = await getWork(nodeId);
+        sourceNode = workToPaperNode(work);
+        this.nodeCache.set(sourceNode.id, sourceNode);
+      } catch {
+        return { nodes: [], edges: [] };
+      }
+    }
+
+    // Get the paper's raw data to find its top concept
+    try {
+      const work = await getWork(nodeId);
+      const topConcept = work.concepts
+        ?.filter((c) => c.level >= 1) // Skip level-0 (too broad, e.g. "Computer Science")
+        .sort((a, b) => b.score - a.score)[0];
+
+      if (!topConcept) {
+        console.warn(`[expandByTopic] No usable concept found for ${nodeId}`);
+        return { nodes: [], edges: [] };
+      }
+
+      console.log(
+        `[expandByTopic] Using concept: "${topConcept.display_name}" (level ${topConcept.level})`,
+      );
+
+      // Fetch most-cited papers with this concept
+      const response = await getWorksByConcept(topConcept.id, {
+        perPage: 10,
+      });
+
+      // Filter out papers already in the graph
+      const existingIds = new Set(this.nodeCache.keys());
+      const newWorks = response.results.filter(
+        (w) => !existingIds.has(extractOpenAlexId(w.id)),
+      );
+
+      // Convert to PaperNodes — these are independent cluster nodes, no edges
+      const clusterIndex = (sourceNode.cluster + 1) % 10; // Different cluster color
+      const nodes: PaperNode[] = newWorks.slice(0, 8).map((w) => {
+        const node = workToPaperNode(w, clusterIndex);
+        node.status = "ghost"; // Related papers start as suggestions
+        this.nodeCache.set(node.id, node);
+        return node;
+      });
+
+      console.log(
+        `[expandByTopic] Added ${nodes.length} related papers for concept "${topConcept.display_name}"`,
+      );
+
+      // No edges — these are topic-related, not citation-linked
+      return { nodes, edges: [] };
+    } catch (error) {
+      console.error(`[expandByTopic] Failed:`, error);
+      return { nodes: [], edges: [] };
+    }
   }
 
   // ---------------------------------------------------------------------------
