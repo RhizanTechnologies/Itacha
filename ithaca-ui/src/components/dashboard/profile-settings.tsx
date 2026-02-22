@@ -10,7 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { UserProfile, dashboardAPI } from "@/lib/api/dashboard-api";
+import { updateProfile, type UserProfile } from "@/app/(app)/dashboard/actions";
 import { Loader2 } from "lucide-react";
 
 interface ProfileSettingsProps {
@@ -32,13 +32,13 @@ export function ProfileSettings({
     setSaved(false);
 
     try {
-      // Call actual API
-      await dashboardAPI.updateProfile(profile);
+      await updateProfile({
+        name: profile.name,
+        department: profile.department,
+        institution: profile.institution,
+      });
 
-      // Notify parent to refresh state
-      if (onUpdate) {
-        onUpdate();
-      }
+      if (onUpdate) onUpdate();
 
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);

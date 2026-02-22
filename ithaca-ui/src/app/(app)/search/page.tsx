@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +16,7 @@ import {
   Loader2,
   BookOpen,
   Sparkles,
+  Clock,
 } from "lucide-react";
 import {
   Select,
@@ -26,19 +28,38 @@ import {
 import { graphAPI, SearchResult } from "@/lib/api/graph-api";
 import { escapeRegex } from "@/lib/utils";
 
-interface SearchPageProps {
-  initialQuery?: string;
+const RECENT_SEARCHES_KEY = "ithaca_recent_searches";
+const MAX_RECENT = 8;
+
+function getRecentSearches(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const stored = localStorage.getItem(RECENT_SEARCHES_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
 }
 
-export default function SearchPage({ initialQuery = "" }: SearchPageProps) {
-  const [query, setQuery] = useState(initialQuery);
+function saveRecentSearch(term: string) {
+  if (typeof window === "undefined") return;
+  const recent = getRecentSearches().filter((t) => t !== term);
+  recent.unshift(term);
+  localStorage.setItem(
+    RECENT_SEARCHES_KEY,
+    JSON.stringify(recent.slice(0, MAX_RECENT)),
+  );
+}
+
+export default function SearchPage() {
+  const router = useRouter();
+  const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [sortBy, setSortBy] = useState<"relevance" | "year">("relevance");
   const [filterYear, setFilterYear] = useState<string>("all");
 
-  // Search on query change (debounced)
   useEffect(() => {
     if (!query.trim()) {
       setResults([]);
@@ -52,6 +73,7 @@ export default function SearchPage({ initialQuery = "" }: SearchPageProps) {
         const searchResults = await graphAPI.searchPapers(query);
         setResults(searchResults);
         setHasSearched(true);
+        saveRecentSearch(query.trim());
       } catch (error) {
         console.error("Search error:", error);
       } finally {
@@ -62,16 +84,26 @@ export default function SearchPage({ initialQuery = "" }: SearchPageProps) {
     return () => clearTimeout(timer);
   }, [query]);
 
-  // Sort results
   const sortedResults = [...results].sort((a, b) => {
     if (sortBy === "year") return b.year - a.year;
-    return 0; // Default order from API
+    return 0;
   });
 
-  // Filter by year
-  const filteredResults = filterYear === "all" 
-    ? sortedResults 
-    : sortedResults.filter((r) => r.year >= parseInt(filterYear));
+  const filteredResults =
+    filterYear === "all"
+      ? sortedResults
+      : sortedResults.filter((r) => r.year >= parseInt(filterYear));
+
+  const handleViewPaper = useCallback(
+    (paperId: string) => {
+      router.push(`/explore?q=${encodeURIComponent(paperId)}`);
+    },
+    [router],
+  );
+
+  const handleSuggestionClick = useCallback((term: string) => {
+    setQuery(term);
+  }, []);
 
   return (
     <div className="min-h-full bg-muted/30 pb-10">
@@ -98,7 +130,6 @@ export default function SearchPage({ initialQuery = "" }: SearchPageProps) {
             )}
           </div>
 
-          {/* Filters & Sort */}
           {hasSearched && results.length > 0 && (
             <div className="flex items-center gap-4 mt-4">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -110,9 +141,9 @@ export default function SearchPage({ initialQuery = "" }: SearchPageProps) {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Years</SelectItem>
+                    <SelectItem value="2025">2025+</SelectItem>
                     <SelectItem value="2024">2024+</SelectItem>
                     <SelectItem value="2023">2023+</SelectItem>
-                    <SelectItem value="2022">2022+</SelectItem>
                     <SelectItem value="2020">2020+</SelectItem>
                   </SelectContent>
                 </Select>
@@ -121,7 +152,10 @@ export default function SearchPage({ initialQuery = "" }: SearchPageProps) {
               <div className="flex items-center gap-2 text-sm text-muted-foreground ml-auto">
                 <ArrowUpDown className="h-4 w-4" />
                 <span>Sort:</span>
-                <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
+                <Select
+                  value={sortBy}
+                  onValueChange={(v) => setSortBy(v as typeof sortBy)}
+                >
                   <SelectTrigger className="w-32 h-8">
                     <SelectValue />
                   </SelectTrigger>
@@ -141,38 +175,43 @@ export default function SearchPage({ initialQuery = "" }: SearchPageProps) {
         {isSearching ? (
           <div className="flex flex-col items-center justify-center py-20">
             <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-            <p className="text-muted-foreground">Searching...</p>
+            <p className="text-muted-foreground">Searching OpenAlex...</p>
           </div>
         ) : hasSearched && filteredResults.length === 0 ? (
-          <EmptyState query={query} />
+          <EmptyState query={query} onExplore={() => router.push("/explore")} />
         ) : hasSearched ? (
           <>
             <p className="text-sm text-muted-foreground mb-4">
-              Found {filteredResults.length} results for "{query}"
+              Found {filteredResults.length} results for &ldquo;{query}&rdquo;
             </p>
             <div className="space-y-4">
               {filteredResults.map((result) => (
-                <SearchResultCard key={result.id} result={result} query={query} />
+                <SearchResultCard
+                  key={result.id}
+                  result={result}
+                  query={query}
+                  onViewPaper={handleViewPaper}
+                />
               ))}
             </div>
           </>
         ) : (
-          <SearchSuggestions />
+          <SearchSuggestions onSelect={handleSuggestionClick} />
         )}
       </div>
     </div>
   );
 }
 
-// Search Result Card
-function SearchResultCard({ 
-  result, 
-  query 
-}: { 
-  result: SearchResult; 
+function SearchResultCard({
+  result,
+  query,
+  onViewPaper,
+}: {
+  result: SearchResult;
   query: string;
+  onViewPaper: (id: string) => void;
 }) {
-  // Highlight matching text
   const highlightMatch = (text: string) => {
     if (!query) return text;
     const regex = new RegExp(`(${escapeRegex(query)})`, "gi");
@@ -183,7 +222,7 @@ function SearchResultCard({
         </mark>
       ) : (
         part
-      )
+      ),
     );
   };
 
@@ -209,21 +248,27 @@ function SearchResultCard({
       </div>
 
       <div className="flex gap-2 mt-3">
-        <Button size="sm" variant="outline" className="text-xs">
+        <Button
+          size="sm"
+          variant="outline"
+          className="text-xs"
+          onClick={() => onViewPaper(result.id)}
+        >
           <FileText className="h-3 w-3 mr-1" />
-          View Paper
-        </Button>
-        <Button size="sm" variant="outline" className="text-xs">
-          <BookOpen className="h-3 w-3 mr-1" />
-          Add to Collection
+          View in Explorer
         </Button>
       </div>
     </div>
   );
 }
 
-// Empty State Component
-function EmptyState({ query }: { query: string }) {
+function EmptyState({
+  query,
+  onExplore,
+}: {
+  query: string;
+  onExplore: () => void;
+}) {
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center">
       <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mb-6">
@@ -231,72 +276,109 @@ function EmptyState({ query }: { query: string }) {
       </div>
       <h2 className="text-xl font-bold mb-2">No results found</h2>
       <p className="text-muted-foreground max-w-md">
-        We couldn't find any papers matching "{query}". Try adjusting your search terms or browse popular topics.
+        We couldn&apos;t find any papers matching &ldquo;{query}&rdquo;. Try
+        adjusting your search terms or explore a topic.
       </p>
-      <div className="flex gap-2 mt-6">
-        <Button variant="outline" size="sm">
-          Browse Topics
-        </Button>
-        <Button variant="outline" size="sm">
-          View Recent Papers
-        </Button>
-      </div>
+      <Button variant="outline" size="sm" className="mt-6" onClick={onExplore}>
+        Go to Explorer
+      </Button>
     </div>
   );
 }
 
-// Search Suggestions (Initial State)
-function SearchSuggestions() {
-  const suggestions = [
-    "transformer architecture",
-    "graph neural networks",
-    "federated learning",
-    "protein folding",
-    "climate modeling",
-  ];
+function SearchSuggestions({ onSelect }: { onSelect: (term: string) => void }) {
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [trendingTopics, setTrendingTopics] = useState<SearchResult[]>([]);
+  const [loadingTopics, setLoadingTopics] = useState(true);
 
-  const recentSearches = [
-    "attention mechanisms",
-    "BERT applications",
-    "reinforcement learning",
-  ];
+  useEffect(() => {
+    setRecentSearches(getRecentSearches());
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchTrending() {
+      setLoadingTopics(true);
+      try {
+        const topics = await graphAPI.searchTopics("machine learning");
+        if (!cancelled) setTrendingTopics(topics);
+      } catch {
+        // Silently fail — trending is optional
+      } finally {
+        if (!cancelled) setLoadingTopics(false);
+      }
+    }
+    fetchTrending();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <div className="py-10">
-      {/* Recent Searches */}
-      <div className="mb-8">
-        <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-3">
-          Recent Searches
-        </h3>
-        <div className="flex flex-wrap gap-2">
-          {recentSearches.map((term) => (
-            <Badge
-              key={term}
-              variant="secondary"
-              className="cursor-pointer hover:bg-muted transition-colors"
-            >
-              {term}
-            </Badge>
-          ))}
+      {recentSearches.length > 0 && (
+        <div className="mb-8">
+          <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
+            <Clock className="h-4 w-4" />
+            Recent Searches
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {recentSearches.map((term) => (
+              <Badge
+                key={term}
+                variant="secondary"
+                className="cursor-pointer hover:bg-muted transition-colors"
+                onClick={() => onSelect(term)}
+              >
+                {term}
+              </Badge>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Trending Topics */}
       <div>
         <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-primary" />
-          Trending Topics
+          Explore Topics
         </h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          {suggestions.map((term) => (
-            <button
-              key={term}
-              className="p-3 rounded-lg border bg-card hover:bg-muted transition-colors text-left"
-            >
-              <span className="text-sm font-medium">{term}</span>
-            </button>
-          ))}
-        </div>
+        {loadingTopics ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading topics...
+          </div>
+        ) : trendingTopics.length > 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {trendingTopics.map((topic) => (
+              <button
+                key={topic.id}
+                onClick={() => onSelect(topic.title)}
+                className="p-3 rounded-lg border bg-card hover:bg-muted transition-colors text-left"
+              >
+                <span className="text-sm font-medium">{topic.title}</span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {[
+              "transformer architecture",
+              "graph neural networks",
+              "protein folding",
+              "climate modeling",
+              "federated learning",
+              "large language models",
+            ].map((term) => (
+              <button
+                key={term}
+                onClick={() => onSelect(term)}
+                className="p-3 rounded-lg border bg-card hover:bg-muted transition-colors text-left"
+              >
+                <span className="text-sm font-medium">{term}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

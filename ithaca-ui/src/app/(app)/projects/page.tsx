@@ -20,7 +20,6 @@ import {
   StarOff,
   Loader2,
   BookOpen,
-  GitBranch,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -31,17 +30,26 @@ import {
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
 import { CreateProjectDialog } from "@/components/projects/create-project-dialog";
-
-// Types
-import { dashboardAPI, Project, Collection } from "@/lib/api/dashboard-api";
+import {
+  getProjects,
+  getCollections,
+  createProject,
+  deleteProject,
+  toggleProjectFavorite,
+  createCollection,
+  type ProjectData,
+  type CollectionData,
+} from "@/app/(app)/dashboard/actions";
 
 export default function ProjectsPage() {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [collections, setCollections] = useState<Collection[]>([]);
+  const [projects, setProjects] = useState<ProjectData[]>([]);
+  const [collections, setCollections] = useState<CollectionData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [selectedProject, setSelectedProject] = useState<ProjectData | null>(
+    null,
+  );
   const [isNewProjectOpen, setIsNewProjectOpen] = useState(false);
 
   const handleCreateProject = async (data: {
@@ -50,7 +58,7 @@ export default function ProjectsPage() {
     color: string;
   }) => {
     try {
-      const newProject = await dashboardAPI.createProject(data);
+      const newProject = await createProject(data);
       setProjects([newProject, ...projects]);
     } catch (e) {
       console.error("Failed to create project", e);
@@ -61,8 +69,8 @@ export default function ProjectsPage() {
     setIsLoading(true);
     try {
       const [loadedProjects, loadedCollections] = await Promise.all([
-        dashboardAPI.getProjects(),
-        dashboardAPI.getCollections(),
+        getProjects(),
+        getCollections(),
       ]);
       setProjects(loadedProjects);
       setCollections(loadedCollections);
@@ -73,25 +81,22 @@ export default function ProjectsPage() {
     }
   };
 
-  // Load data
   useEffect(() => {
     loadData();
   }, []);
 
-  // Filter projects by search
   const filteredProjects = projects.filter(
     (p) =>
       p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.description.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
-  // Get collections for selected project
   const projectCollections = selectedProject
-    ? collections.filter((c: any) => c.projectId === selectedProject.id)
+    ? collections.filter((c) => c.projectId === selectedProject.id)
     : [];
 
-  const toggleFavorite = async (projectId: string) => {
-    await dashboardAPI.toggleProjectFavorite(projectId);
+  const handleToggleFavorite = async (projectId: string) => {
+    await toggleProjectFavorite(projectId);
     setProjects((prev) =>
       prev.map((p) =>
         p.id === projectId ? { ...p, isFavorite: !p.isFavorite } : p,
@@ -100,11 +105,36 @@ export default function ProjectsPage() {
   };
 
   const handleDeleteProject = async (projectId: string) => {
-    const confirmed = window.confirm("Are you sure you want to delete this project? This action cannot be undone.");
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this project? This action cannot be undone.",
+    );
     if (!confirmed) return;
-    await dashboardAPI.deleteProject(projectId);
+    await deleteProject(projectId);
     setProjects((prev) => prev.filter((p) => p.id !== projectId));
     if (selectedProject?.id === projectId) setSelectedProject(null);
+  };
+
+  const handleAddCollection = async () => {
+    if (!selectedProject) return;
+    const title = window.prompt("Collection name:");
+    if (!title?.trim()) return;
+
+    try {
+      const newCollection = await createCollection({
+        title: title.trim(),
+        projectId: selectedProject.id,
+      });
+      setCollections((prev) => [newCollection, ...prev]);
+      setProjects((prev) =>
+        prev.map((p) =>
+          p.id === selectedProject.id
+            ? { ...p, collectionCount: p.collectionCount + 1 }
+            : p,
+        ),
+      );
+    } catch (e) {
+      console.error("Failed to create collection", e);
+    }
   };
 
   if (isLoading) {
@@ -196,7 +226,9 @@ export default function ProjectsPage() {
                         viewMode={viewMode}
                         isSelected={selectedProject?.id === project.id}
                         onSelect={() => setSelectedProject(project)}
-                        onToggleFavorite={() => toggleFavorite(project.id)}
+                        onToggleFavorite={() =>
+                          handleToggleFavorite(project.id)
+                        }
                         onDelete={() => handleDeleteProject(project.id)}
                       />
                     ))}
@@ -209,25 +241,39 @@ export default function ProjectsPage() {
               <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">
                 All Projects ({filteredProjects.length})
               </h2>
-              <div
-                className={
-                  viewMode === "grid"
-                    ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
-                    : "space-y-2"
-                }
-              >
-                {filteredProjects.map((project) => (
-                  <ProjectCard
-                    key={project.id}
-                    project={project}
-                    viewMode={viewMode}
-                    isSelected={selectedProject?.id === project.id}
-                    onSelect={() => setSelectedProject(project)}
-                    onToggleFavorite={() => toggleFavorite(project.id)}
-                    onDelete={() => handleDeleteProject(project.id)}
-                  />
-                ))}
-              </div>
+              {filteredProjects.length > 0 ? (
+                <div
+                  className={
+                    viewMode === "grid"
+                      ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+                      : "space-y-2"
+                  }
+                >
+                  {filteredProjects.map((project) => (
+                    <ProjectCard
+                      key={project.id}
+                      project={project}
+                      viewMode={viewMode}
+                      isSelected={selectedProject?.id === project.id}
+                      onSelect={() => setSelectedProject(project)}
+                      onToggleFavorite={() =>
+                        handleToggleFavorite(project.id)
+                      }
+                      onDelete={() => handleDeleteProject(project.id)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <Card>
+                  <CardContent className="p-8 text-center text-muted-foreground">
+                    <FolderOpen className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                    <p className="font-medium">No projects yet</p>
+                    <p className="text-sm mt-1">
+                      Create your first project to organize your research.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </div>
 
@@ -265,7 +311,9 @@ export default function ProjectsPage() {
                     </div>
                     <div className="flex items-center gap-1">
                       <BookOpen className="h-4 w-4 text-muted-foreground" />
-                      <span>{selectedProject.collectionCount} collections</span>
+                      <span>
+                        {selectedProject.collectionCount} collections
+                      </span>
                     </div>
                   </div>
 
@@ -285,7 +333,7 @@ export default function ProjectsPage() {
                             {collection.title}
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            {collection.paperCount} papers •{" "}
+                            {collection.paperCount} papers &bull;{" "}
                             {collection.createdAt}
                           </div>
                         </Link>
@@ -301,6 +349,7 @@ export default function ProjectsPage() {
                     variant="outline"
                     size="sm"
                     className="w-full mt-4 gap-2"
+                    onClick={handleAddCollection}
                   >
                     <Plus className="h-4 w-4" />
                     Add Collection
@@ -321,7 +370,6 @@ export default function ProjectsPage() {
   );
 }
 
-// Project Card Component
 function ProjectCard({
   project,
   viewMode,
@@ -330,7 +378,7 @@ function ProjectCard({
   onToggleFavorite,
   onDelete,
 }: {
-  project: Project;
+  project: ProjectData;
   viewMode: "grid" | "list";
   isSelected: boolean;
   onSelect: () => void;

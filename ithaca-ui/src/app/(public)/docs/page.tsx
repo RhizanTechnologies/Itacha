@@ -1,97 +1,100 @@
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { ChevronRight, Code, Key, Book, Shield } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Code, Shield } from "lucide-react";
 
-export default function ApiDocsPage() {
+export default function DocsPage() {
   return (
-    <div className="bg-background text-foreground min-h-screen flex">
-      {/* Sidebar Navigation */}
-      <aside className="w-64 border-r border-border h-[calc(100vh-65px)] sticky top-[65px] hidden lg:block overflow-y-auto bg-muted/10">
-        <nav className="p-6 space-y-8">
-          <div>
-            <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">Getting Started</h4>
-            <ul className="space-y-3 text-sm font-medium">
-              <li><a href="#introduction" className="text-primary hover:underline">Introduction</a></li>
-              <li><a href="#authentication" className="text-muted-foreground hover:text-foreground">Authentication</a></li>
-              <li><a href="#rate-limits" className="text-muted-foreground hover:text-foreground">Rate Limits</a></li>
-            </ul>
+    <div className="bg-background text-foreground min-h-screen">
+      <section className="border-b border-border bg-muted/20">
+        <div className="container mx-auto px-8 py-12">
+          <div className="flex items-center gap-3 mb-4">
+            <h1 className="text-4xl font-bold">Documentation</h1>
+            <Badge variant="secondary">Preview</Badge>
           </div>
-          <div>
-             <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">Endpoints</h4>
-            <ul className="space-y-3 text-sm font-medium">
-              <li><a href="#graph-api" className="text-muted-foreground hover:text-foreground">Graph API</a></li>
-              <li><a href="#search-api" className="text-muted-foreground hover:text-foreground">Search API</a></li>
-              <li><a href="#user-api" className="text-muted-foreground hover:text-foreground">User API</a></li>
-            </ul>
-          </div>
-        </nav>
-      </aside>
+          <p className="text-xl text-muted-foreground">
+            Learn how Ithaca works and how to get the most out of the platform.
+          </p>
+        </div>
+      </section>
 
-      {/* Main Content */}
-      <div className="flex-1">
-        <section className="border-b border-border bg-muted/20">
-            <div className="container mx-auto px-8 py-12">
-               <h1 className="text-4xl font-bold mb-4">Developer API</h1>
-               <p className="text-xl text-muted-foreground">
-                 Integrate Ithaca's citation graph data into your own applications.
-               </p>
+      <div className="container mx-auto px-8 py-12 max-w-4xl">
+        <div className="prose prose-slate dark:prose-invert max-w-none">
+          <h2 id="overview">Overview</h2>
+          <p>
+            Ithaca is a citation graph explorer that visualizes how scientific
+            papers relate to each other. It classifies citation relationships as{" "}
+            <strong>supports</strong>, <strong>contradicts</strong>, or{" "}
+            <strong>extends</strong> using AI-powered analysis.
+          </p>
+
+          <h2 id="data-sources">Data Sources</h2>
+          <p>Ithaca pulls data from two academic APIs:</p>
+          <ul>
+            <li>
+              <strong>OpenAlex</strong> &mdash; Paper metadata, citations,
+              author info, and concepts. Over 250 million works indexed.
+            </li>
+            <li>
+              <strong>Semantic Scholar</strong> &mdash; Citation context
+              sentences extracted from paper full text, used to improve
+              classification accuracy.
+            </li>
+          </ul>
+
+          <h2 id="classification">Citation Classification</h2>
+          <p>
+            When you explore a topic or paper, Ithaca classifies each citation
+            edge using a multi-gate pipeline:
+          </p>
+          <ol>
+            <li>
+              Check for cached classifications in the database
+            </li>
+            <li>
+              Extract citation context sentences from Semantic Scholar
+            </li>
+            <li>
+              Send evidence to an LLM for classification (supports /
+              contradicts / extends / cites)
+            </li>
+            <li>
+              Fall back to abstract-based or title-based classification if no
+              citation context is available
+            </li>
+          </ol>
+          <p>
+            Each edge includes a <strong>confidence score</strong> and a{" "}
+            <strong>signal source</strong> indicator so you can see what
+            evidence the classifier used.
+          </p>
+
+          <h2 id="keyboard-shortcuts">Keyboard Shortcuts</h2>
+          <div className="not-prose">
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              {[
+                ["Cmd/Ctrl + K", "Open command bar"],
+                ["Escape", "Close panels / deselect"],
+                ["F", "Toggle ForceAtlas2 layout"],
+                ["R", "Reset camera view"],
+                ["S", "Toggle selection mode"],
+                ["?", "Show keyboard shortcuts help"],
+              ].map(([key, desc]) => (
+                <div key={key} className="flex items-center gap-3 p-2 rounded border bg-card">
+                  <kbd className="px-2 py-0.5 rounded bg-muted text-xs font-mono">
+                    {key}
+                  </kbd>
+                  <span className="text-muted-foreground">{desc}</span>
+                </div>
+              ))}
             </div>
-        </section>
+          </div>
 
-        <div className="container mx-auto px-8 py-12 max-w-4xl">
-           <div className="prose prose-slate dark:prose-invert max-w-none">
-              <h2 id="introduction">Introduction</h2>
-              <p>
-                The Ithaca API provides programmatic access to our citation graph database. 
-                You can use it to build custom visualizations, feed metrics into academic workflows, 
-                or analyze network support/contradiction patterns.
-              </p>
-
-              <div className="flex gap-4 not-prose my-8">
-                <Button className="gap-2">
-                  <Key className="h-4 w-4" />
-                  Get API Key
-                </Button>
-                <Button variant="outline" className="gap-2">
-                  <Book className="h-4 w-4" />
-                  View OpenAPI Spec
-                </Button>
-              </div>
-
-              <h2 id="authentication">Authentication</h2>
-              <p>
-                All API requests require a Bearer Token in the header.
-              </p>
-              <pre className="bg-slate-900 text-slate-50 p-4 rounded-lg overflow-x-auto">
-{`Authorization: Bearer <YOUR_API_KEY>`}
-              </pre>
-
-              <h2 id="rate-limits">Rate Limits</h2>
-              <p>
-                Free tier Usage is capped at 1,000 requests per hour. Pro plans offer higher limits.
-                Check the headers for your current usage status.
-              </p>
-
-              <h2 id="graph-api">Graph API</h2>
-              <p>
-                Retrieve nodes and edges for a specific paper or topic.
-              </p>
-              
-              <h3 className="text-lg font-semibold mt-6 mb-2"><code>GET /v1/graph/paper/:id</code></h3>
-              <p>Returns the ego-network for a specific paper ID (DOI or internal ID).</p>
-               <pre className="bg-slate-900 text-slate-50 p-4 rounded-lg overflow-x-auto text-sm">
-{`{
-  "nodes": [
-    { "id": "10.1038/nature123", "title": "...", "year": 2023, "citations": 45 },
-    ...
-  ],
-  "edges": [
-    { "source": "10.1038/nature123", "target": "10.1126/science456", "type": "SUPPORTS" }
-  ]
-}`}
-              </pre>
-
-           </div>
+          <h2 id="api" className="mt-8">API Access</h2>
+          <p>
+            A public API for programmatic access to Ithaca&apos;s citation graph
+            data is planned for a future release. If you&apos;re interested in
+            early access, reach out via the contact information on the About
+            page.
+          </p>
         </div>
       </div>
     </div>

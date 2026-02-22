@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -22,27 +22,20 @@ import {
   Loader2,
 } from "lucide-react";
 import {
-  dashboardAPI,
-  UserProfile,
-  DashboardStats,
-  RecentActivity,
-  Correction,
-  Collection,
-} from "@/lib/api/dashboard-api";
-import { useSession } from "@/lib/auth-client";
+  getUserProfile,
+  getStats,
+  getRecentActivity,
+  getCorrections,
+  getCollections,
+  type UserProfile,
+  type DashboardStats,
+  type RecentActivity,
+  type CorrectionData,
+  type CollectionData,
+} from "./actions";
 import { ProfileSettings } from "@/components/dashboard/profile-settings";
 
-// Stats Icon Map
-const STAT_ICONS = {
-  savedGraphs: Share2,
-  collections: FolderOpen,
-  edgesCorrected: GitBranch,
-};
-
 export default function DashboardPage() {
-  const { data: session } = useSession();
-
-  // Read tab from URL without useSearchParams (avoids prerender issues)
   const [currentTab, setCurrentTab] = useState("overview");
 
   useEffect(() => {
@@ -52,15 +45,15 @@ export default function DashboardPage() {
       if (tab) setCurrentTab(tab);
     }
   }, []);
+
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [activities, setActivities] = useState<RecentActivity[]>([]);
-  const [corrections, setCorrections] = useState<Correction[]>([]);
-  const [collections, setCollections] = useState<Collection[]>([]);
+  const [corrections, setCorrections] = useState<CorrectionData[]>([]);
+  const [collections, setCollections] = useState<CollectionData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch all data on mount
   useEffect(() => {
     async function loadDashboard() {
       setIsLoading(true);
@@ -74,19 +67,11 @@ export default function DashboardPage() {
           correctionsData,
           collectionsData,
         ] = await Promise.all([
-          dashboardAPI.getUserProfile(
-            session?.user
-              ? {
-                  name: session.user.name,
-                  email: session.user.email,
-                  image: session.user.image || undefined,
-                }
-              : undefined,
-          ),
-          dashboardAPI.getStats(),
-          dashboardAPI.getRecentActivity(),
-          dashboardAPI.getCorrections(),
-          dashboardAPI.getCollections(),
+          getUserProfile(),
+          getStats(),
+          getRecentActivity(),
+          getCorrections(),
+          getCollections(),
         ]);
 
         setProfile(profileData);
@@ -103,11 +88,10 @@ export default function DashboardPage() {
     }
 
     loadDashboard();
-  }, [session]); // Reload when session loads
+  }, []);
 
-  // Callback to refresh profile after edit
   const handleProfileUpdate = async () => {
-    const updatedProfile = await dashboardAPI.getUserProfile();
+    const updatedProfile = await getUserProfile();
     setProfile(updatedProfile);
   };
 
@@ -157,11 +141,6 @@ export default function DashboardPage() {
                     {profile.institution && `, ${profile.institution}`}
                   </p>
                   <div className="flex gap-2 mt-2">
-                    {profile.badges.map((badge) => (
-                      <Badge key={badge} className="bg-primary/10 text-primary">
-                        {badge}
-                      </Badge>
-                    ))}
                     <span className="text-xs text-muted-foreground">
                       Member since {profile.memberSince}
                     </span>
@@ -229,50 +208,56 @@ export default function DashboardPage() {
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6 mt-6">
-            {/* Recent Activity */}
             <div>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-bold flex items-center gap-2">
                   <Clock className="h-5 w-5 text-primary" />
                   Recent Activity
                 </h2>
-                <Button variant="link" size="sm">
-                  View all →
-                </Button>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {activities.map((activity) => (
-                  <Card
-                    key={activity.id}
-                    className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
-                  >
-                    <div className="h-32 bg-gradient-to-br from-primary/10 to-primary/5 relative">
-                      <Badge className="absolute top-2 right-2 bg-card/80 text-xs">
-                        {activity.nodeCount
-                          ? `${activity.nodeCount} Nodes`
-                          : `${activity.paperCount} Papers`}
-                      </Badge>
-                    </div>
-                    <CardContent className="p-4">
-                      <h3 className="font-medium truncate">{activity.title}</h3>
-                      <p className="text-xs text-muted-foreground">
-                        Updated {activity.updated}
-                      </p>
-                      <div className="flex gap-1 mt-2">
-                        {activity.tags.map((tag) => (
-                          <Badge
-                            key={tag}
-                            variant="secondary"
-                            className="text-[10px]"
-                          >
-                            {tag}
-                          </Badge>
-                        ))}
+              {activities.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {activities.map((activity) => (
+                    <Card
+                      key={activity.id}
+                      className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
+                    >
+                      <div className="h-32 bg-gradient-to-br from-primary/10 to-primary/5 relative">
+                        <Badge className="absolute top-2 right-2 bg-card/80 text-xs">
+                          {activity.nodeCount
+                            ? `${activity.nodeCount} Nodes`
+                            : `${activity.paperCount} Papers`}
+                        </Badge>
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+                      <CardContent className="p-4">
+                        <h3 className="font-medium truncate">
+                          {activity.title}
+                        </h3>
+                        <p className="text-xs text-muted-foreground">
+                          Updated {activity.updated}
+                        </p>
+                        <div className="flex gap-1 mt-2">
+                          {activity.tags.map((tag) => (
+                            <Badge
+                              key={tag}
+                              variant="secondary"
+                              className="text-[10px]"
+                            >
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <Card>
+                  <CardContent className="p-8 text-center text-muted-foreground">
+                    <p>No recent activity yet. Start by exploring a research topic!</p>
+                  </CardContent>
+                </Card>
+              )}
             </div>
 
             {/* Latest Corrections */}
@@ -281,19 +266,146 @@ export default function DashboardPage() {
                 <GitBranch className="h-5 w-5 text-primary" />
                 Latest Corrections
               </h2>
+              {corrections.length > 0 ? (
+                <Card>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b text-xs text-muted-foreground uppercase">
+                          <th className="text-left p-4 font-medium">
+                            Citing Paper
+                          </th>
+                          <th className="text-left p-4 font-medium">
+                            Cited Paper
+                          </th>
+                          <th className="text-left p-4 font-medium">
+                            Edge Type
+                          </th>
+                          <th className="text-left p-4 font-medium">Date</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {corrections.slice(0, 5).map((correction) => (
+                          <tr
+                            key={correction.id}
+                            className="border-b last:border-0 hover:bg-muted/50"
+                          >
+                            <td className="p-4 text-sm font-mono text-xs">
+                              {correction.citingId}
+                            </td>
+                            <td className="p-4 text-sm font-mono text-xs text-muted-foreground">
+                              {correction.citedId}
+                            </td>
+                            <td className="p-4">
+                              <Badge variant="secondary">
+                                {correction.edgeType}
+                              </Badge>
+                            </td>
+                            <td className="p-4 text-sm text-muted-foreground">
+                              {correction.date}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </Card>
+              ) : (
+                <Card>
+                  <CardContent className="p-8 text-center text-muted-foreground">
+                    <p>No corrections yet. Correct an edge in the graph explorer to see it here.</p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* Graphs Tab */}
+          <TabsContent value="graphs" className="mt-6">
+            {activities.filter((a) => a.type === "graph").length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {activities
+                  .filter((a) => a.type === "graph")
+                  .map((graph) => (
+                    <Card
+                      key={graph.id}
+                      className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
+                    >
+                      <div className="h-32 bg-gradient-to-br from-primary/10 to-primary/5 relative">
+                        <Badge className="absolute top-2 right-2 bg-card/80 text-xs">
+                          {graph.nodeCount} Nodes
+                        </Badge>
+                      </div>
+                      <CardContent className="p-4">
+                        <h3 className="font-medium">{graph.title}</h3>
+                        <p className="text-xs text-muted-foreground">
+                          Updated {graph.updated}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  ))}
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="p-8 text-center text-muted-foreground">
+                  <p>No saved graphs yet. Save a graph from the explorer to see it here.</p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          {/* Collections Tab */}
+          <TabsContent value="collections" className="mt-6">
+            {collections.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {collections.map((collection) => (
+                  <Card
+                    key={collection.id}
+                    className="hover:shadow-md transition-shadow cursor-pointer"
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <h3 className="font-medium">{collection.title}</h3>
+                          <p className="text-xs text-muted-foreground">
+                            {collection.paperCount} Papers &bull; Created{" "}
+                            {collection.createdAt}
+                          </p>
+                        </div>
+                        <Button variant="ghost" size="icon">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="p-8 text-center text-muted-foreground">
+                  <p>No collections yet. Create one from the Projects page.</p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          {/* History Tab */}
+          <TabsContent value="history" className="mt-6">
+            {corrections.length > 0 ? (
               <Card>
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
                       <tr className="border-b text-xs text-muted-foreground uppercase">
                         <th className="text-left p-4 font-medium">
-                          Source Node
+                          Citing Paper
                         </th>
                         <th className="text-left p-4 font-medium">
-                          Target Node
+                          Cited Paper
                         </th>
-                        <th className="text-left p-4 font-medium">Vote Type</th>
-                        <th className="text-left p-4 font-medium">Status</th>
+                        <th className="text-left p-4 font-medium">
+                          Edge Type
+                        </th>
                         <th className="text-left p-4 font-medium">Date</th>
                       </tr>
                     </thead>
@@ -303,32 +415,15 @@ export default function DashboardPage() {
                           key={correction.id}
                           className="border-b last:border-0 hover:bg-muted/50"
                         >
-                          <td className="p-4 text-sm">
-                            {correction.sourceNode}
+                          <td className="p-4 text-sm font-mono text-xs">
+                            {correction.citingId}
                           </td>
-                          <td className="p-4 text-sm text-muted-foreground">
-                            {correction.targetNode}
+                          <td className="p-4 text-sm font-mono text-xs text-muted-foreground">
+                            {correction.citedId}
                           </td>
                           <td className="p-4">
                             <Badge variant="secondary">
-                              {correction.voteType}
-                            </Badge>
-                          </td>
-                          <td className="p-4">
-                            <Badge
-                              className={
-                                correction.status === "approved"
-                                  ? "bg-supports/10 text-supports gap-1"
-                                  : correction.status === "rejected"
-                                    ? "bg-contradicts/10 text-contradicts gap-1"
-                                    : "bg-extends/10 text-extends gap-1"
-                              }
-                            >
-                              {correction.status === "approved" && (
-                                <Check className="h-3 w-3" />
-                              )}
-                              {correction.status.charAt(0).toUpperCase() +
-                                correction.status.slice(1)}
+                              {correction.edgeType}
                             </Badge>
                           </td>
                           <td className="p-4 text-sm text-muted-foreground">
@@ -340,116 +435,21 @@ export default function DashboardPage() {
                   </table>
                 </div>
               </Card>
-            </div>
-          </TabsContent>
-
-          {/* Graphs Tab */}
-          <TabsContent value="graphs" className="mt-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {activities
-                .filter((a) => a.type === "graph")
-                .map((graph) => (
-                  <Card
-                    key={graph.id}
-                    className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
-                  >
-                    <div className="h-32 bg-gradient-to-br from-primary/10 to-primary/5 relative">
-                      <Badge className="absolute top-2 right-2 bg-card/80 text-xs">
-                        {graph.nodeCount} Nodes
-                      </Badge>
-                    </div>
-                    <CardContent className="p-4">
-                      <h3 className="font-medium">{graph.title}</h3>
-                      <p className="text-xs text-muted-foreground">
-                        Updated {graph.updated}
-                      </p>
-                    </CardContent>
-                  </Card>
-                ))}
-            </div>
-          </TabsContent>
-
-          {/* Collections Tab */}
-          <TabsContent value="collections" className="mt-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {collections.map((collection) => (
-                <Card
-                  key={collection.id}
-                  className="hover:shadow-md transition-shadow cursor-pointer"
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="font-medium">{collection.title}</h3>
-                        <p className="text-xs text-muted-foreground">
-                          {collection.paperCount} Papers • Created{" "}
-                          {collection.createdAt}
-                        </p>
-                      </div>
-                      <Button variant="ghost" size="icon">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </TabsContent>
-
-          {/* History Tab */}
-          <TabsContent value="history" className="mt-6">
-            <Card>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b text-xs text-muted-foreground uppercase">
-                      <th className="text-left p-4 font-medium">Source Node</th>
-                      <th className="text-left p-4 font-medium">Target Node</th>
-                      <th className="text-left p-4 font-medium">Vote Type</th>
-                      <th className="text-left p-4 font-medium">Status</th>
-                      <th className="text-left p-4 font-medium">Date</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {corrections.map((correction) => (
-                      <tr
-                        key={correction.id}
-                        className="border-b last:border-0 hover:bg-muted/50"
-                      >
-                        <td className="p-4 text-sm">{correction.sourceNode}</td>
-                        <td className="p-4 text-sm text-muted-foreground">
-                          {correction.targetNode}
-                        </td>
-                        <td className="p-4">
-                          <Badge variant="secondary">
-                            {correction.voteType}
-                          </Badge>
-                        </td>
-                        <td className="p-4">
-                          <Badge
-                            className={
-                              correction.status === "approved"
-                                ? "bg-supports/10 text-supports"
-                                : "bg-extends/10 text-extends"
-                            }
-                          >
-                            {correction.status}
-                          </Badge>
-                        </td>
-                        <td className="p-4 text-sm text-muted-foreground">
-                          {correction.date}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
+            ) : (
+              <Card>
+                <CardContent className="p-8 text-center text-muted-foreground">
+                  <p>No correction history yet.</p>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           {/* Settings Tab */}
           <TabsContent value="settings" className="mt-6">
-            <ProfileSettings profile={profile} onUpdate={handleProfileUpdate} />
+            <ProfileSettings
+              profile={profile}
+              onUpdate={handleProfileUpdate}
+            />
           </TabsContent>
         </Tabs>
       </div>
@@ -457,7 +457,6 @@ export default function DashboardPage() {
   );
 }
 
-// Stat Card Component
 function StatCard({
   icon: Icon,
   label,
