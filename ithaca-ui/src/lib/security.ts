@@ -1,10 +1,9 @@
 /**
  * Security Utilities
  *
- * Helper functions for security-related operations
+ * Helper functions for security-related operations.
+ * Rate limiting is handled by src/lib/api/api-auth.ts (DB-backed).
  */
-
-import { env } from "./env";
 
 /**
  * Generate a cryptographically secure random string
@@ -39,7 +38,6 @@ export function isValidEmail(email: string): boolean {
 
 /**
  * Check password strength
- * Returns: { valid: boolean, errors: string[] }
  */
 export function validatePasswordStrength(password: string): {
   valid: boolean;
@@ -75,54 +73,4 @@ export function validatePasswordStrength(password: string): {
     valid: errors.length === 0,
     errors,
   };
-}
-
-/**
- * Rate limiting helper (in-memory)
- * For production, use Redis
- */
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-
-export function checkRateLimit(
-  identifier: string,
-  maxAttempts: number = 5,
-  windowMs: number = 15 * 60 * 1000, // 15 minutes
-): { allowed: boolean; remaining: number; resetAt: number } {
-  const now = Date.now();
-  const record = rateLimitMap.get(identifier);
-
-  if (!record || now > record.resetAt) {
-    // New window
-    const resetAt = now + windowMs;
-    rateLimitMap.set(identifier, { count: 1, resetAt });
-    return { allowed: true, remaining: maxAttempts - 1, resetAt };
-  }
-
-  if (record.count >= maxAttempts) {
-    return { allowed: false, remaining: 0, resetAt: record.resetAt };
-  }
-
-  record.count++;
-  return {
-    allowed: true,
-    remaining: maxAttempts - record.count,
-    resetAt: record.resetAt,
-  };
-}
-
-/**
- * Clean up expired rate limit records
- */
-export function cleanupRateLimits() {
-  const now = Date.now();
-  for (const [key, record] of rateLimitMap.entries()) {
-    if (now > record.resetAt) {
-      rateLimitMap.delete(key);
-    }
-  }
-}
-
-// Clean up every 5 minutes
-if (env.NODE_ENV !== "test") {
-  setInterval(cleanupRateLimits, 5 * 60 * 1000);
 }

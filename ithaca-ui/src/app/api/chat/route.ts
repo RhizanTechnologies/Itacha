@@ -11,6 +11,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getLLMRouter, type LLMMessage } from "@/lib/api/llm-router";
+import {
+  requireApiAuth,
+  checkApiRateLimit,
+  isRejection,
+} from "@/lib/api/api-auth";
 
 // =============================================================================
 // VALIDATION
@@ -74,6 +79,16 @@ Keep responses under 150 words unless the user asks for detail. Use markdown for
 // =============================================================================
 
 export async function POST(request: NextRequest) {
+  const authResult = await requireApiAuth(request);
+  if (isRejection(authResult)) return authResult;
+
+  const rateLimited = await checkApiRateLimit(
+    authResult.user.id,
+    "chat",
+    20,
+  );
+  if (rateLimited) return rateLimited;
+
   try {
     const body = await request.json();
     const parsed = requestSchema.safeParse(body);
@@ -89,14 +104,12 @@ export async function POST(request: NextRequest) {
 
     const router = getLLMRouter();
 
-    // Build context-aware system prompt
     let contextInfo = `\n\nCurrent graph state: ${graphContext.nodeCount} papers, ${graphContext.edgeCount} citation edges.`;
 
     if (graphContext.selectedNode) {
       contextInfo += ` Currently selected: ${graphContext.selectedNode}.`;
     }
 
-    // Inject real paper data so the LLM knows what's in the graph
     const papers = graphContext.papers || [];
     if (papers.length > 0) {
       contextInfo += `\n\nPapers in this graph (sorted by citations):\n`;
@@ -112,7 +125,6 @@ export async function POST(request: NextRequest) {
 
     const messages: LLMMessage[] = [
       { role: "system", content: SYSTEM_PROMPT + contextInfo },
-      // Include recent history for conversation continuity (last 10 messages)
       ...history.slice(-10).map((h) => ({
         role: h.role as "user" | "assistant",
         content: h.content,
@@ -127,10 +139,7 @@ export async function POST(request: NextRequest) {
     console.error("[/api/chat] Error:", error);
 
     return NextResponse.json(
-      {
-        error: "Chat failed",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
+      { error: "Chat failed" },
       { status: 500 },
     );
   }

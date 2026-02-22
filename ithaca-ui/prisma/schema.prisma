@@ -156,3 +156,19 @@ model SavedGraph {
   @@index([userId])
   @@map("saved_graph")
 }
+
+// =============================================================================
+// API RATE LIMITING (serverless-compatible, DB-backed)
+// =============================================================================
+
+model ApiRateLimit {
+  id          String   @id @default(cuid())
+  userId      String
+  endpoint    String
+  count       Int      @default(1)
+  windowStart DateTime @default(now())
+
+  @@unique([userId, endpoint])
+  @@index([windowStart])
+  @@map("api_rate_limit")
+}

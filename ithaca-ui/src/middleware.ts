@@ -8,7 +8,6 @@ const publicRoutes = [
   "/about",
   "/blog",
   "/docs",
-  "/api",
   "/privacy",
   "/terms",
   "/changelog",

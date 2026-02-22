@@ -15,6 +15,11 @@ import {
   classifyBatch,
   type ClassificationInput,
 } from "@/lib/api/citation-classifier";
+import {
+  requireApiAuth,
+  checkApiRateLimit,
+  isRejection,
+} from "@/lib/api/api-auth";
 
 // =============================================================================
 // VALIDATION
@@ -27,13 +32,12 @@ const citationSchema = z.object({
   citingAbstract: z.string().default(""),
   citedTitle: z.string().min(1),
   citedAbstract: z.string().default(""),
-  // Semantic Scholar citation context enrichment (optional)
   citationContexts: z.array(z.string()).optional(),
   s2Intents: z.array(z.string()).optional(),
 });
 
 const requestSchema = z.object({
-  citations: z.array(citationSchema).min(1).max(50), // Max 50 per request
+  citations: z.array(citationSchema).min(1).max(50),
 });
 
 // =============================================================================
@@ -41,6 +45,16 @@ const requestSchema = z.object({
 // =============================================================================
 
 export async function POST(request: NextRequest) {
+  const authResult = await requireApiAuth(request);
+  if (isRejection(authResult)) return authResult;
+
+  const rateLimited = await checkApiRateLimit(
+    authResult.user.id,
+    "classify",
+    30,
+  );
+  if (rateLimited) return rateLimited;
+
   try {
     const body = await request.json();
     const parsed = requestSchema.safeParse(body);
@@ -57,13 +71,11 @@ export async function POST(request: NextRequest) {
 
     const { citations } = parsed.data;
 
-    // Classify all citations (cache-first, parallel with concurrency limit)
     const results = await classifyBatch(
       citations as ClassificationInput[],
-      3, // concurrency: 3 parallel LLM calls max
+      3,
     );
 
-    // Compute stats
     const stats = {
       total: results.length,
       cached: results.filter((r) => r.cached).length,
@@ -77,10 +89,7 @@ export async function POST(request: NextRequest) {
     console.error("[/api/classify] Error:", error);
 
     return NextResponse.json(
-      {
-        error: "Classification failed",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
+      { error: "Classification failed" },
       { status: 500 },
     );
   }

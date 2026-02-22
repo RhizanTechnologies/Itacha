@@ -11,6 +11,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getLLMRouter, type LLMMessage } from "@/lib/api/llm-router";
+import {
+  requireApiAuth,
+  checkApiRateLimit,
+  isRejection,
+} from "@/lib/api/api-auth";
 
 const requestSchema = z.object({
   title: z.string().min(1).max(500),
@@ -19,6 +24,16 @@ const requestSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  const authResult = await requireApiAuth(request);
+  if (isRejection(authResult)) return authResult;
+
+  const rateLimited = await checkApiRateLimit(
+    authResult.user.id,
+    "summarize",
+    30,
+  );
+  if (rateLimited) return rateLimited;
+
   try {
     const body = await request.json();
     const parsed = requestSchema.safeParse(body);
@@ -51,10 +66,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("[/api/summarize] Error:", error);
     return NextResponse.json(
-      {
-        error: "Summarization failed",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
+      { error: "Summarization failed" },
       { status: 500 },
     );
   }

@@ -12,6 +12,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import {
+  requireApiAuth,
+  checkApiRateLimit,
+  isRejection,
+} from "@/lib/api/api-auth";
 
 const correctionSchema = z.object({
   citingId: z.string().min(1),
@@ -21,6 +26,16 @@ const correctionSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  const authResult = await requireApiAuth(request);
+  if (isRejection(authResult)) return authResult;
+
+  const rateLimited = await checkApiRateLimit(
+    authResult.user.id,
+    "correct",
+    60,
+  );
+  if (rateLimited) return rateLimited;
+
   try {
     const body = await request.json();
     const parsed = correctionSchema.safeParse(body);
@@ -34,8 +49,6 @@ export async function POST(request: NextRequest) {
 
     const { citingId, citedId, edgeType, comment } = parsed.data;
 
-    // Upsert with user-correction provider and very high classifierVersion
-    // so automatic re-classification won't overwrite it
     const result = await prisma.citationCache.upsert({
       where: {
         citingId_citedId: { citingId, citedId },
@@ -47,7 +60,7 @@ export async function POST(request: NextRequest) {
           ? `User correction: ${comment}`
           : `User corrected relationship to "${edgeType}".`,
         provider: "user-correction",
-        classifierVersion: 999, // Never overwritten by auto-classification
+        classifierVersion: 999,
       },
       create: {
         citingId,
