@@ -53,6 +53,7 @@ export interface CanvasState {
   inspectorOpen: boolean;
   filtersOpen: boolean;
   shareOpen: boolean;
+  saveDialogOpen: boolean;
   keyboardHelpOpen: boolean;
   pathCompareOpen: boolean;
   chatOpen: boolean;
@@ -110,6 +111,7 @@ type CanvasAction =
   | { type: "SET_INSPECTOR_OPEN"; payload: boolean }
   | { type: "SET_FILTERS_OPEN"; payload: boolean }
   | { type: "SET_SHARE_OPEN"; payload: boolean }
+  | { type: "SET_SAVE_DIALOG_OPEN"; payload: boolean }
   | { type: "SET_KEYBOARD_HELP_OPEN"; payload: boolean }
   | { type: "SET_PATH_COMPARE_OPEN"; payload: boolean }
   | { type: "SET_CHAT_OPEN"; payload: boolean }
@@ -175,6 +177,7 @@ const initialState: CanvasState = {
   inspectorOpen: false,
   filtersOpen: false,
   shareOpen: false,
+  saveDialogOpen: false,
   keyboardHelpOpen: false,
   pathCompareOpen: false,
   chatOpen: false,
@@ -241,6 +244,8 @@ function canvasReducer(state: CanvasState, action: CanvasAction): CanvasState {
       return { ...state, filtersOpen: action.payload };
     case "SET_SHARE_OPEN":
       return { ...state, shareOpen: action.payload };
+    case "SET_SAVE_DIALOG_OPEN":
+      return { ...state, saveDialogOpen: action.payload };
     case "SET_KEYBOARD_HELP_OPEN":
       return { ...state, keyboardHelpOpen: action.payload };
     case "SET_PATH_COMPARE_OPEN":
@@ -263,6 +268,7 @@ function canvasReducer(state: CanvasState, action: CanvasAction): CanvasState {
         inspectorOpen: false,
         filtersOpen: false,
         shareOpen: false,
+        saveDialogOpen: false,
         chatOpen: false,
         pathCompareOpen: false,
         edgeEvidence: null,
@@ -498,6 +504,8 @@ export function useCanvasActions() {
         dispatch({ type: "SET_FILTERS_OPEN", payload: open }),
       setShareOpen: (open: boolean) =>
         dispatch({ type: "SET_SHARE_OPEN", payload: open }),
+      setSaveDialogOpen: (open: boolean) =>
+        dispatch({ type: "SET_SAVE_DIALOG_OPEN", payload: open }),
       setChatOpen: (open: boolean) =>
         dispatch({ type: "SET_CHAT_OPEN", payload: open }),
       setKeyboardHelpOpen: (open: boolean) =>

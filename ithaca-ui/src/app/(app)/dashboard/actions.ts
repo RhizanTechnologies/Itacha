@@ -3,6 +3,7 @@
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 
 async function getSessionUserId(): Promise<string | null> {
   const session = await auth.api.getSession({
@@ -431,5 +432,109 @@ export async function getCorrections(): Promise<CorrectionData[]> {
       day: "numeric",
       year: "numeric",
     }),
+  }));
+}
+
+// =============================================================================
+// SAVED GRAPHS
+// =============================================================================
+
+export interface SavedGraphData {
+  id: string;
+  title: string;
+  query: string;
+  nodeCount: number;
+  edgeCount: number;
+  projectId?: string;
+  projectTitle?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function saveGraph(data: {
+  title: string;
+  query: string;
+  nodeCount: number;
+  edgeCount: number;
+  config?: Record<string, unknown>;
+  projectId?: string;
+}): Promise<SavedGraphData> {
+  const userId = await getSessionUserId();
+  if (!userId) throw new Error("Not authenticated");
+
+  const graph = await prisma.savedGraph.create({
+    data: {
+      title: data.title,
+      query: data.query,
+      nodeCount: data.nodeCount,
+      edgeCount: data.edgeCount,
+      config: (data.config as Prisma.InputJsonValue) ?? undefined,
+      projectId: data.projectId || undefined,
+      userId,
+    },
+  });
+
+  let projectTitle: string | undefined;
+  if (graph.projectId) {
+    const project = await prisma.project.findUnique({
+      where: { id: graph.projectId },
+      select: { title: true },
+    });
+    projectTitle = project?.title;
+  }
+
+  return {
+    id: graph.id,
+    title: graph.title,
+    query: graph.query,
+    nodeCount: graph.nodeCount,
+    edgeCount: graph.edgeCount,
+    projectId: graph.projectId || undefined,
+    projectTitle,
+    createdAt: formatRelativeDate(graph.createdAt),
+    updatedAt: formatRelativeDate(graph.updatedAt),
+  };
+}
+
+export async function deleteSavedGraph(id: string): Promise<void> {
+  const userId = await getSessionUserId();
+  if (!userId) throw new Error("Not authenticated");
+
+  await prisma.savedGraph.delete({
+    where: { id, userId },
+  });
+}
+
+export async function getSavedGraphs(): Promise<SavedGraphData[]> {
+  const userId = await getSessionUserId();
+  if (!userId) return [];
+
+  const graphs = await prisma.savedGraph.findMany({
+    where: { userId },
+    orderBy: { updatedAt: "desc" },
+  });
+
+  const projectIds = [
+    ...new Set(graphs.map((g) => g.projectId).filter(Boolean) as string[]),
+  ];
+  const projects =
+    projectIds.length > 0
+      ? await prisma.project.findMany({
+          where: { id: { in: projectIds } },
+          select: { id: true, title: true },
+        })
+      : [];
+  const projectMap = new Map(projects.map((p) => [p.id, p.title]));
+
+  return graphs.map((g) => ({
+    id: g.id,
+    title: g.title,
+    query: g.query,
+    nodeCount: g.nodeCount,
+    edgeCount: g.edgeCount,
+    projectId: g.projectId || undefined,
+    projectTitle: g.projectId ? projectMap.get(g.projectId) : undefined,
+    createdAt: formatRelativeDate(g.createdAt),
+    updatedAt: formatRelativeDate(g.updatedAt),
   }));
 }

@@ -27,11 +27,14 @@ import {
   getRecentActivity,
   getCorrections,
   getCollections,
+  getSavedGraphs,
+  deleteSavedGraph,
   type UserProfile,
   type DashboardStats,
   type RecentActivity,
   type CorrectionData,
   type CollectionData,
+  type SavedGraphData,
 } from "./actions";
 import { ProfileSettings } from "@/components/dashboard/profile-settings";
 
@@ -51,6 +54,7 @@ export default function DashboardPage() {
   const [activities, setActivities] = useState<RecentActivity[]>([]);
   const [corrections, setCorrections] = useState<CorrectionData[]>([]);
   const [collections, setCollections] = useState<CollectionData[]>([]);
+  const [savedGraphs, setSavedGraphs] = useState<SavedGraphData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,12 +70,14 @@ export default function DashboardPage() {
           activityData,
           correctionsData,
           collectionsData,
+          savedGraphsData,
         ] = await Promise.all([
           getUserProfile(),
           getStats(),
           getRecentActivity(),
           getCorrections(),
           getCollections(),
+          getSavedGraphs(),
         ]);
 
         setProfile(profileData);
@@ -79,6 +85,7 @@ export default function DashboardPage() {
         setActivities(activityData);
         setCorrections(correctionsData);
         setCollections(collectionsData);
+        setSavedGraphs(savedGraphsData);
       } catch (err) {
         console.error("Dashboard load error:", err);
         setError("Failed to load dashboard data");
@@ -322,33 +329,58 @@ export default function DashboardPage() {
 
           {/* Graphs Tab */}
           <TabsContent value="graphs" className="mt-6">
-            {activities.filter((a) => a.type === "graph").length > 0 ? (
+            {savedGraphs.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {activities
-                  .filter((a) => a.type === "graph")
-                  .map((graph) => (
-                    <Card
-                      key={graph.id}
-                      className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
-                    >
-                      <div className="h-32 bg-gradient-to-br from-primary/10 to-primary/5 relative">
-                        <Badge className="absolute top-2 right-2 bg-card/80 text-xs">
-                          {graph.nodeCount} Nodes
-                        </Badge>
-                      </div>
-                      <CardContent className="p-4">
-                        <h3 className="font-medium">{graph.title}</h3>
-                        <p className="text-xs text-muted-foreground">
-                          Updated {graph.updated}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  ))}
+                {savedGraphs.map((graph) => (
+                  <Card
+                    key={graph.id}
+                    className="overflow-hidden hover:shadow-md transition-shadow group"
+                  >
+                    <div className="h-32 bg-gradient-to-br from-primary/10 to-primary/5 relative">
+                      <Badge className="absolute top-2 right-2 bg-card/80 text-xs">
+                        {graph.nodeCount} nodes &bull; {graph.edgeCount} edges
+                      </Badge>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute top-2 left-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity bg-card/80 hover:bg-destructive/10 hover:text-destructive"
+                        onClick={async () => {
+                          if (!confirm("Delete this saved graph?")) return;
+                          await deleteSavedGraph(graph.id);
+                          setSavedGraphs((prev) =>
+                            prev.filter((g) => g.id !== graph.id),
+                          );
+                        }}
+                      >
+                        <span className="text-xs">✕</span>
+                      </Button>
+                    </div>
+                    <CardContent className="p-4">
+                      <h3 className="font-medium">{graph.title}</h3>
+                      <p className="text-xs text-muted-foreground">
+                        {graph.query !== graph.title && (
+                          <span className="block truncate mb-0.5">
+                            Query: {graph.query}
+                          </span>
+                        )}
+                        {graph.projectTitle && (
+                          <span className="text-primary">
+                            {graph.projectTitle} &bull;{" "}
+                          </span>
+                        )}
+                        Saved {graph.createdAt}
+                      </p>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             ) : (
               <Card>
                 <CardContent className="p-8 text-center text-muted-foreground">
-                  <p>No saved graphs yet. Save a graph from the explorer to see it here.</p>
+                  <p>
+                    No saved graphs yet. Save a graph from the explorer to see
+                    it here.
+                  </p>
                 </CardContent>
               </Card>
             )}

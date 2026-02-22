@@ -26,6 +26,7 @@ import {
   ShareExportDialog,
   ShareButton,
 } from "@/components/share/share-export";
+import { SaveGraphDialog } from "@/components/canvas/save-graph-dialog";
 import { NodeDragControl } from "@/components/canvas/node-drag-control";
 import { PaperCountControl } from "@/components/canvas/paper-count-control";
 import { RelationshipFocusControl } from "@/components/canvas/relationship-focus-control";
@@ -476,9 +477,17 @@ export function ExploreCanvas() {
             />
           </BottomCenterZone>
 
-          {/* Bottom-right: share (desktop only) */}
+          {/* Bottom-right: save + share (desktop only) */}
           {!isMobile && (
             <BottomRightZone>
+              <button
+                onClick={() => actions.setSaveDialogOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-card/90 backdrop-blur border border-border text-sm font-medium hover:bg-muted transition-colors shadow-sm"
+                title="Save graph to dashboard"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
+                Save
+              </button>
               <ShareButton onClick={() => actions.setShareOpen(true)} />
             </BottomRightZone>
           )}
@@ -525,6 +534,21 @@ export function ExploreCanvas() {
           edgeCount={state.graphStats.edgeCount}
           sigma={refs.sigmaRef.current}
           graph={refs.graphRef.current}
+        />
+
+        <SaveGraphDialog
+          open={state.saveDialogOpen}
+          onOpenChange={actions.setSaveDialogOpen}
+          defaultTitle={
+            state.searchTarget
+              ? state.searchTarget.startsWith("topic-")
+                ? state.searchTarget.replace("topic-", "")
+                : "Citation Network"
+              : "Citation Network"
+          }
+          searchQuery={state.searchTarget ?? undefined}
+          nodeCount={state.graphStats.nodeCount}
+          edgeCount={state.graphStats.edgeCount}
         />
 
         <EdgeEvidencePopover

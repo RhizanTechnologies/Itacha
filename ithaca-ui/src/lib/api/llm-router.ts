@@ -255,7 +255,7 @@ export class LLMRouter {
 
   constructor(providers: ILLMProvider[]) {
     // Filter out providers without API keys
-    this.providers = providers.filter((p) => p.isAvailable() || true);
+    this.providers = providers.filter((p) => p.isAvailable());
   }
 
   /**
