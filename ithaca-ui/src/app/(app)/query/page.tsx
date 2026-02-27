@@ -12,6 +12,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { graphAPI, type SearchResult } from "@/lib/api/graph-api";
+import { AppErrorBoundary } from "@/components/error-boundary";
 
 function conditionsToSearchQuery(conditions: QueryCondition[]): string {
   const textParts: string[] = [];
@@ -33,6 +34,17 @@ function conditionsToSearchQuery(conditions: QueryCondition[]): string {
 }
 
 export default function QueryBuilderPage() {
+  return (
+    <AppErrorBoundary
+      fallbackTitle="Query Builder Error"
+      fallbackMessage="The query builder encountered an error. Try refreshing."
+    >
+      <QueryBuilderPageContent />
+    </AppErrorBoundary>
+  );
+}
+
+function QueryBuilderPageContent() {
   const router = useRouter();
   const [queryResults, setQueryResults] = useState<SearchResult[]>([]);
   const [isExecuting, setIsExecuting] = useState(false);

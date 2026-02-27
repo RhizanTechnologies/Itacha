@@ -17,6 +17,8 @@ import {
   BookOpen,
   Sparkles,
   Clock,
+  AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 import {
   Select,
@@ -27,6 +29,7 @@ import {
 } from "@/components/ui/select";
 import { graphAPI, SearchResult } from "@/lib/api/graph-api";
 import { escapeRegex } from "@/lib/utils";
+import { AppErrorBoundary } from "@/components/error-boundary";
 
 const RECENT_SEARCHES_KEY = "ithaca_recent_searches";
 const MAX_RECENT = 8;
@@ -52,6 +55,17 @@ function saveRecentSearch(term: string) {
 }
 
 export default function SearchPage() {
+  return (
+    <AppErrorBoundary
+      fallbackTitle="Search Error"
+      fallbackMessage="The search page encountered an error. Try refreshing."
+    >
+      <SearchPageContent />
+    </AppErrorBoundary>
+  );
+}
+
+function SearchPageContent() {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -59,6 +73,7 @@ export default function SearchPage() {
   const [hasSearched, setHasSearched] = useState(false);
   const [sortBy, setSortBy] = useState<"relevance" | "year">("relevance");
   const [filterYear, setFilterYear] = useState<string>("all");
+  const [searchError, setSearchError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!query.trim()) {
@@ -69,6 +84,7 @@ export default function SearchPage() {
 
     const timer = setTimeout(async () => {
       setIsSearching(true);
+      setSearchError(null);
       try {
         const searchResults = await graphAPI.searchPapers(query);
         setResults(searchResults);
@@ -76,6 +92,11 @@ export default function SearchPage() {
         saveRecentSearch(query.trim());
       } catch (error) {
         console.error("Search error:", error);
+        setSearchError(
+          "Search failed. Please check your connection and try again.",
+        );
+        setResults([]);
+        setHasSearched(true);
       } finally {
         setIsSearching(false);
       }
@@ -172,7 +193,31 @@ export default function SearchPage() {
 
       {/* Results */}
       <div className="max-w-4xl mx-auto px-6 py-6">
-        {isSearching ? (
+        {searchError ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
+              <AlertCircle className="h-8 w-8 text-destructive" />
+            </div>
+            <h2 className="text-lg font-semibold mb-1">Search failed</h2>
+            <p className="text-muted-foreground text-sm max-w-sm mb-4">
+              {searchError}
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSearchError(null);
+                setHasSearched(false);
+                const current = query;
+                setQuery("");
+                setTimeout(() => setQuery(current), 10);
+              }}
+            >
+              <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+              Retry
+            </Button>
+          </div>
+        ) : isSearching ? (
           <div className="flex flex-col items-center justify-center py-20">
             <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
             <p className="text-muted-foreground">Searching OpenAlex...</p>

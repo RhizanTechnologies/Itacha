@@ -162,8 +162,3 @@ export function extractOpenAlexId(fullId: string): OpenAlexId {
   return fullId.replace("https://openalex.org/", "");
 }
 
-/** Reconstruct a full OpenAlex URL from a short ID */
-export function toOpenAlexUrl(shortId: OpenAlexId): string {
-  if (shortId.startsWith("https://")) return shortId;
-  return `https://openalex.org/${shortId}`;
-}

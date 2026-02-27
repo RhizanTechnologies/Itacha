@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, memo } from "react";
 import { cn } from "@/lib/utils";
 import {
   ContainedPanel,
@@ -76,7 +76,7 @@ interface PaperInspectorProps {
   className?: string;
 }
 
-export function PaperInspector({
+export const PaperInspector = memo(function PaperInspector({
   paper,
   evidence = [],
   open,
@@ -416,7 +416,7 @@ export function PaperInspector({
       </ContainedPanelContent>
     </ContainedPanel>
   );
-}
+});
 
 // Stat Card Component — compact inline
 function StatCard({

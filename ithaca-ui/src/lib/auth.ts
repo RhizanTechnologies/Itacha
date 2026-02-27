@@ -56,9 +56,6 @@ export const auth = betterAuth({
       clientSecret: env.GOOGLE_CLIENT_SECRET || "",
       enabled: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET),
     },
-    // NOTE: Better Auth does not ship an ORCID provider in core.
-    // Adding it here causes runtime errors. Keep the custom provider
-    // in src/lib/auth-orcid.ts until a supported custom provider hook is added.
   },
 
   // Session Configuration

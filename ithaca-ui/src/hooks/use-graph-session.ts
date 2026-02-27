@@ -71,12 +71,6 @@ export function useGraphSession(graph: Graph | null) {
     };
   }, [graph, saveGraph]);
 
-  // To fix the "Unused useDebounce" error and actually implement auto-saving:
-  // We should return a "markDirty" function that the user calls?
-  // Or simpler: Just export saveGraph and let GraphLoader call it.
-
-  // For now, removing the unused import is the fix for the error.
-
   const loadGraph = useCallback((): SerializedGraph | null => {
     try {
       const stored = sessionStorage.getItem(STORAGE_KEY);

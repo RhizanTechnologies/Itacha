@@ -7,6 +7,7 @@ import {
   CanvasProvider,
   useCanvasActions,
 } from "@/contexts/canvas-context";
+import { AppErrorBoundary } from "@/components/error-boundary";
 
 // Dynamically import the canvas component with SSR disabled
 // This is required because Sigma.js uses WebGL which doesn't exist on the server
@@ -47,13 +48,18 @@ function ShareLinkHydrator() {
 
 export default function ExplorePage() {
   return (
-    <CanvasProvider>
-      <Suspense>
-        <ShareLinkHydrator />
-      </Suspense>
-      <div className="h-full w-full relative">
-        <ExploreCanvas />
-      </div>
-    </CanvasProvider>
+    <AppErrorBoundary
+      fallbackTitle="Graph Explorer Error"
+      fallbackMessage="The graph renderer encountered an error. This can happen with very large graphs or WebGL issues. Try refreshing."
+    >
+      <CanvasProvider>
+        <Suspense>
+          <ShareLinkHydrator />
+        </Suspense>
+        <div className="h-full w-full relative">
+          <ExploreCanvas />
+        </div>
+      </CanvasProvider>
+    </AppErrorBoundary>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, memo } from "react";
 import { useLoadGraph, useSigma, useRegisterEvents } from "@react-sigma/core";
 import Graph from "graphology";
 import * as graphApiModule from "@/lib/api/graph-api";
@@ -78,7 +78,7 @@ export interface GraphLoaderProps {
  * GraphLoader - Handles graph data loading, filtering, interactions, and state management.
  * Must be rendered inside a SigmaContainer to access Sigma context hooks.
  */
-export function GraphLoader({
+export const GraphLoader = memo(function GraphLoader({
   onNodeClick,
   onNodeSelect,
   onEdgeClick,
@@ -1173,4 +1173,4 @@ export function GraphLoader({
   });
 
   return null;
-}
+});

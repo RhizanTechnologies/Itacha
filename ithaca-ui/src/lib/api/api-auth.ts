@@ -88,8 +88,11 @@ export async function checkApiRateLimit(
 
     return null;
   } catch (error) {
-    console.error("[rate-limit] DB error, allowing request:", error);
-    return null;
+    console.error("[rate-limit] DB error, blocking request:", error);
+    return NextResponse.json(
+      { error: "Service temporarily unavailable" },
+      { status: 503, headers: { "Retry-After": "5" } },
+    );
   }
 }
 

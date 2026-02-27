@@ -96,7 +96,7 @@ class RateLimiter {
 // GEMINI PROVIDER (Primary — 1,500 req/day free)
 // =============================================================================
 
-export class GeminiProvider implements ILLMProvider {
+class GeminiProvider implements ILLMProvider {
   readonly name = "gemini";
   readonly model: string;
   private apiKey: string;
@@ -180,7 +180,7 @@ export class GeminiProvider implements ILLMProvider {
 // GROQ PROVIDER (Fallback — ~30 RPM free)
 // =============================================================================
 
-export class GroqProvider implements ILLMProvider {
+class GroqProvider implements ILLMProvider {
   readonly name = "groq";
   readonly model: string;
   private apiKey: string;
@@ -250,7 +250,7 @@ export class GroqProvider implements ILLMProvider {
 // LLM ROUTER (Tries providers in order, falls back on rate limit)
 // =============================================================================
 
-export class LLMRouter {
+class LLMRouter {
   private providers: ILLMProvider[] = [];
 
   constructor(providers: ILLMProvider[]) {

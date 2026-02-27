@@ -21,7 +21,7 @@ import type {
   TopicCluster,
 } from "./graph-api";
 import type { OpenAlexWork } from "./openalex-types";
-import { extractOpenAlexId, toOpenAlexUrl } from "./openalex-types";
+import { extractOpenAlexId } from "./openalex-types";
 import {
   searchWorks,
   getWork,

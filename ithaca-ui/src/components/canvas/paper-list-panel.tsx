@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, memo } from "react";
 import { cn } from "@/lib/utils";
 import {
   X,
@@ -30,7 +30,7 @@ interface PaperListPanelProps {
 type SortField = "citation" | "year" | "title";
 type SortOrder = "asc" | "desc";
 
-export function PaperListPanel({
+export const PaperListPanel = memo(function PaperListPanel({
   open,
   onOpenChange,
   papers,
@@ -259,7 +259,7 @@ export function PaperListPanel({
       </div>
     </>
   );
-}
+});
 
 function SortButton({
   active,

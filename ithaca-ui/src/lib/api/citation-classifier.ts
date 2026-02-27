@@ -771,32 +771,3 @@ async function cacheClassification(
   }
 }
 
-// =============================================================================
-// UTILITIES
-// =============================================================================
-
-/**
- * Get cache statistics for monitoring.
- */
-export async function getCacheStats(): Promise<{
-  totalCached: number;
-  byType: Record<string, number>;
-  byProvider: Record<string, number>;
-}> {
-  try {
-    const [total, supports, contradicts, extends_] = await Promise.all([
-      prisma.citationCache.count(),
-      prisma.citationCache.count({ where: { edgeType: "supports" } }),
-      prisma.citationCache.count({ where: { edgeType: "contradicts" } }),
-      prisma.citationCache.count({ where: { edgeType: "extends" } }),
-    ]);
-
-    return {
-      totalCached: total,
-      byType: { supports, contradicts, extends: extends_ },
-      byProvider: {}, // Could add groupBy query if needed
-    };
-  } catch {
-    return { totalCached: 0, byType: {}, byProvider: {} };
-  }
-}

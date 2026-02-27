@@ -20,7 +20,7 @@
 // =============================================================================
 
 /** A single citation relationship with context from S2 */
-export interface S2CitationContext {
+interface S2CitationContext {
   /** S2 paper ID of the other paper in the relationship */
   paperId: string;
   /** DOI of the other paper (if available) */
@@ -39,17 +39,6 @@ export interface S2CitationContext {
   isInfluential: boolean;
   /** Title of the other paper for debugging */
   title?: string;
-}
-
-/** Batch result for a single paper's citation contexts */
-export interface S2PaperContexts {
-  /** The paper we looked up */
-  paperId: string;
-  doi: string;
-  /** Papers that cite this paper, with context */
-  citedBy: S2CitationContext[];
-  /** Papers this paper references, with context */
-  references: S2CitationContext[];
 }
 
 /** Raw S2 API citation/reference edge */
@@ -145,66 +134,6 @@ function buildHeaders(): HeadersInit {
 }
 
 /**
- * Fetch citation contexts for papers that CITE the given paper.
- * Returns the in-text sentences and intent labels.
- *
- * @param doi - The DOI of the paper (e.g., "10.1016/S0140-6736(97)11096-0")
- * @param limit - Max number of citing papers to return (default 100)
- */
-export async function getS2CitingContexts(
-  doi: string,
-  limit = 100,
-): Promise<S2CitationContext[]> {
-  const cleanDoi = cleanDOI(doi);
-  if (!cleanDoi) return [];
-
-  try {
-    await getRateLimiter().wait();
-
-    const url = `${S2_BASE_URL}/paper/DOI:${cleanDoi}/citations?fields=${CITATION_FIELDS},${PAPER_FIELDS_IN_CITATION}&limit=${limit}`;
-
-    const response = await fetch(url, {
-      headers: buildHeaders(),
-      signal: AbortSignal.timeout(10_000),
-    });
-
-    if (!response.ok) {
-      if (response.status === 404) {
-        console.warn(`[S2] Paper not found: DOI:${cleanDoi}`);
-        return [];
-      }
-      if (response.status === 429) {
-        console.warn("[S2] Rate limited, skipping citation contexts");
-        return [];
-      }
-      console.warn(`[S2] Citations API returned ${response.status}`);
-      return [];
-    }
-
-    const data = (await response.json()) as { data: S2RawCitationEdge[] };
-
-    return (data.data || [])
-      .filter((edge) => edge.citingPaper?.paperId)
-      .map((edge) => ({
-        paperId: edge.citingPaper!.paperId,
-        doi: edge.citingPaper?.externalIds?.DOI,
-        externalIds: edge.citingPaper?.externalIds,
-        contexts: edge.contexts || [],
-        intents: edge.intents || [],
-        isInfluential: edge.isInfluential || false,
-        title: edge.citingPaper?.title,
-      }));
-  } catch (error) {
-    if (error instanceof Error && error.name === "TimeoutError") {
-      console.warn("[S2] Request timed out for citations");
-    } else {
-      console.warn("[S2] Error fetching citations:", error);
-    }
-    return [];
-  }
-}
-
-/**
  * Fetch citation contexts for papers that the given paper REFERENCES.
  * Returns the in-text sentences and intent labels.
  *
@@ -214,7 +143,7 @@ export async function getS2CitingContexts(
  * @param doi - The DOI of the citing paper
  * @param limit - Max number of referenced papers to return (default 500)
  */
-export async function getS2ReferenceContexts(
+async function getS2ReferenceContexts(
   doi: string,
   limit = 500,
 ): Promise<S2CitationContext[]> {
@@ -265,38 +194,6 @@ export async function getS2ReferenceContexts(
     }
     return [];
   }
-}
-
-/**
- * Fetch citation contexts for a specific citing→cited paper pair.
- * This is an optimized path: instead of fetching ALL references for a paper,
- * we fetch the citing paper's references and find the specific cited paper.
- *
- * @param citingDoi - DOI of the citing paper
- * @param citedDoi - DOI of the cited paper
- * @returns Citation contexts for this specific pair, or null if not found
- */
-export async function getS2PairContext(
-  citingDoi: string,
-  citedDoi: string,
-): Promise<{ contexts: string[]; intents: string[] } | null> {
-  const cleanCited = cleanDOI(citedDoi);
-  if (!cleanCited) return null;
-
-  const references = await getS2ReferenceContexts(citingDoi);
-
-  // Find the specific cited paper by DOI match
-  const match = references.find((ref) => {
-    const refDoi = cleanDOI(ref.doi || "");
-    return refDoi && refDoi.toLowerCase() === cleanCited.toLowerCase();
-  });
-
-  if (!match || match.contexts.length === 0) return null;
-
-  return {
-    contexts: match.contexts,
-    intents: match.intents,
-  };
 }
 
 /**
@@ -428,20 +325,3 @@ function cleanDOI(doi: string): string | null {
   return cleaned;
 }
 
-/**
- * Check if the Semantic Scholar API is configured and reachable.
- */
-export async function isS2Available(): Promise<boolean> {
-  try {
-    const response = await fetch(
-      `${S2_BASE_URL}/paper/DOI:10.1038/s41586-021-03819-2`,
-      {
-        headers: buildHeaders(),
-        signal: AbortSignal.timeout(5_000),
-      },
-    );
-    return response.ok;
-  } catch {
-    return false;
-  }
-}

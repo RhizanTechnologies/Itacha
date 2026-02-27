@@ -189,6 +189,62 @@ export function ExploreCanvas() {
     [actions],
   );
 
+  const handleTooltipExpand = useCallback(
+    (nodeId: string, direction: "in" | "out", type?: "all" | "supports" | "contradicts" | "extends") => {
+      refs.graphApiRef.current?.expandNode(nodeId, direction, type);
+    },
+    [refs],
+  );
+
+  const handleTooltipExpandByTopic = useCallback(
+    (nodeId: string) => {
+      refs.graphApiRef.current?.expandByTopic(nodeId);
+    },
+    [refs],
+  );
+
+  const handleTooltipViewDetails = useCallback(
+    (nodeId: string) => {
+      const graph = refs.graphRef.current;
+      if (!graph || !graph.hasNode(nodeId)) return;
+      const attrs = graph.getNodeAttributes(nodeId);
+      const paperData = {
+        id: attrs.paperId || nodeId,
+        title: attrs.title || attrs.label || "Unknown",
+        authors: attrs.authors || "Unknown",
+        year: attrs.year || 2024,
+        venue: attrs.venue,
+        arxivId: attrs.arxivId,
+        doi: attrs.doi,
+        openAccessUrl: attrs.openAccessUrl,
+        citations: attrs.citations || 0,
+        references: attrs.references || 0,
+        supports: attrs.supports || 0,
+        refutes: attrs.refutes || 0,
+        abstract: attrs.abstract,
+        aiSummary: attrs.aiSummary,
+        status: attrs.status,
+      };
+      graphAPI.getEvidence(nodeId).then((evidence) => {
+        handleNodeClick(paperData, evidence);
+      });
+    },
+    [refs, handleNodeClick],
+  );
+
+  const handlePaperCountChange = useCallback(
+    (count: number) => {
+      actions.setPaperCount(count);
+      actions.triggerRefresh();
+    },
+    [actions],
+  );
+
+  const handleClearSelection = useCallback(() => {
+    actions.clearSelection();
+    clearPathHighlight();
+  }, [actions, clearPathHighlight]);
+
   const handleListSelectNode = useCallback(
     async (nodeId: string) => {
       const paper = state.visiblePapers.find((p) => p.id === nodeId);
@@ -278,39 +334,10 @@ export function ExploreCanvas() {
             {/* Sigma-managed internal components */}
             <NodeDragControl />
             <NodeTooltip
-              onExpand={(nodeId, direction, type) => {
-                refs.graphApiRef.current?.expandNode(nodeId, direction, type);
-              }}
-              onExpandByTopic={(nodeId) => {
-                refs.graphApiRef.current?.expandByTopic(nodeId);
-              }}
+              onExpand={handleTooltipExpand}
+              onExpandByTopic={handleTooltipExpandByTopic}
               onFocus={handleEnterFocusMode}
-              onViewDetails={(nodeId) => {
-                // Simulate a node click to open inspector
-                const graph = refs.graphRef.current;
-                if (!graph || !graph.hasNode(nodeId)) return;
-                const attrs = graph.getNodeAttributes(nodeId);
-                const paperData = {
-                  id: attrs.paperId || nodeId,
-                  title: attrs.title || attrs.label || "Unknown",
-                  authors: attrs.authors || "Unknown",
-                  year: attrs.year || 2024,
-                  venue: attrs.venue,
-                  arxivId: attrs.arxivId,
-                  doi: attrs.doi,
-                  openAccessUrl: attrs.openAccessUrl,
-                  citations: attrs.citations || 0,
-                  references: attrs.references || 0,
-                  supports: attrs.supports || 0,
-                  refutes: attrs.refutes || 0,
-                  abstract: attrs.abstract,
-                  aiSummary: attrs.aiSummary,
-                  status: attrs.status,
-                };
-                graphAPI.getEvidence(nodeId).then((evidence) => {
-                  handleNodeClick(paperData, evidence);
-                });
-              }}
+              onViewDetails={handleTooltipViewDetails}
             />
             <EdgeLabels />
 
@@ -374,10 +401,7 @@ export function ExploreCanvas() {
               />
               <PaperCountControl
                 count={state.paperCount}
-                onChange={(count) => {
-                  actions.setPaperCount(count);
-                  actions.triggerRefresh();
-                }}
+                onChange={handlePaperCountChange}
                 onRefresh={() => actions.triggerRefresh()}
                 isLoading={state.isLoading}
               />
@@ -455,16 +479,11 @@ export function ExploreCanvas() {
             <SelectionPanel
               selectedNodes={state.selectedNodes}
               nodeLabels={state.nodeLabels}
-              onClearSelection={() => {
-                actions.clearSelection();
-                clearPathHighlight();
-              }}
-              onRemoveNode={(nodeId: string) =>
-                actions.removeSelectedNode(nodeId)
-              }
+              onClearSelection={handleClearSelection}
+              onRemoveNode={actions.removeSelectedNode}
               onFocusSelection={handleFocusSelection}
               onCompare={calculateAllPaths}
-              onExport={(format) => handleExportSelection(format)}
+              onExport={handleExportSelection}
             />
             <SelectionInstruction
               isActive={state.selectionMode}
