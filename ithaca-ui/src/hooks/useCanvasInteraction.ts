@@ -1,11 +1,8 @@
 "use client";
 
 import { useCallback } from "react";
-import {
-  useCanvasActions,
-  useCanvasRefs,
-  useCanvasState,
-} from "@/contexts/canvas-context";
+import { useCanvasActions, useCanvasRefs } from "@/contexts/canvas-context";
+import { useCanvasStore } from "@/stores/canvas-store";
 import { graphAPI } from "@/lib/api/graph-api";
 import { debug } from "@/lib/debug";
 import type {
@@ -21,7 +18,8 @@ import type { EdgeEvidence } from "@/components/canvas/edge-evidence-popover";
 export function useCanvasInteraction() {
   const actions = useCanvasActions();
   const refs = useCanvasRefs();
-  const state = useCanvasState();
+  const paperCount = useCanvasStore((s) => s.paperCount);
+  const relationshipFocus = useCanvasStore((s) => s.relationshipFocus);
 
   const handleNodeClick = useCallback(
     (paper: PaperData, evidence: EvidenceItem[]) => {
@@ -63,20 +61,20 @@ export function useCanvasInteraction() {
 
         if (isTopic) {
           const query = paperId.replace("topic-", "");
-          const data = await graphAPI.fetchTopicSlice(query, state.paperCount);
+          const data = await graphAPI.fetchTopicSlice(query, paperCount);
           nodes = data.nodes;
           edges = data.edges;
         } else {
           const data = await graphAPI.fetchPaperContext(
             paperId,
-            state.paperCount,
+            paperCount,
           );
           nodes = data.nodes;
           edges = data.edges;
         }
 
         // Apply relationship focus filter: keep only edges matching the selected type
-        const focus = state.relationshipFocus;
+        const focus = relationshipFocus;
         if (focus !== "all") {
           edges = edges.filter((e: any) => e.edgeType === focus);
         }
@@ -119,13 +117,7 @@ export function useCanvasInteraction() {
         actions.setLoading(false);
       }
     },
-    [
-      actions,
-      refs,
-      state.paperCount,
-      state.relationshipFocus,
-      state.visiblePapers,
-    ],
+    [actions, refs, paperCount, relationshipFocus],
   );
 
   const handleCommandAction = useCallback(

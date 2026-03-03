@@ -1,11 +1,8 @@
 "use client";
 
 import { useCallback } from "react";
-import {
-  useCanvasActions,
-  useCanvasRefs,
-  useCanvasState,
-} from "@/contexts/canvas-context";
+import { useCanvasActions, useCanvasRefs } from "@/contexts/canvas-context";
+import { useCanvasStore } from "@/stores/canvas-store";
 import { findSemanticPath } from "@/lib/graph-algorithms";
 import type { SemanticPath, PathMode } from "@/lib/graph-algorithms";
 import { debug } from "@/lib/debug";
@@ -14,9 +11,11 @@ import { debug } from "@/lib/debug";
  * Hook for node selection (max 2: Source → Target), path comparison, and export.
  */
 export function useCanvasSelection() {
-  const state = useCanvasState();
   const actions = useCanvasActions();
   const refs = useCanvasRefs();
+  const selectedNodes = useCanvasStore((s) => s.selectedNodes);
+  const nodeLabels = useCanvasStore((s) => s.nodeLabels);
+  const calculatedPaths = useCanvasStore((s) => s.calculatedPaths);
 
   /**
    * Select a node as Source (slot 0) or Target (slot 1).
@@ -25,7 +24,7 @@ export function useCanvasSelection() {
    */
   const handleNodeSelect = useCallback(
     (nodeId: string, label: string) => {
-      const prev = state.selectedNodes;
+      const prev = selectedNodes;
 
       if (prev.includes(nodeId)) {
         // Deselect — remove from wherever it is
@@ -42,22 +41,22 @@ export function useCanvasSelection() {
         actions.setSelectedNodes([prev[0], nodeId]);
       }
 
-      actions.setNodeLabels({ ...state.nodeLabels, [nodeId]: label });
+      actions.setNodeLabels({ ...nodeLabels, [nodeId]: label });
     },
-    [state.selectedNodes, state.nodeLabels, actions],
+    [selectedNodes, nodeLabels, actions],
   );
 
   const handleFocusSelection = useCallback(() => {
-    if (state.selectedNodes.length === 0 || !refs.graphApiRef.current) return;
-    refs.graphApiRef.current.focusNodes(state.selectedNodes);
-  }, [state.selectedNodes, refs]);
+    if (selectedNodes.length === 0 || !refs.graphApiRef.current) return;
+    refs.graphApiRef.current.focusNodes(selectedNodes);
+  }, [selectedNodes, refs]);
 
   const handleExportSelection = useCallback(
     (format: "csv" | "bibtex" = "csv") => {
-      if (state.selectedNodes.length === 0 || !refs.graphApiRef.current) return;
-      refs.graphApiRef.current.exportSelection(state.selectedNodes, format);
+      if (selectedNodes.length === 0 || !refs.graphApiRef.current) return;
+      refs.graphApiRef.current.exportSelection(selectedNodes, format);
     },
-    [state.selectedNodes, refs],
+    [selectedNodes, refs],
   );
 
   /**
@@ -92,12 +91,12 @@ export function useCanvasSelection() {
    * Returns the paths and highlights the active mode on the canvas.
    */
   const calculateAllPaths = useCallback(() => {
-    if (state.selectedNodes.length < 2 || !refs.graphApiRef.current) {
+    if (selectedNodes.length < 2 || !refs.graphApiRef.current) {
       debug.warn("Cannot calculate path: need exactly 2 selected nodes");
       return;
     }
 
-    const [sourceId, targetId] = state.selectedNodes;
+    const [sourceId, targetId] = selectedNodes;
     const modes: PathMode[] = ["shortest", "conflict", "consensus"];
     const allPaths: SemanticPath[] = [];
 
@@ -125,7 +124,7 @@ export function useCanvasSelection() {
       highlightPathOnCanvas(defaultPath);
       actions.setPathMode("shortest");
     }
-  }, [state.selectedNodes, refs, actions, highlightPathOnCanvas]);
+  }, [selectedNodes, refs, actions, highlightPathOnCanvas]);
 
   /**
    * Switch which mode's path is highlighted on the canvas.
@@ -133,14 +132,14 @@ export function useCanvasSelection() {
   const switchPathMode = useCallback(
     (mode: PathMode) => {
       actions.setPathMode(mode);
-      const target = state.calculatedPaths.find((p: SemanticPath) =>
+      const target = calculatedPaths.find((p: SemanticPath) =>
         p.id.includes(mode),
       );
       if (target) {
         highlightPathOnCanvas(target);
       }
     },
-    [state.calculatedPaths, actions, highlightPathOnCanvas],
+    [calculatedPaths, actions, highlightPathOnCanvas],
   );
 
   /**

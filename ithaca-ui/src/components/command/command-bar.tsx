@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { graphAPI, SearchResult } from "@/lib/api/graph-api";
-import { useCanvasState, useCanvasActions } from "@/contexts/canvas-context";
+import { useCanvasStore } from "@/stores/canvas-store";
 import { CheckCircle, XCircle, ArrowRightCircle, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { RelationshipFocusType } from "@/components/canvas/relationship-focus-control";
@@ -57,8 +57,8 @@ export function CommandBar({
   const [recentPapers, setRecentPapers] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const { theme, setTheme } = useTheme();
-  const canvasState = useCanvasState();
-  const canvasActions = useCanvasActions();
+  const relationshipFocus = useCanvasStore((s) => s.relationshipFocus);
+  const setRelationshipFocus = useCanvasStore((s) => s.setRelationshipFocus);
 
   const focusOptions: {
     value: RelationshipFocusType;
@@ -210,12 +210,12 @@ export function CommandBar({
           </p>
           <div className="flex gap-1.5">
             {focusOptions.map((opt) => {
-              const isActive = canvasState.relationshipFocus === opt.value;
+              const isActive = relationshipFocus === opt.value;
               const Icon = opt.icon;
               return (
                 <button
                   key={opt.value}
-                  onClick={() => canvasActions.setRelationshipFocus(opt.value)}
+                  onClick={() => setRelationshipFocus(opt.value)}
                   className={cn(
                     "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border transition-all",
                     isActive
@@ -232,9 +232,9 @@ export function CommandBar({
         </div>
         <CommandInput
           placeholder={
-            canvasState.relationshipFocus === "all"
+            relationshipFocus === "all"
               ? "Search papers, authors, or topics..."
-              : `Search for papers that ${canvasState.relationshipFocus === "supports" ? "support" : canvasState.relationshipFocus === "contradicts" ? "refute" : "extend"} others...`
+              : `Search for papers that ${relationshipFocus === "supports" ? "support" : relationshipFocus === "contradicts" ? "refute" : "extend"} others...`
           }
           value={search}
           onValueChange={setSearch}
