@@ -69,9 +69,9 @@ class S2RateLimiter {
   private readonly minInterval: number;
 
   constructor(hasApiKey: boolean) {
-    // S2 rate limit: 1 req/sec for all tiers (cumulative across endpoints)
+    // S2 rate limit: 1 req/sec without key, 10 req/sec with key
     // Add 50ms buffer to stay safely under the limit
-    this.minInterval = hasApiKey ? 1050 : 1050;
+    this.minInterval = hasApiKey ? 150 : 1050;
   }
 
   async wait(): Promise<void> {
@@ -324,4 +324,3 @@ function cleanDOI(doi: string): string | null {
 
   return cleaned;
 }
-
