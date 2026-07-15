@@ -49,73 +49,78 @@ export interface ClassificationResult {
 }
 
 // =============================================================================
-// SYSTEM PROMPT
+// SYSTEM PROMPTS
 // =============================================================================
 
-const CLASSIFICATION_PROMPT = `You are a scientific citation classifier. Given two academic papers (a CITING paper and a CITED paper), and CITATION CONTEXT SENTENCES extracted from the citing paper, determine the relationship between them.
+/**
+ * Primary prompt — used when Semantic Scholar citation context sentences are available.
+ *
+ * Two-step approach:
+ *   Step 1: Extract the specific claim the citing authors make about the cited paper.
+ *   Step 2: Classify the rhetorical stance based on that claim.
+ *
+ * The snippet produced here is the extracted claim — grounded in an actual sentence
+ * from the paper, not AI-generated text. This serves as the atom for Layer 2
+ * (claim-level cross-paper matching).
+ */
+const CLASSIFICATION_PROMPT = `You are classifying the rhetorical stance of a citing paper toward a cited paper — specifically, what the citing authors claim about the cited work based on in-text citation sentences.
 
-You will ONLY be called when Semantic Scholar indicates this may be a meaningful relationship (ResultComparison or Methodology+ResultComparison intents), or when only abstracts are available. Most citations are routine background references — those are handled automatically as "cites" without calling you. Note: sometimes you may receive S2 intent labels without full context sentences — use the intents as a signal alongside the abstracts.
+STEP 1 — Extract the claim:
+From the CITATION CONTEXT SENTENCES below, identify the specific empirical claim the citing authors make about the cited paper's findings. Write it in one concise sentence (max 25 words) starting with "Authors claim..." or "Authors find...". If the sentence is purely background with no claim, write "Authors cite as background reference."
 
-Classify as one of:
-- "supports": The citing paper explicitly confirms, validates, builds upon, or agrees with the cited paper's specific findings or methods. There must be clear language of agreement or validation.
-- "contradicts": The citing paper explicitly challenges, refutes, presents counter-evidence to, or questions the cited paper's claims. Proposing an alternative approach is NOT contradiction — there must be clear disagreement.
-- "extends": The citing paper meaningfully applies the cited paper's methods/ideas to a new domain, dataset, or problem — there must be clear evidence of extension or generalization beyond the original work.
-- "cites": The relationship is a routine citation, background reference, or cannot be clearly determined as supports/contradicts/extends from the evidence. This is the safe default when unsure.
+STEP 2 — Classify the stance:
+Based on that extracted claim, classify as:
+- "supports"    — Authors explicitly confirm, validate, or agree with the cited paper's specific finding
+- "contradicts" — Authors explicitly challenge, refute, or present counter-evidence to the cited paper
+- "extends"     — Authors apply the cited paper's method or framework to a meaningfully new domain or problem
+- "cites"       — Routine background reference, method use, or no clear directional stance
 
-Also provide:
-- "confidence": A number from 0.0 to 1.0. Only use 0.7+ when the citation context sentences contain explicit language of support, contradiction, or extension. Use 0.5 or lower when the signal is ambiguous.
-- "snippet": One concise sentence (max 30 words) explaining the relationship, written from the citing paper's perspective.
+Confidence rules:
+- 0.8+ only when the citation sentence contains explicit agreement/disagreement language
+- 0.5–0.7 for directional but ambiguous signals
+- Use "cites" with 0.8 confidence when no clear stance is evident — do not guess
 
 CRITICAL RULES:
-- You MUST have strong, explicit evidence to classify as supports/contradicts/extends. When in doubt, use "cites".
-- CITATION CONTEXT SENTENCES are your PRIMARY evidence. These are the actual sentences from the citing paper where it references the cited paper.
-- Proposing an alternative method/approach is NOT "contradicts". That's extending the field, not refuting existing work.
-- Citing a paper as background or prior work without explicit evaluation is "cites", not "supports".
-- Using a method from a previous paper is NOT automatically "extends" — it could just be "cites" unless there's clear evidence of novel application to a new domain.
-- Pay close attention to negation: "does not support", "no evidence", "failed to replicate" indicate contradiction.
-- The citing paper's language determines the relationship. Focus on what the citing paper says ABOUT the cited paper.
+- You MUST have strong, explicit evidence to classify as supports/contradicts/extends. Default to "cites".
+- CITATION CONTEXT SENTENCES are your PRIMARY evidence.
+- Proposing an alternative is NOT "contradicts" — there must be explicit disagreement with the cited finding.
+- Using a method is NOT "extends" — extension requires applying it to a new domain with novel contribution.
+- Pay attention to negation: "does not support", "no evidence for", "failed to replicate" = contradiction.
 
-Respond with ONLY valid JSON: {"edgeType": "...", "confidence": 0.0, "snippet": "..."}`;
+Respond with ONLY valid JSON: {"edgeType": "...", "confidence": 0.0, "snippet": "Authors claim..."}`;
 
 /**
- * Separate prompt for abstracts-only edges (Gate 5).
+ * Abstracts-only prompt — used when no S2 citation context is available.
  *
- * The key difference: instead of requiring "strong, explicit evidence" (which
- * rarely exists in abstracts), this prompt asks the LLM to INFER the most likely
- * relationship from linguistic patterns in the abstracts. It still defaults to
- * "cites" when truly ambiguous, but the threshold for detection is lower.
- *
- * This is what makes a knowledge graph product valuable — surfacing likely
- * relationships that exist in the papers but aren't visible from a simple
- * citation list.
+ * This is an inference from two summaries, not extraction from in-text evidence.
+ * Confidence is capped at 0.55 (see maxConfidence below).
+ * The UI surfaces an "Inferred from abstracts" warning for these edges.
  */
-const ABSTRACTS_ONLY_PROMPT = `You are a scientific citation classifier. You are given two academic papers — a CITING paper and a CITED paper — with only their titles and abstracts available. No full-text citation context is available for this pair.
+const ABSTRACTS_ONLY_PROMPT = `You are inferring the likely rhetorical relationship between two academic papers using only their titles and abstracts. No direct citation sentences are available.
 
-Your job is to INFER the most likely relationship by reading between the lines of what each abstract describes. Academic abstracts often contain subtle signals:
+STEP 1 — Summarize what each paper claims:
+- Citing paper claims: [one sentence from its abstract's main finding]
+- Cited paper claims: [one sentence from its abstract's main finding]
 
-- A citing paper that "validates", "confirms", "replicates", or "builds on" prior findings → supports
-- A citing paper that "challenges", "questions", "finds no evidence for", or "contradicts" prior claims → contradicts
-- A citing paper that applies methods/frameworks to a NEW domain, population, or dataset → extends
-- When the abstracts describe unrelated subtopics, or the connection is purely as background → cites
+STEP 2 — Infer the relationship:
+Based on these claims, which best describes the likely stance of the citing paper toward the cited paper:
+- "supports"    — The citing paper's finding directly confirms the cited paper's finding
+- "contradicts" — The citing paper's finding directly opposes the cited paper's finding
+- "extends"     — The citing paper applies the cited paper's approach to a meaningfully new context
+- "cites"       — No clear directional signal; the abstracts are unrelated or ambiguous
 
-Classify as one of:
-- "supports": The abstracts suggest the citing paper confirms, validates, or builds upon the cited paper's specific findings. Look for: similar methodology with confirming results, shared conclusions, language of agreement.
-- "contradicts": The abstracts suggest the citing paper challenges or presents opposing evidence to the cited paper. Look for: same question with different answers, negative results on the same topic, language of disagreement.
-- "extends": The abstracts suggest the citing paper takes the cited paper's methods, framework, or ideas into a new domain or application. Look for: same approach in different context, generalization, novel application.
-- "cites": The relationship is genuinely unclear, the papers work on different specific problems, or there's no meaningful signal in the abstracts. Use this when you truly cannot determine a direction.
-
-Also provide:
-- "confidence": 0.0 to 1.0. Use 0.4-0.5 when inferring from weak signals. Use 0.6+ only when abstract language strongly suggests a relationship direction.
-- "snippet": One concise sentence (max 30 words) explaining what you inferred and why.
+Confidence rules:
+- Max 0.55 for any non-"cites" classification — this is inference, not observation
+- Use 0.8 for "cites" when genuinely no signal exists
 
 IMPORTANT:
-- You are INFERRING, not extracting. It's okay to make a best guess when abstracts point in a direction.
-- But don't fabricate — if the abstracts genuinely discuss unrelated things, use "cites".
-- Two papers in the same subfield with similar methods are NOT automatically "supports" — they could be independent work.
-- Pay attention to temporal signals: if the cited paper proposes X and the citing paper "improves upon X" or "extends X to Y", that's "extends".
+- You are INFERRING. It is acceptable to infer when the abstracts point in a direction, but label your snippet as inference.
+- Start the snippet with: "Abstracts suggest authors..."
+- Two papers on the same topic with similar methods are NOT automatically "supports" — they may be independent.
 - Negative framing ("unlike previous work", "in contrast to") signals contradiction.
+- If genuinely ambiguous, use "cites" — it is always better to be honest than to invent a relationship.
 
-Respond with ONLY valid JSON: {"edgeType": "...", "confidence": 0.0, "snippet": "..."}`;
+Respond with ONLY valid JSON: {"edgeType": "...", "confidence": 0.0, "snippet": "Abstracts suggest authors..."}`;
 
 // =============================================================================
 // JSON SANITIZER
@@ -153,16 +158,28 @@ function sanitizeJSON(raw: string): string {
 // CLASSIFIER
 // =============================================================================
 
-/** Current classifier version — bump when logic changes to invalidate stale cache */
-const CLASSIFIER_VERSION = 6;
+/**
+ * Current classifier version — bump when prompt or gate logic changes to invalidate stale cache.
+ * v7: Two-step claim extraction prompts, Gate 3 → cites, heuristic fallback wired.
+ */
+const CLASSIFIER_VERSION = 7;
+export const USER_CORRECTION_VERSION = 999;
+
+function isCacheEntryUsable(cached: {
+  classifierVersion: number;
+  provider: string;
+}): boolean {
+  if (cached.provider === "user-correction") return true;
+  return cached.classifierVersion === CLASSIFIER_VERSION;
+}
 
 /**
  * Classify a single citation relationship.
  * Uses evidence-gated logic:
  *   - S2 "Background" intent or no S2 data → "cites" (don't guess)
- *   - S2 "Methodology" intent → auto "extends"
- *   - S2 "ResultComparison" intent → send to LLM for real classification
- *   - Abstracts only (no S2) → LLM can suggest, but lower confidence
+ *   - S2 "Methodology" only → "cites" (method use ≠ intellectual extension)
+ *   - S2 "ResultComparison" or Methodology+ResultComparison → full LLM classification
+ *   - Abstracts only (no S2) → LLM inference, confidence capped at 0.55
  *   - Titles only → always "cites"
  */
 export async function classifyCitation(
@@ -170,7 +187,7 @@ export async function classifyCitation(
 ): Promise<ClassificationResult> {
   // 1. Check cache — skip stale entries from old classifier versions
   const cached = await getCachedClassification(input.citingId, input.citedId);
-  if (cached && cached.classifierVersion === CLASSIFIER_VERSION) {
+  if (cached && isCacheEntryUsable(cached)) {
     return { ...cached, cached: true, contexts: input.citationContexts };
   }
 
@@ -230,16 +247,17 @@ export async function classifyCitation(
     return result;
   }
 
-  // Gate 3: S2 says "Methodology" (no ResultComparison) → auto "extends"
-  // Widened: works with intents alone (no context sentences needed)
+  // Gate 3: S2 says "Methodology" only (no ResultComparison) → "cites"
+  // Rationale: using a method from a prior paper is not extending its intellectual contribution.
+  // Methodology + ResultComparison falls through to LLM (they evaluated AND used methods).
   if ((hasContexts || hasS2Intents) && hasMethodology && !hasResultComparison) {
     const result: ClassificationResult = {
       citingId: input.citingId,
       citedId: input.citedId,
-      edgeType: "extends",
-      confidence: 0.7,
-      snippet: "Applies or builds upon the methodology from the cited work.",
-      provider: "evidence-gate/s2-methodology",
+      edgeType: "cites",
+      confidence: 0.8,
+      snippet: "Methodology citation — uses methods from the cited work.",
+      provider: "evidence-gate/s2-methodology-use",
       cached: false,
       signalSource: "llm+contexts",
       contexts: input.citationContexts,
@@ -260,7 +278,11 @@ export async function classifyCitation(
   //   - Full contexts (S2 sentences) → 100%
   //   - Intents only (S2 labels, no sentences) → 70%
   //   - Abstracts only (inferential prompt) → 65%
-  const maxConfidence = hasContexts ? 1.0 : hasS2Intents ? 0.7 : 0.65;
+  // Confidence caps by signal quality:
+  //   Full S2 context sentences → up to 1.0 (grounded in actual text)
+  //   S2 intent labels only     → up to 0.7 (signal without sentences)
+  //   Abstracts only            → up to 0.55 (inference, not observation)
+  const maxConfidence = hasContexts ? 1.0 : hasS2Intents ? 0.7 : 0.55;
 
   // 2. Build user message — include citation contexts from S2 if available
   let userContent = `CITING PAPER: "${input.citingTitle}"
@@ -376,28 +398,27 @@ ${input.citationContexts.map((ctx, i) => `${i + 1}. "${ctx}"`).join("\n")}`;
 
     return classification;
   } catch (error) {
-    // LLM unavailable — log the actual error so we can debug
+    // LLM unavailable — fall back to local keyword heuristics rather than a bare default.
+    // heuristicClassify uses weighted keyword signals with negation detection.
     console.error(
-      `[Citation Classifier] LLM classification failed for ${input.citingId}→${input.citedId}:`,
+      `[Citation Classifier] LLM failed for ${input.citingId}→${input.citedId}, using heuristic:`,
       error instanceof Error ? error.message : error,
     );
-    const fallback: ClassificationResult = {
+    const fallback = heuristicClassify(input);
+    // Promote to a full ClassificationResult (heuristicClassify returns without citingId/citedId/cached)
+    const fullFallback: ClassificationResult = {
+      ...fallback,
       citingId: input.citingId,
       citedId: input.citedId,
-      edgeType: "cites",
-      confidence: 0.5,
-      snippet: "Citation relationship — classifier unavailable.",
-      provider: "fallback",
       cached: false,
-      signalSource: "default",
       contexts: input.citationContexts,
     };
     await cacheClassification(
-      fallback,
+      fullFallback,
       input.citationContexts,
       input.s2Intents,
     );
-    return fallback;
+    return fullFallback;
   }
 }
 
@@ -735,6 +756,19 @@ async function cacheClassification(
   s2Intents?: string[],
 ): Promise<void> {
   try {
+    const existing = await prisma.citationCache.findUnique({
+      where: {
+        citingId_citedId: {
+          citingId: result.citingId,
+          citedId: result.citedId,
+        },
+      },
+      select: { provider: true },
+    });
+    if (existing?.provider === "user-correction") {
+      return;
+    }
+
     await prisma.citationCache.upsert({
       where: {
         citingId_citedId: {
