@@ -33,6 +33,7 @@ import {
   getWorksByConcept,
 } from "./openalex-client";
 import { batchGetCitationContexts } from "./semantic-scholar-client";
+import { COLORS } from "@/lib/constants";
 // Classification is done via API route (server-side) since LLM keys can't be
 // exposed in the browser bundle. We call /api/classify from here.
 type ClassificationInput = {
@@ -75,15 +76,15 @@ const CLUSTER_COLORS = [
   "#14b8a6", // teal
   "#eab308", // yellow
   "#ef4444", // red
-  "#22c55e", // green
+  "#22c5e", // green
 ];
 
 const EDGE_COLORS: Record<string, string> = {
-  supports: "#22c55e", // green  — matches --supports CSS var
-  contradicts: "#ef4444", // red    — matches --contradicts CSS var
-  extends: "#3b82f6", // blue   — matches --extends CSS var
-  cites: "#a1a1aa", // neutral zinc — the default/normal state
-  unknown: "#94a3b8", // grey   — legacy fallback
+  supports: COLORS.SUPPORTS,
+  contradicts: COLORS.CONTRADICTS,
+  extends: COLORS.EXTENDS,
+  cites: COLORS.CITES,
+  unknown: COLORS.UNKNOWN,
 };
 
 // =============================================================================
@@ -127,6 +128,8 @@ function workToPaperNode(work: OpenAlexWork, clusterIndex = 0): PaperNode {
     arxivId: undefined,
     doi: work.ids?.doi ?? undefined,
     openAccessUrl:
+      work.primary_location?.pdf_url ||
+      work.locations?.find((location) => location.pdf_url)?.pdf_url ||
       work.open_access?.oa_url ||
       (work.ids?.doi ? `https://doi.org/${work.ids.doi}` : undefined) ||
       `https://openalex.org/${id}`,
@@ -821,7 +824,7 @@ export class OpenAlexProvider implements IGraphProvider {
                   ? "cites"
                   : "extends",
         confidence: edge.confidence,
-        snippet: edge.snippet || "No classification explanation available.",
+        snippet: `Cited by authors: ${edge.snippet || "No classification explanation available."}`,
         source: edge.provider,
         context: contextFromSignal,
         signalSource: edge.signalSource,
@@ -860,7 +863,7 @@ export class OpenAlexProvider implements IGraphProvider {
                     ? "cites"
                     : "extends",
           confidence: edge.confidence,
-          snippet: edge.snippet || "No classification explanation available.",
+          snippet: `This paper's authors: ${edge.snippet || "No classification explanation available."}`,
           source: edge.provider,
           context: contextFromSignal,
           signalSource: edge.signalSource,
