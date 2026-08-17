@@ -3,6 +3,7 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { prisma } from "./prisma";
 import { env } from "./env";
 import { sendPasswordResetEmail, sendVerificationEmail } from "./email";
+import { getRedis } from "./platform/redis";
 
 // User type for password reset
 interface ResetPasswordUser {
@@ -10,6 +11,8 @@ interface ResetPasswordUser {
   email: string;
   name?: string | null;
 }
+
+const redis = getRedis();
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
@@ -78,13 +81,31 @@ export const auth = betterAuth({
     generateId: () => crypto.randomUUID(),
   },
 
-  // Rate Limiting
+  // Rate Limiting — disabled during Playwright e2e (serial sign-ins in setup)
   rateLimit: {
-    enabled: true,
+    enabled: process.env.NEXT_PUBLIC_E2E !== "1",
     window: 60, // 1 minute window
     max: 10, // 10 requests per window
-    storage: "memory", // Use Redis in production
+    storage: redis ? "secondary-storage" : "memory",
   },
+
+  secondaryStorage: redis
+    ? {
+        get: (key) => redis.get(key),
+        set: async (key, value, ttl) => {
+          if (ttl) await redis.set(key, value, { ex: ttl });
+          else await redis.set(key, value);
+        },
+        delete: async (key) => {
+          await redis.del(key);
+        },
+        increment: async (key, ttl) => {
+          const value = await redis.incr(key);
+          if (value === 1) await redis.expire(key, ttl);
+          return value;
+        },
+      }
+    : undefined,
 
   // CSRF Protection
   csrf: {

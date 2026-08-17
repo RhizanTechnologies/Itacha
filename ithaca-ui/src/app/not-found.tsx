@@ -4,15 +4,15 @@ import { Home, AlertCircle } from "lucide-react";
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
+    <div className="bg-background flex min-h-screen flex-col items-center justify-center px-4">
       {/* Illustration */}
-      <div className="relative w-64 h-48 mb-8 rounded-2xl bg-gradient-to-b from-blue-100 to-blue-200 dark:from-blue-900/30 dark:to-blue-800/20 overflow-hidden flex items-end justify-center">
+      <div className="relative mb-8 flex h-48 w-64 items-end justify-center overflow-hidden rounded-2xl bg-gradient-to-b from-blue-100 to-blue-200 dark:from-blue-900/30 dark:to-blue-800/20">
         {/* Ocean waves */}
-        <div className="absolute bottom-0 w-full h-16 bg-gradient-to-t from-blue-300 to-transparent dark:from-blue-600" />
+        <div className="absolute bottom-0 h-16 w-full bg-gradient-to-t from-blue-300 to-transparent dark:from-blue-600" />
         {/* Simple ship icon */}
         <div className="relative z-10 mb-4">
           <svg
-            className="w-24 h-24 text-blue-600 dark:text-blue-400"
+            className="h-24 w-24 text-blue-600 dark:text-blue-400"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -28,13 +28,13 @@ export default function NotFound() {
       </div>
 
       {/* Text Content */}
-      <h1 className="text-6xl font-bold text-primary mb-4">404</h1>
-      <h2 className="text-2xl font-bold text-foreground mb-2">
+      <h1 className="text-primary mb-4 text-6xl font-bold">404</h1>
+      <h2 className="text-foreground mb-2 text-2xl font-bold">
         This page seems lost at sea.
       </h2>
-      <p className="text-muted-foreground text-center max-w-md mb-8">
-        Like Odysseus on his journey, you've drifted off course. 
-        The coordinates for this argument graph couldn't be found.
+      <p className="text-muted-foreground mb-8 max-w-md text-center">
+        Like Odysseus on his journey, you've drifted off course. The coordinates
+        for this argument graph couldn't be found.
       </p>
 
       {/* Actions */}
@@ -53,18 +53,27 @@ export default function NotFound() {
 
       {/* Footer */}
       <footer className="absolute bottom-8 text-center">
-        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-          <Link href="/docs" className="hover:text-foreground transition-colors">
+        <div className="text-muted-foreground flex items-center gap-4 text-sm">
+          <Link
+            href="/docs"
+            className="hover:text-foreground transition-colors"
+          >
             Docs
           </Link>
-          <Link href="/privacy" className="hover:text-foreground transition-colors">
+          <Link
+            href="/privacy"
+            className="hover:text-foreground transition-colors"
+          >
             Privacy
           </Link>
-          <Link href="/status" className="hover:text-foreground transition-colors">
+          <Link
+            href="/status"
+            className="hover:text-foreground transition-colors"
+          >
             Status
           </Link>
         </div>
-        <p className="text-xs text-muted-foreground mt-4">
+        <p className="text-muted-foreground mt-4 text-xs">
           © 2026 Ithaca Science. All rights reserved.
         </p>
       </footer>

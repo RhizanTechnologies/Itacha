@@ -1,0 +1,581 @@
+[
+  {
+    "id": "live-001",
+    "expected": "supports",
+    "input": {
+      "citingId": "EVAL-C001",
+      "citedId": "EVAL-D001",
+      "citingTitle": "Eval citing paper 001: Replication confirms prior finding",
+      "citingAbstract": "We replicate the prior trial and observe the same protective effect on cardiovascular outcomes.",
+      "citedTitle": "Eval cited paper 001: Replication confirms prior finding",
+      "citedAbstract": "Randomized evidence that the intervention reduces major adverse cardiovascular events.",
+      "citationContexts": [
+        "Our results replicate Smith et al. and confirm their finding that the therapy lowers event rates."
+      ],
+      "s2Intents": [
+        "ResultComparison"
+      ]
+    }
+  },
+  {
+    "id": "live-002",
+    "expected": "supports",
+    "input": {
+      "citingId": "EVAL-C002",
+      "citedId": "EVAL-D002",
+      "citingTitle": "Eval citing paper 002: Independent validation study",
+      "citingAbstract": "Across three cohorts we validate the biomarker signature reported earlier.",
+      "citedTitle": "Eval cited paper 002: Independent validation study",
+      "citedAbstract": "A biomarker panel predicts treatment response with high sensitivity.",
+      "citationContexts": [
+        "These findings validate the biomarker panel introduced by Chen et al."
+      ],
+      "s2Intents": [
+        "ResultComparison"
+      ]
+    }
+  },
+  {
+    "id": "live-003",
+    "expected": "supports",
+    "input": {
+      "citingId": "EVAL-C003",
+      "citedId": "EVAL-D003",
+      "citingTitle": "Eval citing paper 003: Meta-analysis alignment",
+      "citingAbstract": "Pooled estimates align with the original effect direction and magnitude.",
+      "citedTitle": "Eval cited paper 003: Meta-analysis alignment",
+      "citedAbstract": "Single-center trial reporting a statistically significant mortality reduction.",
+      "citationContexts": [
+        "Consistent with Lee et al., our meta-analysis supports a mortality benefit."
+      ],
+      "s2Intents": [
+        "ResultComparison"
+      ]
+    }
+  },
+  {
+    "id": "live-004",
+    "expected": "supports",
+    "input": {
+      "citingId": "EVAL-C004",
+      "citedId": "EVAL-D004",
+      "citingTitle": "Eval citing paper 004: Prospective confirmation",
+      "citingAbstract": "Prospective sampling confirms the mechanism proposed in the foundational study.",
+      "citedTitle": "Eval cited paper 004: Prospective confirmation",
+      "citedAbstract": "Mechanistic study proposing a causal pathway for synaptic plasticity changes.",
+      "citationContexts": [
+        "We confirm the synaptic mechanism described by Patel et al."
+      ],
+      "s2Intents": [
+        "ResultComparison"
+      ]
+    }
+  },
+  {
+    "id": "live-005",
+    "expected": "supports",
+    "input": {
+      "citingId": "EVAL-C005",
+      "citedId": "EVAL-D005",
+      "citingTitle": "Eval citing paper 005: Cross-lab agreement",
+      "citingAbstract": "An independent laboratory reproduces the reported dose-response curve.",
+      "citedTitle": "Eval cited paper 005: Cross-lab agreement",
+      "citedAbstract": "Laboratory study establishing a dose-dependent transcriptional response.",
+      "citationContexts": [
+        "Our dose-response curve agrees with the pattern reported by Nguyen et al."
+      ],
+      "s2Intents": [
+        "ResultComparison"
+      ]
+    }
+  },
+  {
+    "id": "live-006",
+    "expected": "supports",
+    "input": {
+      "citingId": "EVAL-C006",
+      "citedId": "EVAL-D006",
+      "citingTitle": "Eval citing paper 006: Clinical extension with agreement",
+      "citingAbstract": "Hospital data corroborate the outpatient benefit described previously.",
+      "citedTitle": "Eval cited paper 006: Clinical extension with agreement",
+      "citedAbstract": "Outpatient trial demonstrating reduced readmissions after intervention.",
+      "citationContexts": [
+        "Hospital admissions data corroborate the outpatient benefit found by Garcia et al."
+      ],
+      "s2Intents": [
+        "ResultComparison"
+      ]
+    }
+  },
+  {
+    "id": "live-007",
+    "expected": "supports",
+    "input": {
+      "citingId": "EVAL-C007",
+      "citedId": "EVAL-D007",
+      "citingTitle": "Eval citing paper 007: Field study confirmation",
+      "citingAbstract": "Field measurements support the climate sensitivity estimate from the cited model.",
+      "citedTitle": "Eval cited paper 007: Field study confirmation",
+      "citedAbstract": "Model-based estimate of regional climate sensitivity under warming.",
+      "citationContexts": [
+        "Field observations support the sensitivity estimate from Williams et al."
+      ],
+      "s2Intents": [
+        "ResultComparison"
+      ]
+    }
+  },
+  {
+    "id": "live-008",
+    "expected": "supports",
+    "input": {
+      "citingId": "EVAL-C008",
+      "citedId": "EVAL-D008",
+      "citingTitle": "Eval citing paper 008: Benchmark reproduction",
+      "citingAbstract": "Our benchmark reproduces the accuracy gains reported for the cited architecture.",
+      "citedTitle": "Eval cited paper 008: Benchmark reproduction",
+      "citedAbstract": "Neural architecture achieving state-of-the-art accuracy on benchmark tasks.",
+      "citationContexts": [
+        "We reproduce the accuracy improvements reported by Kim et al."
+      ],
+      "s2Intents": [
+        "ResultComparison"
+      ]
+    }
+  },
+  {
+    "id": "live-009",
+    "expected": "contradicts",
+    "input": {
+      "citingId": "EVAL-C009",
+      "citedId": "EVAL-D009",
+      "citingTitle": "Eval citing paper 009: Failed replication",
+      "citingAbstract": "We do not observe the reported effect under preregistered conditions.",
+      "citedTitle": "Eval cited paper 009: Failed replication",
+      "citedAbstract": "Study claiming a large treatment effect in a randomized trial.",
+      "citationContexts": [
+        "Unlike Johnson et al., we find no evidence for a treatment effect in our preregistered replication."
+      ],
+      "s2Intents": [
+        "ResultComparison"
+      ]
+    }
+  },
+  {
+    "id": "live-010",
+    "expected": "contradicts",
+    "input": {
+      "citingId": "EVAL-C010",
+      "citedId": "EVAL-D010",
+      "citingTitle": "Eval citing paper 010: Counter-evidence on mechanism",
+      "citingAbstract": "Knockout experiments argue against the proposed causal pathway.",
+      "citedTitle": "Eval cited paper 010: Counter-evidence on mechanism",
+      "citedAbstract": "Mechanistic paper arguing that protein X drives the phenotype.",
+      "citationContexts": [
+        "Our knockout results contradict the claim that protein X is necessary for the phenotype."
+      ],
+      "s2Intents": [
+        "ResultComparison"
+      ]
+    }
+  },
+  {
+    "id": "live-011",
+    "expected": "contradicts",
+    "input": {
+      "citingId": "EVAL-C011",
+      "citedId": "EVAL-D011",
+      "citingTitle": "Eval citing paper 011: Negative trial",
+      "citingAbstract": "The intervention did not improve the primary endpoint versus placebo.",
+      "citedTitle": "Eval cited paper 011: Negative trial",
+      "citedAbstract": "Positive phase II trial for the same endpoint and population.",
+      "citationContexts": [
+        "In contrast to Martinez et al., our trial found no improvement on the primary endpoint."
+      ],
+      "s2Intents": [
+        "ResultComparison"
+      ]
+    }
+  },
+  {
+    "id": "live-012",
+    "expected": "contradicts",
+    "input": {
+      "citingId": "EVAL-C012",
+      "citedId": "EVAL-D012",
+      "citingTitle": "Eval citing paper 012: Dataset challenge",
+      "citingAbstract": "Reanalysis shows the headline result is not robust to confounding adjustment.",
+      "citedTitle": "Eval cited paper 012: Dataset challenge",
+      "citedAbstract": "Observational study reporting a strong association after basic controls.",
+      "citationContexts": [
+        "Reanalysis shows the association reported by Brown et al. disappears after adjusting for confounders."
+      ],
+      "s2Intents": [
+        "ResultComparison"
+      ]
+    }
+  },
+  {
+    "id": "live-013",
+    "expected": "contradicts",
+    "input": {
+      "citingId": "EVAL-C013",
+      "citedId": "EVAL-D013",
+      "citingTitle": "Eval citing paper 013: Measurement disagreement",
+      "citingAbstract": "Direct measurement yields opposite sign for the hypothesized effect.",
+      "citedTitle": "Eval cited paper 013: Measurement disagreement",
+      "citedAbstract": "Experimental result reporting a positive modulation of receptor activity.",
+      "citationContexts": [
+        "We directly measure the opposite modulation, refuting the positive effect reported by Davis et al."
+      ],
+      "s2Intents": [
+        "ResultComparison"
+      ]
+    }
+  },
+  {
+    "id": "live-014",
+    "expected": "contradicts",
+    "input": {
+      "citingId": "EVAL-C014",
+      "citedId": "EVAL-D014",
+      "citingTitle": "Eval citing paper 014: Theoretical refutation",
+      "citingAbstract": "Formal analysis shows the cited proof relies on an invalid assumption.",
+      "citedTitle": "Eval cited paper 014: Theoretical refutation",
+      "citedAbstract": "Proof of convergence for an optimization procedure.",
+      "citationContexts": [
+        "We show the convergence proof of Taylor et al. relies on an assumption that fails in practical settings."
+      ],
+      "s2Intents": [
+        "ResultComparison"
+      ]
+    }
+  },
+  {
+    "id": "live-015",
+    "expected": "contradicts",
+    "input": {
+      "citingId": "EVAL-C015",
+      "citedId": "EVAL-D015",
+      "citingTitle": "Eval citing paper 015: Null finding in extension",
+      "citingAbstract": "Applying the cited method to a new domain yields no predictive gain.",
+      "citedTitle": "Eval cited paper 015: Null finding in extension",
+      "citedAbstract": "Method paper claiming universal gains across heterogeneous datasets.",
+      "citationContexts": [
+        "Applying Wilson et al. to genomics datasets, we find no predictive improvement."
+      ],
+      "s2Intents": [
+        "ResultComparison"
+      ]
+    }
+  },
+  {
+    "id": "live-016",
+    "expected": "contradicts",
+    "input": {
+      "citingId": "EVAL-C016",
+      "citedId": "EVAL-D016",
+      "citingTitle": "Eval citing paper 016: Safety contradiction",
+      "citingAbstract": "Post-market surveillance identifies adverse events not seen in the cited trial.",
+      "citedTitle": "Eval cited paper 016: Safety contradiction",
+      "citedAbstract": "Trial concluding the drug has an acceptable safety profile.",
+      "citationContexts": [
+        "Post-market data contradict the safety conclusion reached by Anderson et al."
+      ],
+      "s2Intents": [
+        "ResultComparison"
+      ]
+    }
+  },
+  {
+    "id": "live-017",
+    "expected": "extends",
+    "input": {
+      "citingId": "EVAL-C017",
+      "citedId": "EVAL-D017",
+      "citingTitle": "Eval citing paper 017: New domain application",
+      "citingAbstract": "We adapt the cited framework to pediatric imaging for the first time.",
+      "citedTitle": "Eval cited paper 017: New domain application",
+      "citedAbstract": "Framework for segmentation in adult chest radiographs.",
+      "citationContexts": [
+        "We extend the segmentation framework of Clark et al. to pediatric imaging."
+      ],
+      "s2Intents": [
+        "ResultComparison",
+        "Methodology"
+      ]
+    }
+  },
+  {
+    "id": "live-018",
+    "expected": "extends",
+    "input": {
+      "citingId": "EVAL-C018",
+      "citedId": "EVAL-D018",
+      "citingTitle": "Eval citing paper 018: Cross-species generalization",
+      "citingAbstract": "The cited model is transferred to a marine organism with novel adaptations.",
+      "citedTitle": "Eval cited paper 018: Cross-species generalization",
+      "citedAbstract": "Gene regulatory model established in mouse models.",
+      "citationContexts": [
+        "We generalize the regulatory model from Harris et al. to a marine organism."
+      ],
+      "s2Intents": [
+        "ResultComparison"
+      ]
+    }
+  },
+  {
+    "id": "live-019",
+    "expected": "extends",
+    "input": {
+      "citingId": "EVAL-C019",
+      "citedId": "EVAL-D019",
+      "citingTitle": "Eval citing paper 019: Scale extension",
+      "citingAbstract": "The approach is scaled from lab prototypes to city-wide deployment.",
+      "citedTitle": "Eval cited paper 019: Scale extension",
+      "citedAbstract": "Prototype system validated in a controlled lab environment.",
+      "citationContexts": [
+        "We scale the prototype system of Lopez et al. to city-wide deployment."
+      ],
+      "s2Intents": [
+        "Methodology",
+        "ResultComparison"
+      ]
+    }
+  },
+  {
+    "id": "live-020",
+    "expected": "extends",
+    "input": {
+      "citingId": "EVAL-C020",
+      "citedId": "EVAL-D020",
+      "citingTitle": "Eval citing paper 020: Temporal extension",
+      "citingAbstract": "Longitudinal follow-up applies the cited short-term predictor over decades.",
+      "citedTitle": "Eval cited paper 020: Temporal extension",
+      "citedAbstract": "Short-term predictor of disease progression over six months.",
+      "citationContexts": [
+        "We extend the short-term predictor of Moore et al. to decade-long trajectories."
+      ],
+      "s2Intents": [
+        "ResultComparison"
+      ]
+    }
+  },
+  {
+    "id": "live-021",
+    "expected": "extends",
+    "input": {
+      "citingId": "EVAL-C021",
+      "citedId": "EVAL-D021",
+      "citingTitle": "Eval citing paper 021: Multimodal extension",
+      "citingAbstract": "Text and imaging modalities are combined using the cited representation.",
+      "citedTitle": "Eval cited paper 021: Multimodal extension",
+      "citedAbstract": "Unimodal representation learning method for text-only corpora.",
+      "citationContexts": [
+        "We extend the text representation of Allen et al. to multimodal clinical records."
+      ],
+      "s2Intents": [
+        "Methodology",
+        "ResultComparison"
+      ]
+    }
+  },
+  {
+    "id": "live-022",
+    "expected": "extends",
+    "input": {
+      "citingId": "EVAL-C022",
+      "citedId": "EVAL-D022",
+      "citingTitle": "Eval citing paper 022: Policy extension",
+      "citingAbstract": "The cited econometric design is applied to a new policy regime.",
+      "citedTitle": "Eval cited paper 022: Policy extension",
+      "citedAbstract": "Econometric evaluation of a labor market intervention.",
+      "citationContexts": [
+        "We apply the evaluation design of Wright et al. to a new policy regime."
+      ],
+      "s2Intents": [
+        "ResultComparison"
+      ]
+    }
+  },
+  {
+    "id": "live-023",
+    "expected": "extends",
+    "input": {
+      "citingId": "EVAL-C023",
+      "citedId": "EVAL-D023",
+      "citingTitle": "Eval citing paper 023: Algorithmic extension",
+      "citingAbstract": "We extend the cited optimizer to constrained non-convex settings.",
+      "citedTitle": "Eval cited paper 023: Algorithmic extension",
+      "citedAbstract": "Optimizer for unconvex smooth objectives with convergence guarantees.",
+      "citationContexts": [
+        "We extend the optimizer of Zhang et al. to constrained non-convex problems."
+      ],
+      "s2Intents": [
+        "Methodology"
+      ]
+    }
+  },
+  {
+    "id": "live-024",
+    "expected": "extends",
+    "input": {
+      "citingId": "EVAL-C024",
+      "citedId": "EVAL-D024",
+      "citingTitle": "Eval citing paper 024: Geographic extension",
+      "citingAbstract": "The cited intervention is evaluated in a low-resource rural setting.",
+      "citedTitle": "Eval cited paper 024: Geographic extension",
+      "citedAbstract": "Urban randomized trial of a digital adherence intervention.",
+      "citationContexts": [
+        "We extend the digital adherence intervention of Thomas et al. to rural clinics."
+      ],
+      "s2Intents": [
+        "ResultComparison"
+      ]
+    }
+  },
+  {
+    "id": "live-025",
+    "expected": "cites",
+    "input": {
+      "citingId": "EVAL-C025",
+      "citedId": "EVAL-D025",
+      "citingTitle": "Eval citing paper 025: Background reference",
+      "citingAbstract": "We review prior work on protein folding before presenting our method.",
+      "citedTitle": "Eval cited paper 025: Background reference",
+      "citedAbstract": "Historical overview of protein folding pathways.",
+      "citationContexts": [
+        "Protein folding has been studied extensively (Adams et al.)."
+      ],
+      "s2Intents": [
+        "Background"
+      ]
+    }
+  },
+  {
+    "id": "live-026",
+    "expected": "cites",
+    "input": {
+      "citingId": "EVAL-C026",
+      "citedId": "EVAL-D026",
+      "citingTitle": "Eval citing paper 026: Method reuse only",
+      "citingAbstract": "We preprocess data using the standard pipeline from prior work.",
+      "citedTitle": "Eval cited paper 026: Method reuse only",
+      "citedAbstract": "Pipeline for normalizing RNA-seq count matrices.",
+      "citationContexts": [
+        "Reads were processed with the pipeline described by Baker et al."
+      ],
+      "s2Intents": [
+        "Methodology"
+      ]
+    }
+  },
+  {
+    "id": "live-027",
+    "expected": "cites",
+    "input": {
+      "citingId": "EVAL-C027",
+      "citedId": "EVAL-D027",
+      "citingTitle": "Eval citing paper 027: Related work mention",
+      "citingAbstract": "Several models address graph clustering with different assumptions.",
+      "citedTitle": "Eval cited paper 027: Related work mention",
+      "citedAbstract": "Graph clustering algorithm for social networks.",
+      "citationContexts": [
+        "Graph clustering methods include the approach of Carter et al."
+      ],
+      "s2Intents": [
+        "Background"
+      ]
+    }
+  },
+  {
+    "id": "live-028",
+    "expected": "cites",
+    "input": {
+      "citingId": "EVAL-C028",
+      "citedId": "EVAL-D028",
+      "citingTitle": "Eval citing paper 028: Definitions only",
+      "citingAbstract": "We adopt the standard epidemiological definitions used in the literature.",
+      "citedTitle": "Eval cited paper 028: Definitions only",
+      "citedAbstract": "Reference definitions for outbreak surveillance metrics.",
+      "citationContexts": [
+        "We follow the case definitions of Evans et al."
+      ],
+      "s2Intents": [
+        "Background"
+      ]
+    }
+  },
+  {
+    "id": "live-029",
+    "expected": "cites",
+    "input": {
+      "citingId": "EVAL-C029",
+      "citedId": "EVAL-D029",
+      "citingTitle": "Eval citing paper 029: Dataset attribution",
+      "citingAbstract": "Experiments use a public benchmark introduced earlier.",
+      "citedTitle": "Eval cited paper 029: Dataset attribution",
+      "citedAbstract": "Benchmark dataset for document classification.",
+      "citationContexts": [
+        "Experiments use the benchmark released by Foster et al."
+      ],
+      "s2Intents": [
+        "Background"
+      ]
+    }
+  },
+  {
+    "id": "live-030",
+    "expected": "cites",
+    "input": {
+      "citingId": "EVAL-C030",
+      "citedId": "EVAL-D030",
+      "citingTitle": "Eval citing paper 030: Historical context",
+      "citingAbstract": "The debate has a long history in cognitive science.",
+      "citedTitle": "Eval cited paper 030: Historical context",
+      "citedAbstract": "Early cognitive science review of memory systems.",
+      "citationContexts": [
+        "The debate dates back to classic work such as Green et al."
+      ],
+      "s2Intents": [
+        "Background"
+      ]
+    }
+  },
+  {
+    "id": "live-031",
+    "expected": "cites",
+    "input": {
+      "citingId": "EVAL-C031",
+      "citedId": "EVAL-D031",
+      "citingTitle": "Eval citing paper 031: Tool citation",
+      "citingAbstract": "Statistical tests were run in standard open-source software.",
+      "citedTitle": "Eval cited paper 031: Tool citation",
+      "citedAbstract": "Software package for generalized linear modeling.",
+      "citationContexts": [
+        "Analysis used the software described by Hall et al."
+      ],
+      "s2Intents": [
+        "Methodology"
+      ]
+    }
+  },
+  {
+    "id": "live-032",
+    "expected": "cites",
+    "input": {
+      "citingId": "EVAL-C032",
+      "citedId": "EVAL-D032",
+      "citingTitle": "Eval citing paper 032: Parallel independent work",
+      "citingAbstract": "Our approach is unrelated to concurrent work on the same topic.",
+      "citedTitle": "Eval cited paper 032: Parallel independent work",
+      "citedAbstract": "Concurrent study on transformer interpretability.",
+      "citationContexts": [
+        "Concurrent interpretability work includes Young et al."
+      ],
+      "s2Intents": [
+        "Background"
+      ]
+    }
+  }
+]

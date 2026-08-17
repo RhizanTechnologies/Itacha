@@ -31,13 +31,13 @@ export function PaperCountControl({
 }: PaperCountControlProps) {
   return (
     <div className="flex items-center gap-2">
-      <div className="flex items-center gap-2 bg-card/90 backdrop-blur border border-border rounded-lg px-3 py-1.5 shadow-lg">
-        <FileText className="h-4 w-4 text-muted-foreground" />
+      <div className="bg-card/90 border-border flex items-center gap-2 rounded-lg border px-3 py-1.5 shadow-lg backdrop-blur">
+        <FileText className="text-muted-foreground h-4 w-4" />
         <Select
           value={String(count)}
           onValueChange={(value) => onChange(Number(value))}
         >
-          <SelectTrigger className="w-24 h-7 text-xs border-0 bg-transparent p-0 focus:ring-0">
+          <SelectTrigger className="h-7 w-24 border-0 bg-transparent p-0 text-xs focus:ring-0">
             <SelectValue placeholder="Papers" />
           </SelectTrigger>
           <SelectContent>

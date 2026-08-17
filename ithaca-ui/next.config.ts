@@ -2,9 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   reactCompiler: true,
+  allowedDevOrigins: ["127.0.0.1", "localhost"],
   experimental: {
-    // @ts-expect-error: turbopackRoot is not yet in the type definition
-    turbopackRoot: process.cwd(),
     optimizePackageImports: [
       "lucide-react",
       "@react-sigma/core",

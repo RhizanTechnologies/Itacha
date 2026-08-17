@@ -1,14 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { 
-  User, 
-  LogOut, 
-  Settings, 
-  ChevronDown, 
+import {
+  User,
+  LogOut,
+  Settings,
+  ChevronDown,
   LayoutDashboard,
   Share2,
-  History
+  History,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -48,9 +48,7 @@ export function UserMenu({ variant = "default" }: UserMenuProps) {
 
   // Loading state
   if (isPending) {
-    return (
-      <div className="h-9 w-9 animate-pulse rounded-full bg-muted" />
-    );
+    return <div className="bg-muted h-9 w-9 animate-pulse rounded-full" />;
   }
 
   // Not logged in - show sign in button
@@ -64,17 +62,25 @@ export function UserMenu({ variant = "default" }: UserMenuProps) {
 
   const { user } = session;
   const initials = user.name
-    ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
+    ? user.name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
     : user.email?.[0]?.toUpperCase() || "U";
 
   if (variant === "minimal") {
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button className="flex items-center gap-2 p-1 rounded-full hover:bg-muted transition-colors">
+          <button className="hover:bg-muted flex items-center gap-2 rounded-full p-1 transition-colors">
             <Avatar className="h-8 w-8">
-              <AvatarImage src={user.image || undefined} alt={user.name || "User"} />
-              <AvatarFallback className="text-xs bg-primary/10 text-primary">
+              <AvatarImage
+                src={user.image || undefined}
+                alt={user.name || "User"}
+              />
+              <AvatarFallback className="bg-primary/10 text-primary text-xs">
                 {initials}
               </AvatarFallback>
             </Avatar>
@@ -83,8 +89,8 @@ export function UserMenu({ variant = "default" }: UserMenuProps) {
         <DropdownMenuContent align="end" className="w-56">
           <DropdownMenuLabel className="font-normal">
             <div className="flex flex-col space-y-1">
-              <p className="text-sm font-medium leading-none">{user.name}</p>
-              <p className="text-xs leading-none text-muted-foreground">
+              <p className="text-sm leading-none font-medium">{user.name}</p>
+              <p className="text-muted-foreground text-xs leading-none">
                 {user.email}
               </p>
             </div>
@@ -133,27 +139,32 @@ export function UserMenu({ variant = "default" }: UserMenuProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-muted transition-colors">
+        <button className="hover:bg-muted flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors">
           <Avatar className="h-8 w-8">
-            <AvatarImage src={user.image || undefined} alt={user.name || "User"} />
-            <AvatarFallback className="text-xs bg-primary/10 text-primary">
+            <AvatarImage
+              src={user.image || undefined}
+              alt={user.name || "User"}
+            />
+            <AvatarFallback className="bg-primary/10 text-primary text-xs">
               {initials}
             </AvatarFallback>
           </Avatar>
-          <div className="hidden sm:flex flex-col items-start text-left">
-            <span className="text-sm font-medium leading-none">{user.name}</span>
-            <span className="text-xs text-muted-foreground leading-none mt-0.5">
+          <div className="hidden flex-col items-start text-left sm:flex">
+            <span className="text-sm leading-none font-medium">
+              {user.name}
+            </span>
+            <span className="text-muted-foreground mt-0.5 text-xs leading-none">
               {user.email}
             </span>
           </div>
-          <ChevronDown className="h-4 w-4 text-muted-foreground hidden sm:block" />
+          <ChevronDown className="text-muted-foreground hidden h-4 w-4 sm:block" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel className="font-normal sm:hidden">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{user.name}</p>
-            <p className="text-xs leading-none text-muted-foreground">
+            <p className="text-sm leading-none font-medium">{user.name}</p>
+            <p className="text-muted-foreground text-xs leading-none">
               {user.email}
             </p>
           </div>

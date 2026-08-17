@@ -20,6 +20,9 @@ import {
   StarOff,
   Loader2,
   BookOpen,
+  FileUp,
+  Bell,
+  BellOff,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -30,6 +33,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
 import { CreateProjectDialog } from "@/components/projects/create-project-dialog";
+import { ImportPapersDialog } from "@/components/projects/import-papers-dialog";
 import {
   getProjects,
   getCollections,
@@ -37,6 +41,7 @@ import {
   deleteProject,
   toggleProjectFavorite,
   createCollection,
+  setCollectionWatch,
   type ProjectData,
   type CollectionData,
 } from "@/app/(app)/dashboard/actions";
@@ -51,6 +56,8 @@ export default function ProjectsPage() {
     null,
   );
   const [isNewProjectOpen, setIsNewProjectOpen] = useState(false);
+  const [importCollection, setImportCollection] =
+    useState<CollectionData | null>(null);
 
   const handleCreateProject = async (data: {
     title: string;
@@ -139,21 +146,21 @@ export default function ProjectsPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="text-primary h-8 w-8 animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-full bg-muted/30 pb-10">
+    <div className="bg-muted/30 min-h-full pb-10">
       {/* Header */}
-      <div className="border-b bg-card">
-        <div className="max-w-7xl mx-auto px-6 py-4">
+      <div className="bg-card border-b">
+        <div className="mx-auto max-w-7xl px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold flex items-center gap-2">
-                <FolderOpen className="h-6 w-6 text-primary" />
+              <h1 className="flex items-center gap-2 text-2xl font-bold">
+                <FolderOpen className="text-primary h-6 w-6" />
                 Projects
               </h1>
               <p className="text-muted-foreground text-sm">
@@ -167,9 +174,9 @@ export default function ProjectsPage() {
           </div>
 
           {/* Toolbar */}
-          <div className="flex items-center gap-4 mt-4">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <div className="mt-4 flex items-center gap-4">
+            <div className="relative max-w-md flex-1">
+              <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
               <Input
                 placeholder="Search projects..."
                 value={searchQuery}
@@ -177,7 +184,7 @@ export default function ProjectsPage() {
                 className="pl-10"
               />
             </div>
-            <div className="flex items-center gap-1 border rounded-lg p-1">
+            <div className="flex items-center gap-1 rounded-lg border p-1">
               <Button
                 variant={viewMode === "grid" ? "secondary" : "ghost"}
                 size="icon"
@@ -199,21 +206,21 @@ export default function ProjectsPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-6">
+      <div className="mx-auto max-w-7xl px-6 py-6">
         <div className="flex gap-6">
           {/* Projects Grid/List */}
           <div className="flex-1">
             {/* Favorites Section */}
             {filteredProjects.some((p) => p.isFavorite) && (
               <div className="mb-8">
-                <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4 flex items-center gap-2">
+                <h2 className="text-muted-foreground mb-4 flex items-center gap-2 text-sm font-bold tracking-wider uppercase">
                   <Star className="h-4 w-4 text-yellow-500" />
                   Favorites
                 </h2>
                 <div
                   className={
                     viewMode === "grid"
-                      ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+                      ? "grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3"
                       : "space-y-2"
                   }
                 >
@@ -238,14 +245,14 @@ export default function ProjectsPage() {
 
             {/* All Projects */}
             <div>
-              <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">
+              <h2 className="text-muted-foreground mb-4 text-sm font-bold tracking-wider uppercase">
                 All Projects ({filteredProjects.length})
               </h2>
               {filteredProjects.length > 0 ? (
                 <div
                   className={
                     viewMode === "grid"
-                      ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+                      ? "grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3"
                       : "space-y-2"
                   }
                 >
@@ -256,19 +263,17 @@ export default function ProjectsPage() {
                       viewMode={viewMode}
                       isSelected={selectedProject?.id === project.id}
                       onSelect={() => setSelectedProject(project)}
-                      onToggleFavorite={() =>
-                        handleToggleFavorite(project.id)
-                      }
+                      onToggleFavorite={() => handleToggleFavorite(project.id)}
                       onDelete={() => handleDeleteProject(project.id)}
                     />
                   ))}
                 </div>
               ) : (
                 <Card>
-                  <CardContent className="p-8 text-center text-muted-foreground">
-                    <FolderOpen className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                  <CardContent className="text-muted-foreground p-8 text-center">
+                    <FolderOpen className="mx-auto mb-3 h-12 w-12 opacity-30" />
                     <p className="font-medium">No projects yet</p>
-                    <p className="text-sm mt-1">
+                    <p className="mt-1 text-sm">
                       Create your first project to organize your research.
                     </p>
                   </CardContent>
@@ -283,9 +288,9 @@ export default function ProjectsPage() {
               <Card className="sticky top-6">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-base flex items-center gap-2">
+                    <CardTitle className="flex items-center gap-2 text-base">
                       <div
-                        className="w-3 h-3 rounded-full"
+                        className="h-3 w-3 rounded-full"
                         style={{ backgroundColor: selectedProject.color }}
                       />
                       {selectedProject.title}
@@ -299,48 +304,97 @@ export default function ProjectsPage() {
                       ✕
                     </Button>
                   </div>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-muted-foreground text-xs">
                     {selectedProject.description}
                   </p>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center gap-4 mb-4 text-sm">
+                  <div className="mb-4 flex items-center gap-4 text-sm">
                     <div className="flex items-center gap-1">
-                      <Share2 className="h-4 w-4 text-muted-foreground" />
+                      <Share2 className="text-muted-foreground h-4 w-4" />
                       <span>{selectedProject.graphCount} graphs</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <BookOpen className="h-4 w-4 text-muted-foreground" />
-                      <span>
-                        {selectedProject.collectionCount} collections
-                      </span>
+                      <BookOpen className="text-muted-foreground h-4 w-4" />
+                      <span>{selectedProject.collectionCount} collections</span>
                     </div>
                   </div>
 
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">
+                  <h4 className="text-muted-foreground mb-3 text-xs font-bold tracking-wider uppercase">
                     Collections
                   </h4>
 
                   {projectCollections.length > 0 ? (
                     <div className="space-y-2">
                       {projectCollections.map((collection) => (
-                        <Link
+                        <div
                           key={collection.id}
-                          href={`/explore?collection=${collection.id}`}
-                          className="block p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+                          className="bg-muted/50 hover:bg-muted rounded-lg p-3 transition-colors"
                         >
-                          <div className="font-medium text-sm">
-                            {collection.title}
+                          <div className="flex items-start justify-between gap-2">
+                            <Link
+                              href={`/explore?collection=${collection.id}`}
+                              className="min-w-0 flex-1"
+                            >
+                              <div className="text-sm font-medium">
+                                {collection.title}
+                              </div>
+                              <div className="text-muted-foreground text-xs">
+                                {collection.paperCount} papers &bull;{" "}
+                                {collection.createdAt}
+                                {collection.watchEnabled && (
+                                  <>
+                                    {" "}
+                                    &bull; Weekly digest
+                                    {collection.lastDigestAt
+                                      ? ` · last checked ${new Date(collection.lastDigestAt).toLocaleDateString()}`
+                                      : " · not sent yet"}
+                                  </>
+                                )}
+                              </div>
+                            </Link>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 shrink-0"
+                              onClick={async () => {
+                                const next = !collection.watchEnabled;
+                                await setCollectionWatch(collection.id, next);
+                                setCollections((prev) =>
+                                  prev.map((item) =>
+                                    item.id === collection.id
+                                      ? { ...item, watchEnabled: next }
+                                      : item,
+                                  ),
+                                );
+                              }}
+                              title={
+                                collection.watchEnabled
+                                  ? "Stop weekly citation digest"
+                                  : "Watch weekly for new citing works"
+                              }
+                            >
+                              {collection.watchEnabled ? (
+                                <Bell className="text-primary h-4 w-4" />
+                              ) : (
+                                <BellOff className="h-4 w-4" />
+                              )}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 shrink-0"
+                              onClick={() => setImportCollection(collection)}
+                              title="Import papers"
+                            >
+                              <FileUp className="h-4 w-4" />
+                            </Button>
                           </div>
-                          <div className="text-xs text-muted-foreground">
-                            {collection.paperCount} papers &bull;{" "}
-                            {collection.createdAt}
-                          </div>
-                        </Link>
+                        </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-sm text-muted-foreground text-center py-4">
+                    <p className="text-muted-foreground py-4 text-center text-sm">
                       No collections yet
                     </p>
                   )}
@@ -348,7 +402,7 @@ export default function ProjectsPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="w-full mt-4 gap-2"
+                    className="mt-4 w-full gap-2"
                     onClick={handleAddCollection}
                   >
                     <Plus className="h-4 w-4" />
@@ -366,6 +420,29 @@ export default function ProjectsPage() {
         onOpenChange={setIsNewProjectOpen}
         onSubmit={handleCreateProject}
       />
+
+      {importCollection && (
+        <ImportPapersDialog
+          open={Boolean(importCollection)}
+          onOpenChange={(open) => {
+            if (!open) setImportCollection(null);
+          }}
+          collectionId={importCollection.id}
+          collectionTitle={importCollection.title}
+          onImported={(result) => {
+            setCollections((prev) =>
+              prev.map((collection) =>
+                collection.id === importCollection.id
+                  ? {
+                      ...collection,
+                      paperCount: result.collectionPaperCount,
+                    }
+                  : collection,
+              ),
+            );
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -389,25 +466,25 @@ function ProjectCard({
     return (
       <div
         onClick={onSelect}
-        className={`flex items-center gap-4 p-4 rounded-lg border cursor-pointer transition-all ${
+        className={`flex cursor-pointer items-center gap-4 rounded-lg border p-4 transition-all ${
           isSelected
             ? "bg-primary/5 border-primary/30"
             : "bg-card hover:bg-muted/50 border-border"
         }`}
       >
         <div
-          className="w-10 h-10 rounded-lg flex items-center justify-center"
+          className="flex h-10 w-10 items-center justify-center rounded-lg"
           style={{ backgroundColor: project.color + "20" }}
         >
           <FolderOpen className="h-5 w-5" style={{ color: project.color }} />
         </div>
-        <div className="flex-1 min-w-0">
-          <h3 className="font-medium truncate">{project.title}</h3>
-          <p className="text-xs text-muted-foreground truncate">
+        <div className="min-w-0 flex-1">
+          <h3 className="truncate font-medium">{project.title}</h3>
+          <p className="text-muted-foreground truncate text-xs">
             {project.description}
           </p>
         </div>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <div className="text-muted-foreground flex items-center gap-2 text-xs">
           <Badge variant="secondary">{project.graphCount} graphs</Badge>
           <span className="flex items-center gap-1">
             <Clock className="h-3 w-3" />
@@ -436,15 +513,15 @@ function ProjectCard({
   return (
     <Card
       onClick={onSelect}
-      className={`cursor-pointer transition-all overflow-hidden ${
-        isSelected ? "ring-2 ring-primary" : "hover:shadow-md"
+      className={`cursor-pointer overflow-hidden transition-all ${
+        isSelected ? "ring-primary ring-2" : "hover:shadow-md"
       }`}
     >
       <div className="h-2" style={{ backgroundColor: project.color }} />
       <CardContent className="p-4">
         <div className="flex items-start justify-between">
           <div
-            className="w-10 h-10 rounded-lg flex items-center justify-center"
+            className="flex h-10 w-10 items-center justify-center rounded-lg"
             style={{ backgroundColor: project.color + "20" }}
           >
             <FolderOpen className="h-5 w-5" style={{ color: project.color }} />
@@ -459,18 +536,18 @@ function ProjectCard({
               <DropdownMenuItem onClick={onToggleFavorite}>
                 {project.isFavorite ? (
                   <>
-                    <StarOff className="h-4 w-4 mr-2" />
+                    <StarOff className="mr-2 h-4 w-4" />
                     Remove from favorites
                   </>
                 ) : (
                   <>
-                    <Star className="h-4 w-4 mr-2" />
+                    <Star className="mr-2 h-4 w-4" />
                     Add to favorites
                   </>
                 )}
               </DropdownMenuItem>
               <DropdownMenuItem>
-                <Edit className="h-4 w-4 mr-2" />
+                <Edit className="mr-2 h-4 w-4" />
                 Edit
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -481,19 +558,19 @@ function ProjectCard({
                   onDelete();
                 }}
               >
-                <Trash2 className="h-4 w-4 mr-2" />
+                <Trash2 className="mr-2 h-4 w-4" />
                 Delete
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
 
-        <h3 className="font-medium mt-3">{project.title}</h3>
-        <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
+        <h3 className="mt-3 font-medium">{project.title}</h3>
+        <p className="text-muted-foreground mt-1 line-clamp-2 text-xs">
           {project.description}
         </p>
 
-        <div className="flex items-center gap-3 mt-4 text-xs text-muted-foreground">
+        <div className="text-muted-foreground mt-4 flex items-center gap-3 text-xs">
           <span className="flex items-center gap-1">
             <Share2 className="h-3 w-3" />
             {project.graphCount}
@@ -502,7 +579,7 @@ function ProjectCard({
             <BookOpen className="h-3 w-3" />
             {project.collectionCount}
           </span>
-          <span className="flex items-center gap-1 ml-auto">
+          <span className="ml-auto flex items-center gap-1">
             <Clock className="h-3 w-3" />
             {project.lastModified}
           </span>

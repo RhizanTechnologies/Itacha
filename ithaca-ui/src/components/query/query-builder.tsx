@@ -1,6 +1,6 @@
 /**
  * Query Builder Interface
- * 
+ *
  * Visual interface for constructing complex graph queries.
  * Allows users to filter papers by multiple criteria and build search queries.
  */
@@ -18,15 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Plus,
-  X,
-  Search,
-  Filter,
-  Save,
-  Trash2,
-  Play,
-} from "lucide-react";
+import { Plus, X, Search, Filter, Save, Trash2, Play } from "lucide-react";
 
 // =============================================================================
 // TYPES
@@ -42,13 +34,7 @@ export type QueryField =
   | "venue"
   | "keywords";
 export type QueryComparator =
-  | "contains"
-  | "equals"
-  | "gt"
-  | "lt"
-  | "gte"
-  | "lte"
-  | "between";
+  "contains" | "equals" | "gt" | "lt" | "gte" | "lte" | "between";
 
 export interface QueryCondition {
   id: string;
@@ -150,12 +136,9 @@ export function QueryBuilder({
     setConditions(conditions.filter((c) => c.id !== id));
   };
 
-  const updateCondition = (
-    id: string,
-    updates: Partial<QueryCondition>
-  ) => {
+  const updateCondition = (id: string, updates: Partial<QueryCondition>) => {
     setConditions(
-      conditions.map((c) => (c.id === id ? { ...c, ...updates } : c))
+      conditions.map((c) => (c.id === id ? { ...c, ...updates } : c)),
     );
   };
 
@@ -187,21 +170,21 @@ export function QueryBuilder({
   };
 
   return (
-    <div className="flex flex-col h-full bg-background">
+    <div className="bg-background flex h-full flex-col">
       {/* Header */}
-      <div className="p-4 border-b border-border">
-        <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+      <div className="border-border border-b p-4">
+        <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold">
           <Filter className="h-5 w-5" />
           Query Builder
         </h2>
 
-        <p className="text-sm text-muted-foreground mb-3">
+        <p className="text-muted-foreground mb-3 text-sm">
           Build complex queries to find specific papers
         </p>
       </div>
 
       {/* Query Conditions */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div className="flex-1 space-y-3 overflow-y-auto p-4">
         {conditions.map((condition, index) => (
           <div key={condition.id} className="space-y-2">
             {/* Operator (for 2nd condition onwards) */}
@@ -215,7 +198,7 @@ export function QueryBuilder({
                     })
                   }
                 >
-                  <SelectTrigger className="w-24 h-8">
+                  <SelectTrigger className="h-8 w-24">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -224,12 +207,12 @@ export function QueryBuilder({
                     <SelectItem value="NOT">NOT</SelectItem>
                   </SelectContent>
                 </Select>
-                <div className="h-px flex-1 bg-border" />
+                <div className="bg-border h-px flex-1" />
               </div>
             )}
 
             {/* Condition Row */}
-            <div className="flex items-start gap-2 p-3 bg-card border border-border rounded-lg">
+            <div className="bg-card border-border flex items-start gap-2 rounded-lg border p-3">
               {/* Field */}
               <Select
                 value={condition.field}
@@ -285,9 +268,7 @@ export function QueryBuilder({
                       placeholder="Min"
                       className="h-9"
                       value={
-                        Array.isArray(condition.value)
-                          ? condition.value[0]
-                          : ""
+                        Array.isArray(condition.value) ? condition.value[0] : ""
                       }
                       onChange={(e) =>
                         updateCondition(condition.id, {
@@ -306,9 +287,7 @@ export function QueryBuilder({
                       placeholder="Max"
                       className="h-9"
                       value={
-                        Array.isArray(condition.value)
-                          ? condition.value[1]
-                          : ""
+                        Array.isArray(condition.value) ? condition.value[1] : ""
                       }
                       onChange={(e) =>
                         updateCondition(condition.id, {
@@ -360,20 +339,20 @@ export function QueryBuilder({
           className="w-full"
           onClick={addCondition}
         >
-          <Plus className="h-4 w-4 mr-2" />
+          <Plus className="mr-2 h-4 w-4" />
           Add Condition
         </Button>
       </div>
 
       {/* Actions */}
-      <div className="p-4 border-t border-border space-y-2">
+      <div className="border-border space-y-2 border-t p-4">
         <div className="flex gap-2">
           <Button className="flex-1" onClick={executeQuery}>
-            <Play className="h-4 w-4 mr-2" />
+            <Play className="mr-2 h-4 w-4" />
             Execute Query
           </Button>
           <Button variant="outline" onClick={() => setShowSaveDialog(true)}>
-            <Save className="h-4 w-4 mr-2" />
+            <Save className="mr-2 h-4 w-4" />
             Save
           </Button>
           <Button variant="outline" onClick={clearQuery}>
@@ -384,15 +363,15 @@ export function QueryBuilder({
         {/* Saved Queries */}
         {savedQueries.length > 0 && (
           <div className="pt-2">
-            <label className="text-xs font-medium text-muted-foreground mb-2 block">
+            <label className="text-muted-foreground mb-2 block text-xs font-medium">
               Saved Queries
             </label>
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex flex-wrap gap-2">
               {savedQueries.map((query) => (
                 <Badge
                   key={query.id}
                   variant="secondary"
-                  className="cursor-pointer hover:bg-primary/20"
+                  className="hover:bg-primary/20 cursor-pointer"
                   onClick={() => loadQuery(query)}
                 >
                   {query.name}
@@ -405,8 +384,8 @@ export function QueryBuilder({
 
       {/* Save Dialog */}
       {showSaveDialog && (
-        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-lg p-4 w-full max-w-sm space-y-4">
+        <div className="bg-background/80 absolute inset-0 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-card border-border w-full max-w-sm space-y-4 rounded-lg border p-4">
             <h3 className="font-semibold">Save Query</h3>
             <Input
               placeholder="Query name..."

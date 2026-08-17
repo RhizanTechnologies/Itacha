@@ -7,28 +7,147 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum OrganizationRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum OrganizationPlan {
+  SOLO
+  LAB
+  INSTITUTION
+}
+
+enum JobStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
 model User {
-  id            String    @id @default(cuid())
+  id            String   @id @default(cuid())
   name          String?
-  email         String    @unique
-  emailVerified Boolean   @default(false)
+  email         String   @unique
+  emailVerified Boolean  @default(false)
   image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  sessions      Session[]
-  accounts      Account[]
+  sessions Session[]
+  accounts Account[]
 
-  orcidId                String?   @unique
-  hasCompletedOnboarding Boolean   @default(false)
+  orcidId                String? @unique
+  hasCompletedOnboarding Boolean @default(false)
   department             String?
   institution            String?
 
-  projects    Project[]
-  collections Collection[]
-  savedGraphs SavedGraph[]
+  projects             Project[]
+  collections          Collection[]
+  savedGraphs          SavedGraph[]
+  paperRecords         PaperRecord[]
+  memberships          Membership[]
+  invitationsSent      Invitation[]  @relation("InvitationInviter")
+  auditEvents          AuditEvent[]
+  edgeComments         EdgeComment[]
+  personalOrganization Organization? @relation("PersonalOrganization")
+  backgroundJobs       BackgroundJob[]
+  aiUsageRecords       AiUsageRecord[]
 
   @@map("user")
+}
+
+model Organization {
+  id                   String           @id @default(cuid())
+  name                 String
+  slug                 String           @unique
+  personalOwnerId      String?          @unique
+  plan                 OrganizationPlan @default(SOLO)
+  allowedEmailDomains  String[]         @default([])
+  supportContactEmail  String?
+  maxMembers           Int              @default(3)
+  maxProjects          Int              @default(10)
+  maxCollections       Int              @default(25)
+  maxSavedGraphs       Int              @default(25)
+  maxApiRequests       Int              @default(1000)
+  maxPaperRecords      Int              @default(5000)
+  maxAiRequests        Int              @default(2000)
+  rolloutFlags         Json?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  personalOwner User?          @relation("PersonalOrganization", fields: [personalOwnerId], references: [id], onDelete: SetNull)
+  memberships   Membership[]
+  invitations   Invitation[]
+  auditEvents   AuditEvent[]
+  projects      Project[]
+  collections   Collection[]
+  savedGraphs   SavedGraph[]
+  apiRateLimits ApiRateLimit[]
+  paperRecords  PaperRecord[]
+  backgroundJobs BackgroundJob[]
+  storedArtifacts StoredArtifact[]
+  aiUsageRecords AiUsageRecord[]
+  edgeComments   EdgeComment[]
+
+  @@map("organization")
+}
+
+model Membership {
+  id             String           @id @default(cuid())
+  organizationId String
+  userId         String
+  role           OrganizationRole @default(MEMBER)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@map("membership")
+}
+
+model Invitation {
+  id             String           @id @default(cuid())
+  organizationId String
+  email          String
+  role           OrganizationRole @default(MEMBER)
+  token          String           @unique
+  invitedById    String
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invitedBy    User         @relation("InvitationInviter", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, email])
+  @@index([email])
+  @@index([invitedById])
+  @@map("invitation")
+}
+
+model AuditEvent {
+  id             String   @id @default(cuid())
+  organizationId String
+  actorId        String?
+  action         String
+  entityType     String?
+  entityId       String?
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actor        User?        @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([actorId])
+  @@map("audit_event")
 }
 
 model Session {
@@ -41,35 +160,35 @@ model Session {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("session")
 }
 
 model Account {
-  id           String    @id @default(cuid())
-  userId       String
-  accountId    String
-  providerId   String
-  accessToken  String?
-  refreshToken String?
-  expiresAt    DateTime?
-  password     String?
-  idToken      String?   @db.Text
+  id                   String    @id @default(cuid())
+  userId               String
+  accountId            String
+  providerId           String
+  accessToken          String?
+  refreshToken         String?
+  expiresAt            DateTime?
+  password             String?
+  idToken              String?   @db.Text
   accessTokenExpiresAt DateTime?
-  scope        String?   @db.Text
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  scope                String?   @db.Text
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
-  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("account")
 }
 
 model Verification {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   identifier String
   value      String
   expiresAt  DateTime
@@ -85,14 +204,14 @@ model Verification {
 
 model CitationCache {
   id                String   @id @default(cuid())
-  citingId          String   // OpenAlex paper ID (e.g., "W2741809807")
-  citedId           String   // OpenAlex paper ID
-  edgeType          String   // "supports" | "contradicts" | "extends"
-  confidence        Float    // 0.0 - 1.0
+  citingId          String // OpenAlex paper ID (e.g., "W2741809807")
+  citedId           String // OpenAlex paper ID
+  edgeType          String // "supports" | "contradicts" | "extends"
+  confidence        Float // 0.0 - 1.0
   snippet           String   @db.Text // Key sentence explaining the relationship
-  provider          String   // e.g., "gemini/gemini-2.0-flash" — tracks which model classified it
+  provider          String // e.g., "gemini/gemini-2.0-flash" — tracks which model classified it
   contexts          String?  @db.Text // S2 citation context sentences (JSON array)
-  s2Intents         String?  // S2 intent labels (comma-separated: "Background,Methodology")
+  s2Intents         String? // S2 intent labels (comma-separated: "Background,Methodology")
   classifierVersion Int      @default(1) // Bump to invalidate stale cache entries
   createdAt         DateTime @default(now())
 
@@ -107,53 +226,114 @@ model CitationCache {
 // =============================================================================
 
 model Project {
-  id          String       @id @default(cuid())
-  title       String
-  description String       @default("")
-  color       String       @default("#3b82f6")
-  isFavorite  Boolean      @default(false)
-  userId      String
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  collections Collection[]
-  savedGraphs SavedGraph[]
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id             String       @id @default(cuid())
+  title          String
+  description    String       @default("")
+  color          String       @default("#3b82f6")
+  isFavorite     Boolean      @default(false)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  collections    Collection[]
+  savedGraphs    SavedGraph[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   @@index([userId])
+  @@index([organizationId])
   @@map("project")
 }
 
 model Collection {
-  id        String   @id @default(cuid())
-  title     String
-  paperIds  String[] @default([])
-  projectId String?
-  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String       @id @default(cuid())
+  title          String
+  paperIds       String[]     @default([])
+  watchEnabled   Boolean      @default(false)
+  lastDigestAt   DateTime?
+  projectId      String?
+  project        Project?     @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   @@index([userId])
+  @@index([organizationId])
   @@index([projectId])
+  @@index([watchEnabled])
   @@map("collection")
 }
 
+model PaperRecord {
+  id              String    @id @default(cuid())
+  organizationId  String
+  userId          String
+  dedupeKey       String
+  doi             String?
+  openAlexId      String?
+  title           String?
+  authors         String[]  @default([])
+  year            Int?
+  venue           String?
+  abstract        String?   @db.Text
+  pdfUrl          String?
+  pdfArtifactId   String?
+  provenance      Json?
+  importedAt      DateTime  @default(now())
+  sourceUpdatedAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, dedupeKey])
+  @@index([organizationId])
+  @@index([userId])
+  @@index([doi])
+  @@index([openAlexId])
+  @@map("paper_record")
+}
+
+model EdgeComment {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actorId        String
+  actor          User         @relation(fields: [actorId], references: [id], onDelete: Cascade)
+  citingId       String
+  citedId        String
+  body           String       @db.Text
+  edgeType       String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId, citingId, citedId])
+  @@index([actorId])
+  @@map("edge_comment")
+}
+
 model SavedGraph {
-  id        String   @id @default(cuid())
-  title     String
-  query     String
-  nodeCount Int      @default(0)
-  edgeCount Int      @default(0)
-  config    Json?
-  projectId String?
-  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String       @id @default(cuid())
+  title          String
+  query          String
+  nodeCount      Int          @default(0)
+  edgeCount      Int          @default(0)
+  config         Json?
+  projectId      String?
+  project        Project?     @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   @@index([userId])
+  @@index([organizationId])
   @@map("saved_graph")
 }
 
@@ -162,13 +342,84 @@ model SavedGraph {
 // =============================================================================
 
 model ApiRateLimit {
-  id          String   @id @default(cuid())
-  userId      String
-  endpoint    String
-  count       Int      @default(1)
-  windowStart DateTime @default(now())
+  id             String   @id @default(cuid())
+  organizationId String   @default(dbgenerated())
+  userId         String
+  endpoint       String
+  count          Int      @default(1)
+  windowStart    DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@unique([userId, endpoint])
+  @@unique([organizationId, userId, endpoint])
+  @@index([organizationId])
   @@index([windowStart])
   @@map("api_rate_limit")
+}
+
+// =============================================================================
+// BACKGROUND JOBS & ARTIFACTS
+// =============================================================================
+
+model BackgroundJob {
+  id             String    @id @default(cuid())
+  organizationId String
+  userId         String
+  type           String
+  status         JobStatus @default(QUEUED)
+  idempotencyKey String    @unique
+  payload        Json?
+  result         Json?
+  errorMessage   String?
+  artifactId     String?   @unique
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  completedAt    DateTime?
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  artifact     StoredArtifact? @relation(fields: [artifactId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([userId, createdAt])
+  @@index([status])
+  @@map("background_job")
+}
+
+model StoredArtifact {
+  id             String    @id @default(cuid())
+  organizationId String
+  filename       String
+  contentType    String
+  pathname       String
+  url            String
+  sizeBytes      Int?
+  expiresAt      DateTime?
+  createdAt      DateTime  @default(now())
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  job          BackgroundJob?
+
+  @@index([organizationId, createdAt])
+  @@map("stored_artifact")
+}
+
+model AiUsageRecord {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String
+  operation      String
+  provider       String
+  model          String
+  inputUnits     Int      @default(0)
+  outputUnits    Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
+  @@index([userId, createdAt])
+  @@map("ai_usage_record")
 }

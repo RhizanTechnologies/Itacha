@@ -11,11 +11,12 @@ import {
   Menu,
   ChevronLeft,
   LayoutDashboard,
-  Filter,
+  Shield,
 } from "lucide-react";
 import { useState } from "react";
 import { UserButton } from "@/components/auth/user-button";
-import { useRouter } from "next/navigation";
+import { OrganizationSwitcher } from "@/components/organization/organization-switcher";
+import { SupportContact } from "@/components/organization/support-contact";
 
 interface CanvasLayoutProps {
   children: React.ReactNode;
@@ -24,29 +25,24 @@ interface CanvasLayoutProps {
 export default function CanvasLayout({ children }: CanvasLayoutProps) {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
-  const router = useRouter();
 
   return (
-    <div className="flex h-screen w-full bg-background overflow-hidden">
+    <div className="bg-background flex h-screen w-full overflow-hidden">
       {/* Sidebar */}
       <aside
-        className={`relative border-r border-border bg-muted/10 transition-[width] duration-300 ease-in-out flex flex-col ${
+        className={`border-border bg-muted/10 relative flex flex-col border-r transition-[width] duration-300 ease-in-out ${
           collapsed ? "w-16" : "w-64"
         }`}
       >
         {/* Sidebar Header - Consistent with Public Layout */}
-        <div className="h-14 border-b border-border flex items-center px-3 gap-2">
+        <div className="border-border flex h-14 items-center gap-2 border-b px-3">
           <Link
             href="/"
-            className="flex items-center gap-2 hover:opacity-80 transition-opacity flex-1 min-w-0"
+            className="flex min-w-0 flex-1 items-center gap-2 transition-opacity hover:opacity-80"
           >
-            <img
-              src="/logo.svg"
-              alt="Ithaca"
-              className="size-8 shrink-0"
-            />
+            <img src="/logo.svg" alt="Ithaca" className="size-8 shrink-0" />
             {!collapsed && (
-              <span className="font-bold text-lg truncate">Ithaca</span>
+              <span className="truncate text-lg font-bold">Ithaca</span>
             )}
           </Link>
           <Button
@@ -63,11 +59,11 @@ export default function CanvasLayout({ children }: CanvasLayoutProps) {
           </Button>
         </div>
         {/* Navigation */}
-        <nav className="flex-1 px-2 space-y-1 pt-3">
+        <nav className="flex-1 space-y-1 px-2 pt-3">
           <Link href="/explore">
             <Button
               variant={pathname?.startsWith("/explore") ? "secondary" : "ghost"}
-              className={`w-full justify-start gap-2 ${collapsed ? "px-2 justify-center" : ""}`}
+              className={`w-full justify-start gap-2 ${collapsed ? "justify-center px-2" : ""}`}
             >
               <Search className="h-4 w-4 shrink-0" />
               {!collapsed && "Explore"}
@@ -78,7 +74,7 @@ export default function CanvasLayout({ children }: CanvasLayoutProps) {
               variant={
                 pathname?.startsWith("/dashboard") ? "secondary" : "ghost"
               }
-              className={`w-full justify-start gap-2 ${collapsed ? "px-2 justify-center" : ""}`}
+              className={`w-full justify-start gap-2 ${collapsed ? "justify-center px-2" : ""}`}
             >
               <LayoutDashboard className="h-4 w-4 shrink-0" />
               {!collapsed && "Dashboard"}
@@ -89,30 +85,30 @@ export default function CanvasLayout({ children }: CanvasLayoutProps) {
               variant={
                 pathname?.startsWith("/projects") ? "secondary" : "ghost"
               }
-              className={`w-full justify-start gap-2 ${collapsed ? "px-2 justify-center" : ""}`}
+              className={`w-full justify-start gap-2 ${collapsed ? "justify-center px-2" : ""}`}
             >
               <FolderOpen className="h-4 w-4 shrink-0" />
               {!collapsed && "Projects"}
             </Button>
           </Link>
-          <Link href="/query">
+          <Link href="/admin">
             <Button
-              variant={
-                pathname?.startsWith("/query") ? "secondary" : "ghost"
-              }
-              className={`w-full justify-start gap-2 ${collapsed ? "px-2 justify-center" : ""}`}
+              variant={pathname?.startsWith("/admin") ? "secondary" : "ghost"}
+              className={`w-full justify-start gap-2 ${collapsed ? "justify-center px-2" : ""}`}
             >
-              <Filter className="h-4 w-4 shrink-0" />
-              {!collapsed && "Query Builder"}
+              <Shield className="h-4 w-4 shrink-0" />
+              {!collapsed && "Organization"}
             </Button>
           </Link>
         </nav>
+        {!collapsed && <OrganizationSwitcher />}
         {/* Footer Actions */}
-        <div className="p-2 border-t border-border space-y-1">
+        <div className="border-border space-y-1 border-t p-2">
+          <SupportContact collapsed={collapsed} />
           <Link href="/dashboard?tab=settings">
             <Button
               variant="ghost"
-              className={`w-full justify-start gap-2 ${collapsed ? "px-2 justify-center" : ""}`}
+              className={`w-full justify-start gap-2 ${collapsed ? "justify-center px-2" : ""}`}
             >
               <Settings className="h-4 w-4 shrink-0" />
               {!collapsed && "Settings"}
@@ -122,9 +118,9 @@ export default function CanvasLayout({ children }: CanvasLayoutProps) {
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex min-w-0 flex-1 flex-col">
         {/* Topbar - Consistent with Public Layout header height */}
-        <header className="h-14 border-b border-border flex items-center justify-between px-4 bg-background/80 backdrop-blur-sm">
+        <header className="border-border bg-background/80 flex h-14 items-center justify-between border-b px-4 backdrop-blur-sm">
           <div className="w-full max-w-xl">
             {/* Global Search / Command Bar */}
             <div
@@ -133,26 +129,26 @@ export default function CanvasLayout({ children }: CanvasLayoutProps) {
                 window.dispatchEvent(new Event("open-command-bar"))
               }
             >
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Search className="text-muted-foreground absolute top-2.5 left-2.5 h-4 w-4" />
               <input
                 readOnly
                 type="text"
                 placeholder="Search papers, authors, or topics... (⌘K)"
-                className="w-full h-9 pl-9 pr-4 rounded-md border border-input bg-muted/50 text-sm focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer"
+                className="border-input bg-muted/50 focus:ring-ring h-9 w-full cursor-pointer rounded-md border pr-4 pl-9 text-sm focus:ring-1 focus:outline-none"
               />
             </div>
           </div>
 
           <div className="flex items-center gap-3">
             <ThemeToggle />
-            <div className="w-px h-6 bg-border" />
+            <div className="bg-border h-6 w-px" />
             <UserButton />
           </div>
         </header>
 
         {/* Viewport */}
         <main
-          className={`flex-1 relative bg-muted/5 ${
+          className={`bg-muted/5 relative flex-1 ${
             pathname?.startsWith("/explore")
               ? "overflow-hidden"
               : "overflow-auto"

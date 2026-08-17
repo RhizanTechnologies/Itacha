@@ -66,7 +66,9 @@ export function GlobalFilters({
   maxYear = FILTERS.MAX_YEAR,
 }: GlobalFiltersProps) {
   // Local slider state for instant visual feedback without re-rendering the graph
-  const [localCitationRange, setLocalCitationRange] = useState(filters.citationRange);
+  const [localCitationRange, setLocalCitationRange] = useState(
+    filters.citationRange,
+  );
   const [localYearRange, setLocalYearRange] = useState(filters.yearRange);
   const citationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const yearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -172,10 +174,10 @@ export function GlobalFilters({
     return (
       <button
         onClick={onToggle}
-        className="flex items-center gap-2 bg-card/95 backdrop-blur-sm border border-border rounded-lg px-3 py-2 shadow-lg hover:bg-muted transition-colors"
+        className="bg-card/95 border-border hover:bg-muted flex items-center gap-2 rounded-lg border px-3 py-2 shadow-lg backdrop-blur-sm transition-colors"
       >
         <SlidersHorizontal className="h-4 w-4" />
-        <span className="text-sm font-medium hidden md:inline">Filters</span>
+        <span className="hidden text-sm font-medium md:inline">Filters</span>
         {activeFilterCount > 0 && (
           <Badge variant="secondary" className="text-xs">
             {activeFilterCount}
@@ -186,27 +188,27 @@ export function GlobalFilters({
   }
 
   return (
-    <div className="w-72 max-w-[calc(100vw-32px)] bg-card/95 backdrop-blur border border-border rounded-xl shadow-2xl overflow-hidden animate-in slide-in-from-left-2 fade-in duration-200">
+    <div className="bg-card/95 border-border animate-in slide-in-from-left-2 fade-in w-72 max-w-[calc(100vw-32px)] overflow-hidden rounded-xl border shadow-2xl backdrop-blur duration-200">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-border bg-muted/30">
+      <div className="border-border bg-muted/30 flex items-center justify-between border-b p-4">
         <div>
-          <h3 className="font-bold text-sm">Global Filters</h3>
-          <p className="text-xs text-muted-foreground">
+          <h3 className="text-sm font-bold">Global Filters</h3>
+          <p className="text-muted-foreground text-xs">
             Configure graph visibility
           </p>
         </div>
         <button
           onClick={onToggle}
-          className="p-1 rounded hover:bg-muted transition-colors"
+          className="hover:bg-muted rounded p-1 transition-colors"
         >
-          <X className="h-4 w-4 text-muted-foreground" />
+          <X className="text-muted-foreground h-4 w-4" />
         </button>
       </div>
 
-      <div className="p-4 space-y-6">
+      <div className="space-y-6 p-4">
         {/* Relationship Types */}
         <div>
-          <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-3">
+          <h4 className="text-muted-foreground mb-3 text-[10px] font-bold tracking-wider uppercase">
             Relationship Types
           </h4>
           <div className="space-y-2">
@@ -242,7 +244,7 @@ export function GlobalFilters({
 
           {/* Hidden edges indicator */}
           {hiddenEdgeCount > 0 && (
-            <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+            <p className="text-muted-foreground mt-2 flex items-center gap-1 text-xs">
               <EyeOff className="h-3 w-3" />
               Hiding {hiddenEdgeCount} edges
             </p>
@@ -251,15 +253,15 @@ export function GlobalFilters({
 
         {/* Node Metrics */}
         <div>
-          <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-3">
+          <h4 className="text-muted-foreground mb-3 text-[10px] font-bold tracking-wider uppercase">
             Node Metrics
           </h4>
           <div className="space-y-4">
             {/* Citation Count */}
             <div>
-              <div className="flex items-center justify-between mb-2">
+              <div className="mb-2 flex items-center justify-between">
                 <span className="text-xs font-medium">Citation Count</span>
-                <span className="text-xs text-muted-foreground font-mono">
+                <span className="text-muted-foreground font-mono text-xs">
                   {localCitationRange[0]}–{localCitationRange[1]}
                 </span>
               </div>
@@ -276,9 +278,9 @@ export function GlobalFilters({
 
             {/* Publication Year */}
             <div>
-              <div className="flex items-center justify-between mb-2">
+              <div className="mb-2 flex items-center justify-between">
                 <span className="text-xs font-medium">Publication Year</span>
-                <span className="text-xs text-muted-foreground font-mono">
+                <span className="text-muted-foreground font-mono text-xs">
                   {localYearRange[0]}–{localYearRange[1]}
                 </span>
               </div>
@@ -298,7 +300,7 @@ export function GlobalFilters({
 
       {/* Footer */}
       {activeFilterCount > 0 && (
-        <div className="p-3 border-t border-border bg-muted/20">
+        <div className="border-border bg-muted/20 border-t p-3">
           <Button
             variant="ghost"
             size="sm"
@@ -329,7 +331,7 @@ function FilterToggle({
 }) {
   return (
     <div
-      className={`flex items-center justify-between p-2 rounded-lg border transition-all ${
+      className={`flex items-center justify-between rounded-lg border p-2 transition-all ${
         checked
           ? "bg-muted/50 border-border"
           : "bg-muted/20 border-transparent opacity-50"
@@ -353,8 +355,8 @@ function FilterToggle({
 // Graph Legend Component
 export function GraphLegend() {
   return (
-    <div className="bg-card/90 backdrop-blur border border-border rounded-lg p-3 shadow-lg">
-      <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
+    <div className="bg-card/90 border-border rounded-lg border p-3 shadow-lg backdrop-blur">
+      <h4 className="text-muted-foreground mb-2 text-[10px] font-bold tracking-wider uppercase">
         Legend
       </h4>
       <div className="space-y-1.5">
@@ -363,8 +365,8 @@ export function GraphLegend() {
         <LegendItem color="bg-extends" label="Extends" dashed={false} />
         <LegendItem color="bg-zinc-400" label="Cites" dashed={false} />
         <div className="flex items-center gap-2 pt-1">
-          <div className="w-4 h-4 rounded-full border-2 border-muted-foreground/50" />
-          <span className="text-xs text-muted-foreground">Citation Node</span>
+          <div className="border-muted-foreground/50 h-4 w-4 rounded-full border-2" />
+          <span className="text-muted-foreground text-xs">Citation Node</span>
         </div>
       </div>
     </div>
@@ -383,9 +385,9 @@ function LegendItem({
   return (
     <div className="flex items-center gap-2">
       <div
-        className={`w-4 h-0.5 ${color} ${dashed ? "border-dashed border-t-2 border-contradicts bg-transparent" : ""}`}
+        className={`h-0.5 w-4 ${color} ${dashed ? "border-contradicts border-t-2 border-dashed bg-transparent" : ""}`}
       />
-      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className="text-muted-foreground text-xs">{label}</span>
     </div>
   );
 }

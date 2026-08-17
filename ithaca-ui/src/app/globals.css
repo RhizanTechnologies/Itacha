@@ -144,8 +144,16 @@
 .canvas-grid {
   background-size: 40px 40px;
   background-image:
-    linear-gradient(to right, color-mix(in oklch, var(--border) 30%, transparent) 1px, transparent 1px),
-    linear-gradient(to bottom, color-mix(in oklch, var(--border) 30%, transparent) 1px, transparent 1px);
+    linear-gradient(
+      to right,
+      color-mix(in oklch, var(--border) 30%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      to bottom,
+      color-mix(in oklch, var(--border) 30%, transparent) 1px,
+      transparent 1px
+    );
 }
 
 /* Node Glow Effects */
@@ -171,7 +179,6 @@
 
 /* Conflict Wiggle Animation */
 @keyframes conflict-wiggle {
-
   0%,
   100% {
     transform: translateX(0);
@@ -210,16 +217,17 @@
 
 /* Conflict pulse glow for edges */
 @keyframes conflict-pulse {
-
   0%,
   100% {
-    box-shadow: 0 0 2px var(--contradicts),
+    box-shadow:
+      0 0 2px var(--contradicts),
       0 0 4px color-mix(in oklch, var(--contradicts) 50%, transparent);
     opacity: 1;
   }
 
   50% {
-    box-shadow: 0 0 8px var(--contradicts),
+    box-shadow:
+      0 0 8px var(--contradicts),
       0 0 12px color-mix(in oklch, var(--contradicts) 60%, transparent);
     opacity: 0.8;
   }
@@ -269,7 +277,6 @@
 
 /* Reduced Motion - Disable animations for users who prefer it */
 @media (prefers-reduced-motion: reduce) {
-
   *,
   *::before,
   *::after {
@@ -438,7 +445,6 @@
 }
 
 @keyframes node-pulse {
-
   0%,
   100% {
     transform: scale(1);
@@ -505,7 +511,7 @@
   border-bottom: none !important;
 }
 
-.react-sigma-control>button {
+.react-sigma-control > button {
   width: var(--sigma-controls-size) !important;
   height: var(--sigma-controls-size) !important;
   display: grid;
@@ -523,23 +529,27 @@
   filter: none !important;
 }
 
-.react-sigma-control>button:hover {
-  background-color: color-mix(in oklch, var(--foreground) 10%, transparent) !important;
+.react-sigma-control > button:hover {
+  background-color: color-mix(
+    in oklch,
+    var(--foreground) 10%,
+    transparent
+  ) !important;
 }
 
-.dark .react-sigma-control>button {
+.dark .react-sigma-control > button {
   filter: invert(1) !important;
 }
 
-.dark .react-sigma-control>button.sigma-control-button--svg {
+.dark .react-sigma-control > button.sigma-control-button--svg {
   filter: none !important;
 }
 
-.react-sigma-control>button.sigma-control-button--svg svg {
+.react-sigma-control > button.sigma-control-button--svg svg {
   color: var(--foreground) !important;
 }
 
-.react-sigma-control>button:focus {
+.react-sigma-control > button:focus {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
@@ -547,7 +557,10 @@
 /* Desktop overlay layout: keep top-right actions clear of sigma controls */
 .canvas-zone--top-right {
   top: var(--canvas-overlay-gutter) !important;
-  right: calc(var(--sigma-controls-margin) + var(--sigma-controls-size) + (var(--sigma-controls-padding) * 2) + var(--canvas-overlay-gutter)) !important;
+  right: calc(
+    var(--sigma-controls-margin) + var(--sigma-controls-size) +
+      (var(--sigma-controls-padding) * 2) + var(--canvas-overlay-gutter)
+  ) !important;
 }
 
 /* Tablet: hide non-essential, tighten spacing */
@@ -580,10 +593,8 @@
   }
 }
 
-
 /* High contrast mode support */
 @media (forced-colors: active) {
-
   .glow-node-primary,
   .glow-node-new {
     box-shadow: none;

@@ -17,25 +17,28 @@ export default function Error({ error, reset }: ErrorProps) {
   }, [error]);
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
+    <div className="bg-background flex min-h-screen flex-col items-center justify-center px-4">
       {/* Red glow illustration */}
-      <div className="relative w-48 h-48 mb-8">
-        <div className="absolute inset-0 bg-gradient-radial from-red-500/30 via-red-500/10 to-transparent rounded-full blur-2xl" />
-        <div className="absolute inset-8 bg-gradient-radial from-red-400/40 via-red-400/20 to-transparent rounded-full blur-xl" />
+      <div className="relative mb-8 h-48 w-48">
+        <div className="bg-gradient-radial absolute inset-0 rounded-full from-red-500/30 via-red-500/10 to-transparent blur-2xl" />
+        <div className="bg-gradient-radial absolute inset-8 rounded-full from-red-400/40 via-red-400/20 to-transparent blur-xl" />
       </div>
 
       {/* Text Content */}
-      <h1 className="text-3xl font-bold text-foreground mb-2 text-center">
-        Our servers are drifting   we're on it.
+      <h1 className="text-foreground mb-2 text-center text-3xl font-bold">
+        Our servers are drifting we're on it.
       </h1>
-      <p className="text-muted-foreground text-center max-w-md mb-8">
-        An unexpected storm has thrown our argument graph off course. 
-        We're working to regain scientific stability.
+      <p className="text-muted-foreground mb-8 max-w-md text-center">
+        An unexpected storm has thrown our argument graph off course. We're
+        working to regain scientific stability.
       </p>
 
       {/* Actions */}
       <div className="flex gap-3">
-        <Button onClick={() => reset()} className="gap-2 bg-red-600 hover:bg-red-700">
+        <Button
+          onClick={() => reset()}
+          className="gap-2 bg-red-600 hover:bg-red-700"
+        >
           <RefreshCw className="h-4 w-4" />
           Reload
         </Button>
@@ -49,14 +52,14 @@ export default function Error({ error, reset }: ErrorProps) {
 
       {/* Error ID */}
       {error.digest && (
-        <p className="text-xs text-muted-foreground mt-8 font-mono">
+        <p className="text-muted-foreground mt-8 font-mono text-xs">
           REPORT ID: {error.digest}
         </p>
       )}
 
       {/* Footer */}
       <footer className="absolute bottom-8 text-center">
-        <p className="text-xs text-muted-foreground">
+        <p className="text-muted-foreground text-xs">
           © Ithaca Scientific Graphing
         </p>
       </footer>

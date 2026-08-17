@@ -73,7 +73,7 @@ export function ProfileSettings({
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="grid gap-2">
                 <label htmlFor="institution" className="text-sm font-medium">
                   Institution
@@ -106,7 +106,7 @@ export function ProfileSettings({
                 Save Changes
               </Button>
               {saved && (
-                <p className="text-sm text-green-600 animate-in fade-in slide-in-from-left-2">
+                <p className="animate-in fade-in slide-in-from-left-2 text-sm text-green-600">
                   Changes saved successfully!
                 </p>
               )}

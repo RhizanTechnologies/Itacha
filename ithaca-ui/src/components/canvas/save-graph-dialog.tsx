@@ -134,7 +134,7 @@ export function SaveGraphDialog({
                     <SelectItem key={p.id} value={p.id}>
                       <span className="flex items-center gap-2">
                         <span
-                          className="w-2 h-2 rounded-full inline-block"
+                          className="inline-block h-2 w-2 rounded-full"
                           style={{ backgroundColor: p.color }}
                         />
                         {p.title}
@@ -146,9 +146,7 @@ export function SaveGraphDialog({
             </div>
           )}
 
-          {error && (
-            <p className="text-sm text-destructive">{error}</p>
-          )}
+          {error && <p className="text-destructive text-sm">{error}</p>}
 
           <div className="flex justify-end gap-2 pt-2">
             <Button
@@ -164,12 +162,12 @@ export function SaveGraphDialog({
             >
               {saving ? (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Saving...
                 </>
               ) : saved ? (
                 <>
-                  <Check className="h-4 w-4 mr-2" />
+                  <Check className="mr-2 h-4 w-4" />
                   Saved!
                 </>
               ) : (

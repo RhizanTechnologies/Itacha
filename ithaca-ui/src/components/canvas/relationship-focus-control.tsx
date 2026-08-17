@@ -1,9 +1,16 @@
 "use client";
 
-import { CheckCircle, XCircle, ArrowRightCircle, Layers, Link2 } from "lucide-react";
+import {
+  CheckCircle,
+  XCircle,
+  ArrowRightCircle,
+  Layers,
+  Link2,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type RelationshipFocusType = "all" | "supports" | "contradicts" | "extends" | "cites";
+export type RelationshipFocusType =
+  "all" | "supports" | "contradicts" | "extends" | "cites";
 
 interface RelationshipFocusControlProps {
   value: RelationshipFocusType;
@@ -63,7 +70,7 @@ export function RelationshipFocusControl({
   onChange,
 }: RelationshipFocusControlProps) {
   return (
-    <div className="inline-flex items-center bg-card/95 backdrop-blur-md border border-border rounded-full shadow-lg p-1 gap-0.5">
+    <div className="bg-card/95 border-border inline-flex items-center gap-0.5 rounded-full border p-1 shadow-lg backdrop-blur-md">
       {OPTIONS.map((opt) => {
         const isActive = value === opt.value;
         const Icon = opt.icon;
@@ -73,7 +80,7 @@ export function RelationshipFocusControl({
             onClick={() => onChange(opt.value)}
             title={opt.label}
             className={cn(
-              "relative flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full transition-all duration-200",
+              "relative flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-200",
               isActive
                 ? cn(opt.activeColor, "shadow-sm")
                 : "text-muted-foreground hover:text-foreground hover:bg-muted/60",

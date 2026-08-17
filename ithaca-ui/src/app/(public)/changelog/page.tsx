@@ -2,24 +2,24 @@ import { Badge } from "@/components/ui/badge";
 
 export default function ChangelogPage() {
   return (
-    <div className="container mx-auto px-4 py-16 max-w-3xl">
-      <div className="text-center mb-16">
-        <h1 className="text-4xl font-bold mb-4">Changelog</h1>
-        <p className="text-xl text-muted-foreground">
+    <div className="container mx-auto max-w-3xl px-4 py-16">
+      <div className="mb-16 text-center">
+        <h1 className="mb-4 text-4xl font-bold">Changelog</h1>
+        <p className="text-muted-foreground text-xl">
           New updates and improvements to Ithaca.
         </p>
       </div>
 
-      <div className="space-y-12 relative border-l border-border ml-4 md:ml-0 md:pl-0">
+      <div className="border-border relative ml-4 space-y-12 border-l md:ml-0 md:pl-0">
         <div className="relative md:grid md:grid-cols-[200px_1fr] md:gap-8">
           <div className="mb-4 md:mb-0 md:text-right">
-            <span className="text-sm text-muted-foreground font-medium sticky top-24">
+            <span className="text-muted-foreground sticky top-24 text-sm font-medium">
               February 2026
             </span>
-            <div className="absolute -left-[21px] md:left-auto md:-right-[21px] top-1.5 h-3 w-3 rounded-full bg-primary border-4 border-background" />
+            <div className="bg-primary border-background absolute top-1.5 -left-[21px] h-3 w-3 rounded-full border-4 md:-right-[21px] md:left-auto" />
           </div>
           <div className="pl-6 md:pl-0">
-            <div className="flex items-center gap-3 mb-3">
+            <div className="mb-3 flex items-center gap-3">
               <h2 className="text-2xl font-bold">Real Data Pipeline</h2>
               <Badge variant="default">v0.2.0</Badge>
             </div>
@@ -30,8 +30,8 @@ export default function ChangelogPage() {
               </p>
               <ul>
                 <li>
-                  <strong>OpenAlex Integration:</strong> Search and explore 250M+
-                  real papers from OpenAlex.
+                  <strong>OpenAlex Integration:</strong> Search and explore
+                  250M+ real papers from OpenAlex.
                 </li>
                 <li>
                   <strong>LLM Citation Classification:</strong> AI-powered
@@ -53,14 +53,14 @@ export default function ChangelogPage() {
 
         <div className="relative md:grid md:grid-cols-[200px_1fr] md:gap-8">
           <div className="mb-4 md:mb-0 md:text-right">
-            <span className="text-sm text-muted-foreground font-medium sticky top-24">
+            <span className="text-muted-foreground sticky top-24 text-sm font-medium">
               January 2026
             </span>
-            <div className="absolute -left-[21px] md:left-auto md:-right-[21px] top-1.5 h-3 w-3 rounded-full bg-muted border-4 border-background" />
+            <div className="bg-muted border-background absolute top-1.5 -left-[21px] h-3 w-3 rounded-full border-4 md:-right-[21px] md:left-auto" />
           </div>
           <div className="pl-6 md:pl-0">
-            <div className="flex items-center gap-3 mb-3">
-              <h2 className="text-xl font-bold text-muted-foreground">
+            <div className="mb-3 flex items-center gap-3">
+              <h2 className="text-muted-foreground text-xl font-bold">
                 Initial Prototype
               </h2>
               <Badge variant="secondary">v0.1.0</Badge>

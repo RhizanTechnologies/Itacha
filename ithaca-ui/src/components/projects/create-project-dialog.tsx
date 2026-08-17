@@ -16,10 +16,18 @@ import { Loader2 } from "lucide-react";
 interface CreateProjectDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: { title: string; description: string; color: string }) => Promise<void>;
+  onSubmit: (data: {
+    title: string;
+    description: string;
+    color: string;
+  }) => Promise<void>;
 }
 
-export function CreateProjectDialog({ open, onOpenChange, onSubmit }: CreateProjectDialogProps) {
+export function CreateProjectDialog({
+  open,
+  onOpenChange,
+  onSubmit,
+}: CreateProjectDialogProps) {
   const [loading, setLoading] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -59,7 +67,8 @@ export function CreateProjectDialog({ open, onOpenChange, onSubmit }: CreateProj
           <DialogHeader>
             <DialogTitle>Create Project</DialogTitle>
             <DialogDescription>
-              Create a new project to organize your research graphs and collections.
+              Create a new project to organize your research graphs and
+              collections.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -87,16 +96,16 @@ export function CreateProjectDialog({ open, onOpenChange, onSubmit }: CreateProj
               />
             </div>
             <div className="grid gap-2">
-              <label className="text-sm font-medium mb-1">Color Tag</label>
+              <label className="mb-1 text-sm font-medium">Color Tag</label>
               <div className="flex flex-wrap gap-2">
                 {colors.map((c) => (
                   <button
                     key={c}
                     type="button"
-                    className={`w-6 h-6 rounded-full transition-all ${
+                    className={`h-6 w-6 rounded-full transition-all ${
                       color === c
-                        ? "ring-2 ring-offset-2 ring-primary scale-110"
-                        : "hover:scale-110 opacity-70 hover:opacity-100"
+                        ? "ring-primary scale-110 ring-2 ring-offset-2"
+                        : "opacity-70 hover:scale-110 hover:opacity-100"
                     }`}
                     style={{ backgroundColor: c }}
                     onClick={() => setColor(c)}
@@ -106,7 +115,12 @@ export function CreateProjectDialog({ open, onOpenChange, onSubmit }: CreateProj
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" type="button" onClick={() => onOpenChange(false)} disabled={loading}>
+            <Button
+              variant="outline"
+              type="button"
+              onClick={() => onOpenChange(false)}
+              disabled={loading}
+            >
               Cancel
             </Button>
             <Button type="submit" disabled={!title || loading}>

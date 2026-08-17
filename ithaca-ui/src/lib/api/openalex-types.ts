@@ -161,4 +161,3 @@ export type OpenAlexId = string; // e.g., "W2741809807"
 export function extractOpenAlexId(fullId: string): OpenAlexId {
   return fullId.replace("https://openalex.org/", "");
 }
-

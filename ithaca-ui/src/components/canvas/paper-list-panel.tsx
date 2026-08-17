@@ -87,23 +87,23 @@ export const PaperListPanel = memo(function PaperListPanel({
     <>
       {/* Backdrop for mobile */}
       <div
-        className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40 md:hidden animate-in fade-in"
+        className="bg-background/80 animate-in fade-in fixed inset-0 z-40 backdrop-blur-sm md:hidden"
         onClick={() => onOpenChange(false)}
       />
 
       <div
         className={cn(
-          "fixed right-0 top-0 z-50 h-full w-full md:w-[400px] border-l bg-card shadow-2xl transition-transform duration-300 ease-in-out",
+          "bg-card fixed top-0 right-0 z-50 h-full w-full border-l shadow-2xl transition-transform duration-300 ease-in-out md:w-[400px]",
           !open && "translate-x-full",
           "flex flex-col",
           className,
         )}
       >
         {/* Header */}
-        <div className="p-4 border-b space-y-4 bg-muted/40">
+        <div className="bg-muted/40 space-y-4 border-b p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <h2 className="font-semibold text-lg">Papers</h2>
+              <h2 className="text-lg font-semibold">Papers</h2>
               <Badge
                 variant="secondary"
                 className="rounded-full px-2 py-0.5 text-xs"
@@ -121,18 +121,18 @@ export const PaperListPanel = memo(function PaperListPanel({
           </div>
 
           <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Search className="text-muted-foreground absolute top-2.5 left-2.5 h-4 w-4" />
             <Input
               placeholder="Search title, author, year..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 bg-background"
+              className="bg-background pl-9"
             />
           </div>
 
           <div className="flex items-center gap-2 text-xs">
             <span className="text-muted-foreground">Sort by:</span>
-            <div className="flex gap-1 bg-background p-1 rounded-md border">
+            <div className="bg-background flex gap-1 rounded-md border p-1">
               <SortButton
                 active={sortField === "citation"}
                 onClick={() => {
@@ -144,7 +144,7 @@ export const PaperListPanel = memo(function PaperListPanel({
                   }
                 }}
                 label="Cites"
-                icon={<Quote className="h-3 w-3 mr-1" />}
+                icon={<Quote className="mr-1 h-3 w-3" />}
               />
               <SortButton
                 active={sortField === "year"}
@@ -157,7 +157,7 @@ export const PaperListPanel = memo(function PaperListPanel({
                   }
                 }}
                 label="Year"
-                icon={<Calendar className="h-3 w-3 mr-1" />}
+                icon={<Calendar className="mr-1 h-3 w-3" />}
               />
               <SortButton
                 active={sortField === "title"}
@@ -170,7 +170,7 @@ export const PaperListPanel = memo(function PaperListPanel({
                   }
                 }}
                 label="Name"
-                icon={<FileText className="h-3 w-3 mr-1" />}
+                icon={<FileText className="mr-1 h-3 w-3" />}
               />
             </div>
           </div>
@@ -178,9 +178,9 @@ export const PaperListPanel = memo(function PaperListPanel({
 
         {/* List */}
         <ScrollArea className="flex-1">
-          <div className="p-2 space-y-1">
+          <div className="space-y-1 p-2">
             {filteredAndSortedPapers.length === 0 ? (
-              <div className="text-center py-10 text-muted-foreground">
+              <div className="text-muted-foreground py-10 text-center">
                 <p>No papers found matching "{search}"</p>
               </div>
             ) : (
@@ -188,7 +188,7 @@ export const PaperListPanel = memo(function PaperListPanel({
                 <div
                   key={paper.id}
                   className={cn(
-                    "group flex items-start gap-3 p-3 rounded-lg border border-transparent transition-all cursor-pointer",
+                    "group flex cursor-pointer items-start gap-3 rounded-lg border border-transparent p-3 transition-all",
                     hoveredNode === paper.id
                       ? "bg-primary/10 border-primary/20 shadow-sm"
                       : "hover:bg-muted/50 border-border/40",
@@ -207,14 +207,14 @@ export const PaperListPanel = memo(function PaperListPanel({
                       "w-1 self-stretch rounded-full transition-colors",
                       hoveredNode === paper.id
                         ? "bg-primary"
-                        : "bg-transparent group-hover:bg-muted-foreground/30",
+                        : "group-hover:bg-muted-foreground/30 bg-transparent",
                     )}
                   />
-                  <div className="flex-1 min-w-0 space-y-1">
+                  <div className="min-w-0 flex-1 space-y-1">
                     <div className="flex items-start justify-between gap-2">
                       <h3
                         className={cn(
-                          "text-sm font-medium leading-tight line-clamp-2",
+                          "line-clamp-2 text-sm leading-tight font-medium",
                           hoveredNode === paper.id
                             ? "text-primary"
                             : "text-foreground",
@@ -225,30 +225,30 @@ export const PaperListPanel = memo(function PaperListPanel({
                       {paper.id.startsWith("topic-") && (
                         <Badge
                           variant="outline"
-                          className="text-[10px] h-4 px-1"
+                          className="h-4 px-1 text-[10px]"
                         >
                           Topic
                         </Badge>
                       )}
                     </div>
 
-                    <div className="flex items-center text-xs text-muted-foreground gap-2">
-                      <span className="truncate max-w-[120px]">
+                    <div className="text-muted-foreground flex items-center gap-2 text-xs">
+                      <span className="max-w-[120px] truncate">
                         {paper.authors.split(",")[0]} et al.
                       </span>
                       <span>•</span>
                       <span>{paper.year}</span>
-                      <span className="ml-auto font-mono text-primary/80 bg-primary/5 px-1.5 py-0.5 rounded text-[10px]">
+                      <span className="text-primary/80 bg-primary/5 ml-auto rounded px-1.5 py-0.5 font-mono text-[10px]">
                         {paper.citations} cites
                       </span>
                     </div>
                   </div>
                   <ChevronRight
                     className={cn(
-                      "h-4 w-4 text-muted-foreground opacity-0 -translate-x-2 transition-all",
+                      "text-muted-foreground h-4 w-4 -translate-x-2 opacity-0 transition-all",
                       hoveredNode === paper.id
-                        ? "opacity-100 translate-x-0"
-                        : "group-hover:opacity-50 group-hover:translate-x-0",
+                        ? "translate-x-0 opacity-100"
+                        : "group-hover:translate-x-0 group-hover:opacity-50",
                     )}
                   />
                 </div>
@@ -276,7 +276,7 @@ function SortButton({
     <button
       onClick={onClick}
       className={cn(
-        "flex items-center px-2 py-1 rounded text-[10px] font-medium transition-colors",
+        "flex items-center rounded px-2 py-1 text-[10px] font-medium transition-colors",
         active
           ? "bg-primary text-primary-foreground shadow-sm"
           : "hover:bg-muted text-muted-foreground hover:text-foreground",

@@ -19,28 +19,28 @@ export default async function BlogPostPage({
   const paragraphs = post.content.split("\n\n").filter((p) => p.trim());
 
   return (
-    <article className="min-h-screen bg-background text-foreground animate-in fade-in duration-500">
-      <div className="border-b border-border bg-muted/10">
-        <div className="container max-w-4xl mx-auto px-4 py-16">
+    <article className="bg-background text-foreground animate-in fade-in min-h-screen duration-500">
+      <div className="border-border bg-muted/10 border-b">
+        <div className="container mx-auto max-w-4xl px-4 py-16">
           <Link
             href="/blog"
-            className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
+            className="text-muted-foreground hover:text-foreground mb-6 inline-flex items-center text-sm transition-colors"
           >
-            <ArrowLeft className="h-4 w-4 mr-2" />
+            <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Blog
           </Link>
 
           <div className="space-y-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-semibold uppercase tracking-wider">
+            <div className="inline-flex items-center gap-2 rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold tracking-wider text-blue-700 uppercase dark:bg-blue-900/30 dark:text-blue-300">
               {post.category}
             </div>
-            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight leading-tight">
+            <h1 className="text-4xl leading-tight font-extrabold tracking-tight md:text-5xl">
               {post.title}
             </h1>
-            <div className="flex items-center gap-6 text-sm text-muted-foreground pt-2">
+            <div className="text-muted-foreground flex items-center gap-6 pt-2 text-sm">
               <div className="flex items-center gap-2">
                 <User className="h-4 w-4" />
-                <span className="font-medium text-foreground">
+                <span className="text-foreground font-medium">
                   {post.author}
                 </span>
               </div>
@@ -54,19 +54,15 @@ export default async function BlogPostPage({
         </div>
       </div>
 
-      <div className="container max-w-4xl mx-auto px-4 py-12">
+      <div className="container mx-auto max-w-4xl px-4 py-12">
         <div className="prose prose-slate dark:prose-invert prose-lg max-w-none">
           {paragraphs.map((block, i) => {
             const trimmed = block.trim();
             if (trimmed.startsWith("## ")) {
-              return (
-                <h2 key={i}>{trimmed.slice(3)}</h2>
-              );
+              return <h2 key={i}>{trimmed.slice(3)}</h2>;
             }
             if (trimmed.startsWith("### ")) {
-              return (
-                <h3 key={i}>{trimmed.slice(4)}</h3>
-              );
+              return <h3 key={i}>{trimmed.slice(4)}</h3>;
             }
             if (trimmed.startsWith("- ") || trimmed.startsWith("1. ")) {
               const items = trimmed.split("\n");
@@ -75,9 +71,7 @@ export default async function BlogPostPage({
               return (
                 <Tag key={i}>
                   {items.map((item, j) => (
-                    <li key={j}>
-                      {item.replace(/^[-\d]+[.)]\s*/, "")}
-                    </li>
+                    <li key={j}>{item.replace(/^[-\d]+[.)]\s*/, "")}</li>
                   ))}
                 </Tag>
               );

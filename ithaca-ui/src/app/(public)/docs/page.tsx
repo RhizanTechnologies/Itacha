@@ -4,19 +4,19 @@ import { Code, Shield } from "lucide-react";
 export default function DocsPage() {
   return (
     <div className="bg-background text-foreground min-h-screen">
-      <section className="border-b border-border bg-muted/20">
+      <section className="border-border bg-muted/20 border-b">
         <div className="container mx-auto px-8 py-12">
-          <div className="flex items-center gap-3 mb-4">
+          <div className="mb-4 flex items-center gap-3">
             <h1 className="text-4xl font-bold">Documentation</h1>
             <Badge variant="secondary">Preview</Badge>
           </div>
-          <p className="text-xl text-muted-foreground">
+          <p className="text-muted-foreground text-xl">
             Learn how Ithaca works and how to get the most out of the platform.
           </p>
         </div>
       </section>
 
-      <div className="container mx-auto px-8 py-12 max-w-4xl">
+      <div className="container mx-auto max-w-4xl px-8 py-12">
         <div className="prose prose-slate dark:prose-invert max-w-none">
           <h2 id="overview">Overview</h2>
           <p>
@@ -46,15 +46,11 @@ export default function DocsPage() {
             edge using a multi-gate pipeline:
           </p>
           <ol>
+            <li>Check for cached classifications in the database</li>
+            <li>Extract citation context sentences from Semantic Scholar</li>
             <li>
-              Check for cached classifications in the database
-            </li>
-            <li>
-              Extract citation context sentences from Semantic Scholar
-            </li>
-            <li>
-              Send evidence to an LLM for classification (supports /
-              contradicts / extends / cites)
+              Send evidence to an LLM for classification (supports / contradicts
+              / extends / cites)
             </li>
             <li>
               Fall back to abstract-based or title-based classification if no
@@ -78,8 +74,11 @@ export default function DocsPage() {
                 ["S", "Toggle selection mode"],
                 ["?", "Show keyboard shortcuts help"],
               ].map(([key, desc]) => (
-                <div key={key} className="flex items-center gap-3 p-2 rounded border bg-card">
-                  <kbd className="px-2 py-0.5 rounded bg-muted text-xs font-mono">
+                <div
+                  key={key}
+                  className="bg-card flex items-center gap-3 rounded border p-2"
+                >
+                  <kbd className="bg-muted rounded px-2 py-0.5 font-mono text-xs">
                     {key}
                   </kbd>
                   <span className="text-muted-foreground">{desc}</span>
@@ -88,7 +87,9 @@ export default function DocsPage() {
             </div>
           </div>
 
-          <h2 id="api" className="mt-8">API Access</h2>
+          <h2 id="api" className="mt-8">
+            API Access
+          </h2>
           <p>
             A public API for programmatic access to Ithaca&apos;s citation graph
             data is planned for a future release. If you&apos;re interested in

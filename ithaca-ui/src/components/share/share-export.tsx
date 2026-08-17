@@ -27,12 +27,20 @@ import {
   Eye,
   X,
   Sparkles,
+  ScrollText,
 } from "lucide-react";
+import type { ExportFormat, ExportMetadata } from "@/lib/graph-export";
 import {
-  exportGraph,
-  type ExportFormat,
-  type ExportMetadata,
-} from "@/lib/graph-export";
+  buildGraphExportPayload,
+  isDurableExportFormat,
+} from "@/lib/graph-export-payload";
+import {
+  getJobCapabilities,
+  submitDurableGraphExport,
+  waitForBackgroundJob,
+} from "@/app/(app)/jobs/actions";
+import { createGraphSnapshot } from "@/app/(app)/dashboard/actions";
+import { serializeGraphSnapshot } from "@/lib/graph-snapshot";
 import type { Sigma } from "sigma";
 import type Graph from "graphology";
 import { cn } from "@/lib/utils";
@@ -50,16 +58,29 @@ interface ShareExportProps {
 }
 
 /**
- * Generate a shareable link for the graph by encoding the search target in URL params.
- * The explore page reads `?q=<target>` and re-fetches the graph from the API.
+ * Prefer a frozen snapshot link so collaborators see the same nodes/edges.
+ * Falls back to a live `?q=` re-fetch URL when the graph is empty.
  */
-async function generateShareLink(
-  searchQuery?: string,
-): Promise<string> {
+async function generateShareLink(input: {
+  searchQuery?: string;
+  graphTitle?: string;
+  graph?: Graph | null;
+}): Promise<string> {
   const url = new URL("/explore", window.location.origin);
 
-  if (searchQuery) {
-    url.searchParams.set("q", searchQuery);
+  if (input.graph && input.graph.order > 0) {
+    const snapshot = serializeGraphSnapshot(input.graph, input.searchQuery);
+    const saved = await createGraphSnapshot({
+      title: input.graphTitle || "Shared debate map",
+      query: input.searchQuery || "snapshot",
+      snapshot,
+    });
+    url.searchParams.set("graph", saved.id);
+    return url.toString();
+  }
+
+  if (input.searchQuery) {
+    url.searchParams.set("q", input.searchQuery);
   }
 
   return url.toString();
@@ -88,6 +109,9 @@ export function ShareExportDialog({
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [jobMessage, setJobMessage] = useState<string | null>(null);
+  const [durableJobsEnabled, setDurableJobsEnabled] = useState(false);
+  const [maxNodesSynchronous, setMaxNodesSynchronous] = useState(2000);
   const [showPreview, setShowPreview] = useState(false);
   const [previewFormat, setPreviewFormat] = useState<ExportFormat>("png");
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -107,23 +131,33 @@ export function ShareExportDialog({
     setIsGeneratingLink(true);
     setError(null);
     try {
-      const url = await generateShareLink(searchQuery);
+      const url = await generateShareLink({
+        searchQuery,
+        graphTitle,
+        graph,
+      });
       setShareUrl(url);
     } catch (err) {
-      setError("Failed to generate share link");
+      setError(
+        err instanceof Error ? err.message : "Failed to generate share link",
+      );
       console.error(err);
     } finally {
       setIsGeneratingLink(false);
     }
-  }, [searchQuery]);
+  }, [searchQuery, graphTitle, graph]);
 
   // Generate link on open (regenerate if searchQuery changed)
   useEffect(() => {
     if (open) {
       handleGenerateLink();
+      void getJobCapabilities().then((capabilities) => {
+        setDurableJobsEnabled(capabilities.durableJobsEnabled);
+        setMaxNodesSynchronous(capabilities.maxNodesSynchronous);
+      });
     } else {
-      // Reset when closed so it regenerates next time
       setShareUrl(null);
+      setJobMessage(null);
     }
   }, [open, handleGenerateLink]);
 
@@ -143,11 +177,51 @@ export function ShareExportDialog({
 
       setExporting(format);
       setError(null);
+      setJobMessage(null);
 
       try {
+        const filename = sanitizeFilename(graphTitle);
+        const useDurableQueue =
+          durableJobsEnabled &&
+          nodeCount > maxNodesSynchronous &&
+          isDurableExportFormat(format);
+
+        if (useDurableQueue) {
+          const payload = buildGraphExportPayload(graph, {
+            format,
+            filename,
+            includeHidden: false,
+          });
+          setJobMessage("Submitting export to background worker...");
+          const submission = await submitDurableGraphExport({
+            filename: payload.filename,
+            content: payload.content,
+            contentType: payload.contentType,
+            encoding: payload.encoding,
+            nodeCount,
+          });
+          setJobMessage(
+            "Processing export. This may take up to two minutes...",
+          );
+          const completed = await waitForBackgroundJob(submission.jobId);
+          if (!completed) {
+            throw new Error("Timed out waiting for export job");
+          }
+          if (completed.status === "FAILED") {
+            throw new Error(completed.errorMessage || "Export job failed");
+          }
+          if (!completed.artifact?.id) {
+            throw new Error("Export completed without an artifact");
+          }
+          window.location.href = `/api/artifacts/${completed.artifact.id}/download`;
+          setJobMessage("Export ready. Download started.");
+          return;
+        }
+
+        const { exportGraph } = await import("@/lib/graph-export");
         await exportGraph(sigma, graph, {
           format,
-          filename: sanitizeFilename(graphTitle),
+          filename,
           metadata: exportMetadata,
           includeLegend: true,
           includeHeader: true,
@@ -162,7 +236,15 @@ export function ShareExportDialog({
         setExporting(null);
       }
     },
-    [graphTitle, sigma, graph, exportMetadata],
+    [
+      graphTitle,
+      sigma,
+      graph,
+      exportMetadata,
+      durableJobsEnabled,
+      maxNodesSynchronous,
+      nodeCount,
+    ],
   );
 
   // Generate preview for visual exports - matches actual export
@@ -214,7 +296,10 @@ export function ShareExportDialog({
     ctx.save();
 
     // Create coordinate mapper: normalize graph positions into the preview graph area
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    let minX = Infinity,
+      maxX = -Infinity,
+      minY = Infinity,
+      maxY = -Infinity;
     let nodeCount_ = 0;
     graph.forEachNode((_n, attrs) => {
       if (attrs.hidden) return;
@@ -373,57 +458,40 @@ export function ShareExportDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent
+        data-testid="share-dialog"
+        className="max-h-[90vh] overflow-y-auto sm:max-w-lg"
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Share2 className="h-5 w-5" />
-            Share & Export
+            Share debate map
           </DialogTitle>
           <DialogDescription>
-            Share this graph with others or export for offline use.
+            Freeze this map for organization teammates, or export a Debate
+            Report of contested claims.
           </DialogDescription>
         </DialogHeader>
 
         {error && (
-          <div className="text-sm text-destructive bg-destructive/10 p-2 rounded">
+          <div className="text-destructive bg-destructive/10 rounded p-2 text-sm">
             {error}
           </div>
         )}
 
-        <div className="space-y-6 py-4">
-          {/* Export Preview */}
-          {graph && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-medium flex items-center gap-2">
-                  <Eye className="h-4 w-4 text-muted-foreground" />
-                  Export Preview
-                </label>
-                <Badge variant="secondary" className="text-[10px]">
-                  <Sparkles className="h-3 w-3 mr-1" />
-                  Includes legend & metadata
-                </Badge>
-              </div>
-              <div className="relative rounded-lg border border-border overflow-hidden bg-muted/30">
-                <canvas
-                  ref={previewCanvasRef}
-                  className="w-full h-auto"
-                  style={{ maxHeight: 200 }}
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-background/60 to-transparent pointer-events-none" />
-                <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between text-[10px] text-muted-foreground">
-                  <span>Title, stats & timestamp included</span>
-                  <span>Legend embedded</span>
-                </div>
-              </div>
-            </div>
-          )}
+        {jobMessage && (
+          <div className="bg-primary/10 text-primary rounded p-2 text-sm">
+            {jobMessage}
+          </div>
+        )}
 
-          {/* Share Link */}
+        <div className="space-y-6 py-4">
+          {/* Primary: frozen share for org teammates */}
           <div className="space-y-2">
-            <label className="text-sm font-medium">Share Link</label>
+            <label className="text-sm font-medium">Frozen share link</label>
             <div className="flex gap-2">
               <Input
+                data-testid="share-frozen-link"
                 value={isGeneratingLink ? "Generating link..." : shareUrl || ""}
                 readOnly
                 className="font-mono text-xs"
@@ -445,15 +513,21 @@ export function ShareExportDialog({
                 )}
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Anyone with this link can view this graph
+            <p className="text-muted-foreground text-xs">
+              Anyone in your organization can open the same frozen nodes and
+              edges. Not a public internet link.
             </p>
-          </div>
-
-          {/* Social Share */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Share to</label>
             <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => handleSocialShare("email")}
+                disabled={!shareUrl}
+              >
+                <Mail className="h-4 w-4" />
+                Email teammates
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -464,28 +538,73 @@ export function ShareExportDialog({
                 <Twitter className="h-4 w-4" />
                 Twitter
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2"
-                onClick={() => handleSocialShare("email")}
-                disabled={!shareUrl}
-              >
-                <Mail className="h-4 w-4" />
-                Email
-              </Button>
             </div>
           </div>
 
-          {/* Export Options */}
+          {/* Primary niche artifact */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Debate Report</label>
+            <Button
+              data-testid="export-debate-report"
+              className="h-auto w-full justify-start gap-3 p-4"
+              variant="default"
+              disabled={exporting === "debate-md" || !graph}
+              onClick={() => handleExport("debate-md")}
+            >
+              {exporting === "debate-md" ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <ScrollText className="h-5 w-5" />
+              )}
+              <span className="text-left">
+                <span className="block text-sm font-medium">
+                  {exporting === "debate-md"
+                    ? "Exporting..."
+                    : "Export Debate Report"}
+                </span>
+                <span className="text-primary-foreground/80 block text-xs font-normal">
+                  Contested claims, evidence snippets, and corrections
+                </span>
+              </span>
+            </Button>
+          </div>
+
+          {/* Export Preview */}
+          {graph && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-2 text-sm font-medium">
+                  <Eye className="text-muted-foreground h-4 w-4" />
+                  Export Preview
+                </label>
+                <Badge variant="secondary" className="text-[10px]">
+                  <Sparkles className="mr-1 h-3 w-3" />
+                  Includes legend & metadata
+                </Badge>
+              </div>
+              <div className="border-border bg-muted/30 relative overflow-hidden rounded-lg border">
+                <canvas
+                  ref={previewCanvasRef}
+                  className="h-auto w-full"
+                  style={{ maxHeight: 200 }}
+                />
+                <div className="from-background/60 pointer-events-none absolute inset-0 bg-gradient-to-t to-transparent" />
+                <div className="text-muted-foreground absolute right-2 bottom-2 left-2 flex items-center justify-between text-[10px]">
+                  <span>Title, stats & timestamp included</span>
+                  <span>Legend embedded</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Other export formats */}
           <div className="space-y-3">
-            <label className="text-sm font-medium">Export</label>
+            <label className="text-sm font-medium">Other formats</label>
 
             <div className="grid grid-cols-2 gap-2">
-              {/* PNG Export */}
               <Button
                 variant="outline"
-                className="h-auto p-3 flex-col gap-1"
+                className="h-auto flex-col gap-1 p-3"
                 disabled={exporting === "png" || !sigma || !graph}
                 onClick={() => handleExport("png")}
               >
@@ -497,15 +616,14 @@ export function ShareExportDialog({
                 <span className="text-xs font-medium">
                   {exporting === "png" ? "Exporting..." : "PNG Image"}
                 </span>
-                <span className="text-[10px] text-muted-foreground">
+                <span className="text-muted-foreground text-[10px]">
                   High-res screenshot
                 </span>
               </Button>
 
-              {/* SVG Export */}
               <Button
                 variant="outline"
-                className="h-auto p-3 flex-col gap-1"
+                className="h-auto flex-col gap-1 p-3"
                 disabled={exporting === "svg" || !sigma || !graph}
                 onClick={() => handleExport("svg")}
               >
@@ -517,15 +635,14 @@ export function ShareExportDialog({
                 <span className="text-xs font-medium">
                   {exporting === "svg" ? "Exporting..." : "SVG Vector"}
                 </span>
-                <span className="text-[10px] text-muted-foreground">
+                <span className="text-muted-foreground text-[10px]">
                   Scalable format
                 </span>
               </Button>
 
-              {/* GraphML Export */}
               <Button
                 variant="outline"
-                className="h-auto p-3 flex-col gap-1"
+                className="h-auto flex-col gap-1 p-3"
                 disabled={exporting === "graphml" || !graph}
                 onClick={() => handleExport("graphml")}
               >
@@ -537,15 +654,14 @@ export function ShareExportDialog({
                 <span className="text-xs font-medium">
                   {exporting === "graphml" ? "Exporting..." : "GraphML"}
                 </span>
-                <span className="text-[10px] text-muted-foreground">
+                <span className="text-muted-foreground text-[10px]">
                   For Gephi/Cytoscape
                 </span>
               </Button>
 
-              {/* JSON Export */}
               <Button
                 variant="outline"
-                className="h-auto p-3 flex-col gap-1"
+                className="h-auto flex-col gap-1 p-3"
                 disabled={exporting === "json" || !graph}
                 onClick={() => handleExport("json")}
               >
@@ -557,15 +673,14 @@ export function ShareExportDialog({
                 <span className="text-xs font-medium">
                   {exporting === "json" ? "Exporting..." : "JSON Data"}
                 </span>
-                <span className="text-[10px] text-muted-foreground">
+                <span className="text-muted-foreground text-[10px]">
                   Graph structure
                 </span>
               </Button>
 
-              {/* CSV Export */}
               <Button
                 variant="outline"
-                className="h-auto p-3 flex-col gap-1"
+                className="h-auto flex-col gap-1 p-3"
                 disabled={exporting === "csv" || !graph}
                 onClick={() => handleExport("csv")}
               >
@@ -577,15 +692,14 @@ export function ShareExportDialog({
                 <span className="text-xs font-medium">
                   {exporting === "csv" ? "Exporting..." : "CSV Tables"}
                 </span>
-                <span className="text-[10px] text-muted-foreground">
+                <span className="text-muted-foreground text-[10px]">
                   Nodes & edges sheets
                 </span>
               </Button>
 
-              {/* PDF Export */}
               <Button
                 variant="outline"
-                className="h-auto p-3 flex-col gap-1"
+                className="h-auto flex-col gap-1 p-3"
                 disabled={exporting === "pdf" || !sigma || !graph}
                 onClick={() => handleExport("pdf")}
               >
@@ -597,7 +711,7 @@ export function ShareExportDialog({
                 <span className="text-xs font-medium">
                   {exporting === "pdf" ? "Exporting..." : "PDF Document"}
                 </span>
-                <span className="text-[10px] text-muted-foreground">
+                <span className="text-muted-foreground text-[10px]">
                   Print-ready file
                 </span>
               </Button>
@@ -605,7 +719,7 @@ export function ShareExportDialog({
           </div>
 
           {/* Graph Info */}
-          <div className="pt-2 border-t flex items-center justify-between text-xs text-muted-foreground">
+          <div className="text-muted-foreground flex items-center justify-between border-t pt-2 text-xs">
             <span>{graphTitle}</span>
             <div className="flex gap-2">
               <Badge variant="secondary" className="text-[10px]">
@@ -626,8 +740,10 @@ export function ShareExportDialog({
 export function ShareButton({ onClick }: { onClick: () => void }) {
   return (
     <button
+      type="button"
+      data-testid="canvas-share-button"
       onClick={onClick}
-      className="flex items-center gap-2 bg-card/95 backdrop-blur-sm border border-border rounded-lg px-3 py-2 shadow-lg hover:bg-muted transition-colors"
+      className="bg-card/95 border-border hover:bg-muted flex items-center gap-2 rounded-lg border px-3 py-2 shadow-lg backdrop-blur-sm transition-colors"
     >
       <Share2 className="h-4 w-4" />
       <span className="text-sm font-medium">Share</span>

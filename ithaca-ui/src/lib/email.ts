@@ -90,6 +90,36 @@ export async function sendVerificationEmail(email: string, url: string) {
 }
 
 /**
+ * Send organization invitation email
+ */
+export async function sendOrganizationInvitationEmail(input: {
+  email: string;
+  inviteUrl: string;
+  organizationName: string;
+  role: string;
+  inviterName?: string | null;
+}) {
+  const inviter = input.inviterName?.trim() || "A teammate";
+  return sendEmail({
+    to: input.email,
+    subject: `Join ${input.organizationName} on Ithaca`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+        <h1 style="color: #137fec;">You're invited to ${input.organizationName}</h1>
+        <p>${inviter} invited you to collaborate on debate maps as a <strong>${input.role}</strong>.</p>
+        <a href="${input.inviteUrl}" style="display: inline-block; padding: 12px 24px; background: #137fec; color: white; text-decoration: none; border-radius: 6px; margin: 16px 0;">
+          Accept invitation
+        </a>
+        <p style="color: #666; font-size: 14px;">
+          If you weren't expecting this, you can ignore this email.
+        </p>
+      </div>
+    `,
+    text: `You're invited to ${input.organizationName}\n\n${inviter} invited you as ${input.role}.\n\nAccept: ${input.inviteUrl}`,
+  });
+}
+
+/**
  * Send password reset email
  */
 export async function sendPasswordResetEmail(email: string, url: string) {

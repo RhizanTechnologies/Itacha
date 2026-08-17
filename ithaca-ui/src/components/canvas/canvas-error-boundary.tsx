@@ -42,11 +42,14 @@ export class CanvasErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     this.setState({ errorInfo });
-    
+
     // Log error for debugging (in development)
     if (process.env.NODE_ENV === "development") {
       console.error("[CanvasErrorBoundary] Caught error:", error);
-      console.error("[CanvasErrorBoundary] Component stack:", errorInfo.componentStack);
+      console.error(
+        "[CanvasErrorBoundary] Component stack:",
+        errorInfo.componentStack,
+      );
     }
 
     // Call optional error handler
@@ -55,7 +58,7 @@ export class CanvasErrorBoundary extends Component<Props, State> {
 
   handleRetry = () => {
     const { retryCount } = this.state;
-    
+
     if (retryCount < MAX_RETRIES) {
       this.setState({
         hasError: false,
@@ -73,7 +76,7 @@ export class CanvasErrorBoundary extends Component<Props, State> {
   isWebGLError(): boolean {
     const { error } = this.state;
     if (!error) return false;
-    
+
     const errorMessage = error.message.toLowerCase();
     return (
       errorMessage.includes("webgl") ||
@@ -98,28 +101,28 @@ export class CanvasErrorBoundary extends Component<Props, State> {
       const canRetry = retryCount < MAX_RETRIES;
 
       return (
-        <div className="flex h-full w-full items-center justify-center bg-background/95 backdrop-blur-sm">
-          <div className="max-w-md rounded-lg border bg-card p-6 shadow-lg">
-            <div className="flex items-center gap-3 text-destructive">
+        <div className="bg-background/95 flex h-full w-full items-center justify-center backdrop-blur-sm">
+          <div className="bg-card max-w-md rounded-lg border p-6 shadow-lg">
+            <div className="text-destructive flex items-center gap-3">
               <AlertTriangle className="h-6 w-6" />
               <h2 className="text-lg font-semibold">
                 {isWebGL ? "Graph Rendering Error" : "Something Went Wrong"}
               </h2>
             </div>
 
-            <p className="mt-3 text-sm text-muted-foreground">
+            <p className="text-muted-foreground mt-3 text-sm">
               {isWebGL
                 ? "The graph visualization encountered a rendering issue. This may be due to WebGL compatibility or memory constraints."
                 : "An unexpected error occurred while rendering the graph canvas."}
             </p>
 
             {process.env.NODE_ENV === "development" && error && (
-              <details className="mt-4 rounded border bg-muted/50 p-3 text-xs">
-                <summary className="cursor-pointer font-medium flex items-center gap-2">
+              <details className="bg-muted/50 mt-4 rounded border p-3 text-xs">
+                <summary className="flex cursor-pointer items-center gap-2 font-medium">
                   <Bug className="h-3 w-3" />
                   Error Details
                 </summary>
-                <pre className="mt-2 overflow-auto whitespace-pre-wrap text-destructive">
+                <pre className="text-destructive mt-2 overflow-auto whitespace-pre-wrap">
                   {error.message}
                 </pre>
               </details>
@@ -145,7 +148,7 @@ export class CanvasErrorBoundary extends Component<Props, State> {
             </div>
 
             {isWebGL && (
-              <p className="mt-4 text-xs text-muted-foreground">
+              <p className="text-muted-foreground mt-4 text-xs">
                 Tip: Try using a different browser or enabling hardware
                 acceleration in your browser settings.
               </p>

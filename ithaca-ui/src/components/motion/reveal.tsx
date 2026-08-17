@@ -28,27 +28,19 @@ export function Reveal({
   delay = 0,
   y = 14,
   once = true,
-  amount = 0.5,  // CHANGED: 0.35 → 0.5 (less aggressive scroll tracking)
+  amount = 0.5, // CHANGED: 0.35 → 0.5 (less aggressive scroll tracking)
 }: RevealProps) {
   const shouldReduceMotion = useReducedMotion();
 
   return (
     <motion.div
       className={cn(className)}
-      initial={
-        shouldReduceMotion
-          ? { opacity: 1, y: 0 }
-          : { opacity: 0, y }
-      }
-      whileInView={
-        shouldReduceMotion
-          ? undefined
-          : { opacity: 1, y: 0 }
-      }
-      viewport={{ 
-        once, 
+      initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y }}
+      whileInView={shouldReduceMotion ? undefined : { opacity: 1, y: 0 }}
+      viewport={{
+        once,
         amount,
-        margin: "0px 0px -80px 0px"  // ADDED: Optimize scroll event timing
+        margin: "0px 0px -80px 0px", // ADDED: Optimize scroll event timing
       }}
       transition={
         shouldReduceMotion
@@ -61,7 +53,14 @@ export function Reveal({
               delay,
             }
       }
-      style={shouldReduceMotion ? undefined : ({ willChange: "transform, opacity", contain: "layout style paint" } as React.CSSProperties)}
+      style={
+        shouldReduceMotion
+          ? undefined
+          : ({
+              willChange: "transform, opacity",
+              contain: "layout style paint",
+            } as React.CSSProperties)
+      }
     >
       {children}
     </motion.div>

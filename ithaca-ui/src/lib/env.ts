@@ -39,6 +39,17 @@ const envSchema = z.object({
   EMAIL_FROM: z.string().email().optional(),
   RESEND_API_KEY: z.string().optional(),
 
+  // Managed platform infrastructure
+  KV_REST_API_URL: z.string().url().optional(),
+  KV_REST_API_TOKEN: z.string().optional(),
+  QSTASH_URL: z.string().url().optional(),
+  QSTASH_TOKEN: z.string().optional(),
+  QSTASH_CURRENT_SIGNING_KEY: z.string().optional(),
+  QSTASH_NEXT_SIGNING_KEY: z.string().optional(),
+  BLOB_READ_WRITE_TOKEN: z.string().optional(),
+  OTEL_SERVICE_NAME: z.string().default("ithaca-ui"),
+  HEALTH_CHECK_TOKEN: z.string().min(32).optional(),
+
   // Environment
   NODE_ENV: z
     .enum(["development", "production", "test"])

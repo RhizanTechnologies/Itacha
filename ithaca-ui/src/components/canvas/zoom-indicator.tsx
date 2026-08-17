@@ -12,7 +12,7 @@ export function ZoomIndicator() {
   // Track zoom level changes
   useEffect(() => {
     const camera = sigma.getCamera();
-    
+
     const updateZoom = () => {
       // Camera ratio is inverse of zoom (smaller = more zoomed in)
       const ratio = camera.ratio;
@@ -25,7 +25,7 @@ export function ZoomIndicator() {
 
     // Listen for camera updates
     camera.on("updated", updateZoom);
-    
+
     return () => {
       camera.off("updated", updateZoom);
     };
@@ -56,23 +56,23 @@ export function ZoomIndicator() {
   const zone = getZoomZone();
 
   return (
-    <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 p-1.5 bg-card/90 backdrop-blur border border-border rounded-full shadow-2xl">
+    <div className="bg-card/90 border-border absolute bottom-16 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full border p-1.5 shadow-2xl backdrop-blur">
       {/* Zoom Out */}
       <button
         onClick={handleZoomOut}
-        className="w-8 h-8 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+        className="text-muted-foreground hover:bg-muted hover:text-foreground flex h-8 w-8 items-center justify-center rounded-full transition-colors"
         title="Zoom Out"
       >
         <Minus className="h-4 w-4" />
       </button>
 
       {/* Zoom Level Display */}
-      <div className="px-3 min-w-[60px] text-center">
-        <span className="text-foreground text-xs font-mono font-medium">
+      <div className="min-w-[60px] px-3 text-center">
+        <span className="text-foreground font-mono text-xs font-medium">
           {zoomLevel}%
         </span>
         {zone !== "linear" && (
-          <span className="block text-[9px] text-muted-foreground uppercase">
+          <span className="text-muted-foreground block text-[9px] uppercase">
             {zone}
           </span>
         )}
@@ -81,19 +81,19 @@ export function ZoomIndicator() {
       {/* Zoom In */}
       <button
         onClick={handleZoomIn}
-        className="w-8 h-8 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+        className="text-muted-foreground hover:bg-muted hover:text-foreground flex h-8 w-8 items-center justify-center rounded-full transition-colors"
         title="Zoom In"
       >
         <Plus className="h-4 w-4" />
       </button>
 
       {/* Divider */}
-      <div className="w-px h-4 bg-border mx-1" />
+      <div className="bg-border mx-1 h-4 w-px" />
 
       {/* Reset/Center */}
       <button
         onClick={handleReset}
-        className="w-8 h-8 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+        className="text-muted-foreground hover:bg-muted hover:text-foreground flex h-8 w-8 items-center justify-center rounded-full transition-colors"
         title="Reset View"
       >
         <Crosshair className="h-4 w-4" />

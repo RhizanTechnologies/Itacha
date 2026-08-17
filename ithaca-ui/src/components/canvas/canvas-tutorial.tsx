@@ -199,7 +199,7 @@ export function TutorialOverlay({
   return (
     <AnimatePresence>
       <motion.div
-        className="fixed inset-0 z-[100] pointer-events-auto"
+        className="pointer-events-auto fixed inset-0 z-[100]"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -235,8 +235,8 @@ export function TutorialOverlay({
         <motion.div
           ref={tooltipRef}
           className={cn(
-            "absolute z-[101] w-full md:w-[360px] max-w-[calc(100vw-32px)]",
-            "bg-card border border-border rounded-xl shadow-2xl",
+            "absolute z-[101] w-full max-w-[calc(100vw-32px)] md:w-[360px]",
+            "bg-card border-border rounded-xl border shadow-2xl",
             "p-5",
           )}
           style={tooltipPosition}
@@ -247,28 +247,28 @@ export function TutorialOverlay({
           key={step.id}
         >
           {/* Header */}
-          <div className="flex items-start justify-between mb-3">
+          <div className="mb-3 flex items-start justify-between">
             <div className="flex items-center gap-2">
-              <div className="p-1.5 bg-primary/10 rounded-lg">
-                <Sparkles className="w-4 h-4 text-primary" />
+              <div className="bg-primary/10 rounded-lg p-1.5">
+                <Sparkles className="text-primary h-4 w-4" />
               </div>
-              <h3 className="text-base font-semibold text-foreground">
+              <h3 className="text-foreground text-base font-semibold">
                 {step.title}
               </h3>
             </div>
             {showSkip && (
               <button
                 onClick={onSkip}
-                className="p-1 hover:bg-muted rounded transition-colors -mr-1 -mt-1"
+                className="hover:bg-muted -mt-1 -mr-1 rounded p-1 transition-colors"
                 aria-label="Close tutorial"
               >
-                <X className="w-4 h-4 text-muted-foreground" />
+                <X className="text-muted-foreground h-4 w-4" />
               </button>
             )}
           </div>
 
           {/* Description */}
-          <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+          <p className="text-muted-foreground mb-4 text-sm leading-relaxed">
             {step.description}
           </p>
 
@@ -277,15 +277,15 @@ export function TutorialOverlay({
             {/* Progress */}
             {showProgress ? (
               <div className="flex items-center gap-2">
-                <div className="h-1.5 w-24 bg-muted rounded-full overflow-hidden">
+                <div className="bg-muted h-1.5 w-24 overflow-hidden rounded-full">
                   <motion.div
-                    className="h-full bg-primary rounded-full"
+                    className="bg-primary h-full rounded-full"
                     initial={{ width: 0 }}
                     animate={{ width: `${progress}%` }}
                     transition={{ duration: 0.3 }}
                   />
                 </div>
-                <span className="text-xs text-muted-foreground">
+                <span className="text-muted-foreground text-xs">
                   {stepIndex + 1} / {totalSteps}
                 </span>
               </div>
@@ -302,13 +302,13 @@ export function TutorialOverlay({
                   onClick={onPrevious}
                   className="gap-1"
                 >
-                  <ChevronLeft className="w-4 h-4" />
+                  <ChevronLeft className="h-4 w-4" />
                   Back
                 </Button>
               )}
               <Button size="sm" onClick={onNext} className="gap-1">
                 {isLastStep ? "Finish" : "Next"}
-                {!isLastStep && <ChevronRight className="w-4 h-4" />}
+                {!isLastStep && <ChevronRight className="h-4 w-4" />}
               </Button>
             </div>
           </div>
@@ -317,7 +317,7 @@ export function TutorialOverlay({
         {/* Pulse animation around target */}
         {targetRect && !step.highlightCanvas && (
           <motion.div
-            className="absolute pointer-events-none"
+            className="pointer-events-none absolute"
             style={{
               top: targetRect.top - spotlightPadding - 4,
               left: targetRect.left - spotlightPadding - 4,
@@ -383,7 +383,7 @@ export function TutorialStartButton({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ delay: 1, duration: 0.3 }}
       >
-        <Sparkles className="w-4 h-4" />
+        <Sparkles className="h-4 w-4" />
         Take a Tour
       </motion.button>
     );
@@ -394,8 +394,8 @@ export function TutorialStartButton({
     <button
       onClick={handleClick}
       className={cn(
-        "flex items-center justify-center w-8 h-8",
-        "bg-card/90 backdrop-blur-sm border border-border",
+        "flex h-8 w-8 items-center justify-center",
+        "bg-card/90 border-border border backdrop-blur-sm",
         "rounded-lg shadow-lg",
         "hover:bg-muted transition-colors",
         "group",
@@ -403,7 +403,7 @@ export function TutorialStartButton({
       title="Restart tutorial"
       aria-label="Restart tutorial"
     >
-      <Sparkles className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+      <Sparkles className="text-muted-foreground group-hover:text-primary h-4 w-4 transition-colors" />
     </button>
   );
 }

@@ -187,15 +187,15 @@ export function CommandBar({
       {!hideTrigger && (
         <button
           onClick={() => setOpen(true)}
-          className="fixed top-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-4 py-2.5 bg-background/95 backdrop-blur-sm border border-border/50 rounded-full shadow-lg hover:bg-muted/80 transition-all hover:scale-[1.02] active:scale-95 group w-full max-w-sm justify-between md:justify-start md:w-auto"
+          className="bg-background/95 border-border/50 hover:bg-muted/80 group fixed top-4 left-1/2 z-40 flex w-full max-w-sm -translate-x-1/2 items-center justify-between gap-2 rounded-full border px-4 py-2.5 shadow-lg backdrop-blur-sm transition-all hover:scale-[1.02] active:scale-95 md:w-auto md:justify-start"
         >
           <div className="flex items-center gap-2">
-            <Search className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-            <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
+            <Search className="text-muted-foreground group-hover:text-primary h-4 w-4 transition-colors" />
+            <span className="text-muted-foreground group-hover:text-foreground text-sm transition-colors">
               Search papers, actions...
             </span>
           </div>
-          <kbd className="hidden sm:inline-flex h-5 px-1.5 items-center gap-0.5 rounded border border-border bg-muted/50 font-mono text-[10px] font-medium text-muted-foreground">
+          <kbd className="border-border bg-muted/50 text-muted-foreground hidden h-5 items-center gap-0.5 rounded border px-1.5 font-mono text-[10px] font-medium sm:inline-flex">
             <span className="text-xs">⌘</span>K
           </kbd>
         </button>
@@ -204,8 +204,8 @@ export function CommandBar({
       {/* Command Dialog */}
       <CommandDialog open={open} onOpenChange={setOpen}>
         {/* Relationship Focus Selector — pick intent before searching */}
-        <div className="px-3 pt-3 pb-2 border-b border-border">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
+        <div className="border-border border-b px-3 pt-3 pb-2">
+          <p className="text-muted-foreground mb-2 text-[10px] font-bold tracking-wider uppercase">
             What are you looking for?
           </p>
           <div className="flex gap-1.5">
@@ -217,7 +217,7 @@ export function CommandBar({
                   key={opt.value}
                   onClick={() => setRelationshipFocus(opt.value)}
                   className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border transition-all",
+                    "flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-all",
                     isActive
                       ? opt.activeColor
                       : "border-border text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -243,16 +243,16 @@ export function CommandBar({
           <CommandEmpty>
             {isSearching ? (
               <div className="py-6 text-center">
-                <Loader2 className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50 animate-spin" />
-                <p className="text-sm text-muted-foreground">Searching...</p>
+                <Loader2 className="text-muted-foreground/50 mx-auto mb-2 h-8 w-8 animate-spin" />
+                <p className="text-muted-foreground text-sm">Searching...</p>
               </div>
             ) : (
               <div className="py-6 text-center">
-                <Search className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
-                <p className="text-sm text-muted-foreground">
+                <Search className="text-muted-foreground/50 mx-auto mb-2 h-8 w-8" />
+                <p className="text-muted-foreground text-sm">
                   No results found.
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-muted-foreground mt-1 text-xs">
                   Try searching for a paper title or author
                 </p>
               </div>
@@ -267,14 +267,14 @@ export function CommandBar({
                   key={paper.id}
                   value={paper.title}
                   onSelect={() => handleSelectPaper(paper.id)}
-                  className="py-3 cursor-pointer"
+                  className="cursor-pointer py-3"
                 >
-                  <FileText className="mr-3 h-5 w-5 text-muted-foreground/70" />
+                  <FileText className="text-muted-foreground/70 mr-3 h-5 w-5" />
                   <div className="flex flex-col gap-0.5">
-                    <span className="text-sm font-medium heading-text">
+                    <span className="heading-text text-sm font-medium">
                       {paper.title}
                     </span>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-muted-foreground text-xs">
                       {paper.authors} • {paper.year}
                     </span>
                   </div>
@@ -291,14 +291,14 @@ export function CommandBar({
                   key={topic.id}
                   value={`topic:${topic.title}`}
                   onSelect={() => handleSelectPaper(topic.id)}
-                  className="py-3 cursor-pointer"
+                  className="cursor-pointer py-3"
                 >
                   <BookOpen className="mr-3 h-5 w-5 text-violet-500/70" />
                   <div className="flex flex-col gap-0.5">
-                    <span className="text-sm font-medium heading-text">
+                    <span className="heading-text text-sm font-medium">
                       {topic.title}
                     </span>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-muted-foreground text-xs">
                       {topic.authors}
                     </span>
                   </div>
@@ -315,14 +315,14 @@ export function CommandBar({
                   key={paper.id}
                   value={paper.title}
                   onSelect={() => handleSelectPaper(paper.id)}
-                  className="py-3 cursor-pointer"
+                  className="cursor-pointer py-3"
                 >
-                  <History className="mr-3 h-5 w-5 text-muted-foreground/70" />
+                  <History className="text-muted-foreground/70 mr-3 h-5 w-5" />
                   <div className="flex flex-col gap-0.5">
-                    <span className="text-sm font-medium heading-text">
+                    <span className="heading-text text-sm font-medium">
                       {paper.title}
                     </span>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-muted-foreground text-xs">
                       {paper.authors} • {paper.year}
                     </span>
                   </div>

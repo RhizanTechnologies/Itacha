@@ -871,11 +871,7 @@ export const GraphLoader = memo(function GraphLoader({
           .map((edge) => {
             const edgeAttrs = graph.getEdgeAttributes(edge) as {
               edgeType?:
-                | "supports"
-                | "contradicts"
-                | "extends"
-                | "cites"
-                | "unknown";
+                "supports" | "contradicts" | "extends" | "cites" | "unknown";
               confidence?: number;
               snippet?: string;
               signalSource?: string;
@@ -959,11 +955,7 @@ export const GraphLoader = memo(function GraphLoader({
         const targetAttrs = graph.getNodeAttributes(graph.target(event.edge));
 
         const type = (attrs.edgeType || "cites") as
-          | "supports"
-          | "contradicts"
-          | "extends"
-          | "cites"
-          | "unknown";
+          "supports" | "contradicts" | "extends" | "cites" | "unknown";
 
         // Use real snippet from the classifier (stored as edge attribute)
         // Only fall back to template if no real snippet exists
@@ -1011,12 +1003,14 @@ export const GraphLoader = memo(function GraphLoader({
             title: sourceAttrs.title || sourceAttrs.label || "Source Paper",
             authors: sourceAttrs.authors || "Unknown",
             year: sourceAttrs.year || 2024,
+            openAccessUrl: sourceAttrs.openAccessUrl as string | undefined,
           },
           targetPaper: {
             id: graph.target(event.edge),
             title: targetAttrs.title || targetAttrs.label || "Target Paper",
             authors: targetAttrs.authors || "Unknown",
             year: targetAttrs.year || 2024,
+            openAccessUrl: targetAttrs.openAccessUrl as string | undefined,
           },
           snippets,
           signalSource: signalSource as EdgeEvidence["signalSource"],

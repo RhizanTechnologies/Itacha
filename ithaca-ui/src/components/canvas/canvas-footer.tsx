@@ -63,9 +63,10 @@ export function CanvasFooter({
 
       {/* Main footer bar */}
       <div
+        data-testid="canvas-footer"
         className={cn(
           "flex items-center gap-2 px-3 py-2",
-          "bg-card/90 backdrop-blur-sm border border-border",
+          "bg-card/90 border-border border backdrop-blur-sm",
           "rounded-lg shadow-lg",
         )}
       >
@@ -74,37 +75,43 @@ export function CanvasFooter({
           onClick={() => setIsExpanded(!isExpanded)}
           className={cn(
             "flex items-center gap-1.5 px-2 py-1",
-            "text-xs text-muted-foreground",
+            "text-muted-foreground text-xs",
             "hover:text-foreground hover:bg-muted/50",
             "rounded transition-colors",
           )}
           title={isExpanded ? "Hide legend" : "Show legend"}
         >
-          <BookOpen className="w-3.5 h-3.5" />
+          <BookOpen className="h-3.5 w-3.5" />
           {isExpanded ? (
-            <ChevronDown className="w-3 h-3" />
+            <ChevronDown className="h-3 w-3" />
           ) : (
-            <ChevronUp className="w-3 h-3" />
+            <ChevronUp className="h-3 w-3" />
           )}
         </button>
 
         {/* Separator */}
-        <div className="h-4 w-px bg-border" />
+        <div className="bg-border h-4 w-px" />
 
         {/* Stats indicator */}
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <div className="text-muted-foreground flex items-center gap-2 text-xs">
           <StatusDot status={status} />
-          <span className="font-medium tabular-nums hidden md:inline">
+          <span
+            data-testid="canvas-node-count"
+            className="hidden font-medium tabular-nums md:inline"
+          >
             {nodeCount.toLocaleString()} nodes
           </span>
           <span className="text-muted-foreground/50 hidden md:inline">•</span>
-          <span className="font-medium tabular-nums hidden md:inline">
+          <span
+            data-testid="canvas-edge-count"
+            className="hidden font-medium tabular-nums md:inline"
+          >
             {edgeCount.toLocaleString()} edges
           </span>
         </div>
 
         {/* Separator */}
-        <div className="h-4 w-px bg-border" />
+        <div className="bg-border h-4 w-px" />
 
         {/* Action buttons */}
         <div className="flex items-center gap-1">
@@ -112,13 +119,13 @@ export function CanvasFooter({
           <button
             onClick={onKeyboardHelpClick}
             className={cn(
-              "flex items-center justify-center w-7 h-7",
+              "flex h-7 w-7 items-center justify-center",
               "text-muted-foreground hover:text-foreground",
               "hover:bg-muted/50 rounded transition-colors",
             )}
             title="Keyboard shortcuts (?)"
           >
-            <Keyboard className="w-4 h-4" />
+            <Keyboard className="h-4 w-4" />
           </button>
 
           {/* Tutorial */}
@@ -146,7 +153,7 @@ function StatusDot({ status }: { status: "live" | "loading" | "error" }) {
 
   return (
     <div className="flex items-center gap-1.5">
-      <div className={cn("w-1.5 h-1.5 rounded-full", colors[status])} />
+      <div className={cn("h-1.5 w-1.5 rounded-full", colors[status])} />
     </div>
   );
 }
@@ -183,7 +190,7 @@ function TutorialButton({
         animate={{ opacity: 1, scale: 1 }}
         transition={{ delay: 0.5 }}
       >
-        <Sparkles className="w-3.5 h-3.5" />
+        <Sparkles className="h-3.5 w-3.5" />
         Tour
       </motion.button>
     );
@@ -194,13 +201,13 @@ function TutorialButton({
     <button
       onClick={handleClick}
       className={cn(
-        "flex items-center justify-center w-7 h-7",
+        "flex h-7 w-7 items-center justify-center",
         "text-muted-foreground hover:text-primary",
         "hover:bg-muted/50 rounded transition-colors",
       )}
       title="Restart tutorial"
     >
-      <Sparkles className="w-4 h-4" />
+      <Sparkles className="h-4 w-4" />
     </button>
   );
 }

@@ -41,22 +41,22 @@ export function KeyboardShortcutsHelp({
           {KEYBOARD_SHORTCUTS.map((shortcut) => (
             <div
               key={shortcut.key}
-              className="flex items-center justify-between py-1.5 px-2 rounded-md hover:bg-muted/50 transition-colors"
+              className="hover:bg-muted/50 flex items-center justify-between rounded-md px-2 py-1.5 transition-colors"
             >
-              <span className="text-sm text-muted-foreground">
+              <span className="text-muted-foreground text-sm">
                 {shortcut.description}
               </span>
-              <kbd className="inline-flex items-center justify-center min-w-[2rem] px-2 py-1 text-xs font-mono font-semibold bg-muted border border-border rounded-md shadow-sm">
+              <kbd className="bg-muted border-border inline-flex min-w-[2rem] items-center justify-center rounded-md border px-2 py-1 font-mono text-xs font-semibold shadow-sm">
                 {shortcut.key}
               </kbd>
             </div>
           ))}
         </div>
 
-        <div className="pt-2 border-t text-xs text-muted-foreground">
+        <div className="text-muted-foreground border-t pt-2 text-xs">
           <p>
             Press{" "}
-            <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">?</kbd>{" "}
+            <kbd className="bg-muted rounded px-1.5 py-0.5 text-[10px]">?</kbd>{" "}
             anytime to show this help
           </p>
         </div>
@@ -73,11 +73,11 @@ export function KeyboardShortcutsButton({ onClick }: { onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="flex items-center justify-center w-8 h-8 bg-card/90 backdrop-blur-sm border border-border rounded-lg shadow-lg hover:bg-muted transition-colors"
+      className="bg-card/90 border-border hover:bg-muted flex h-8 w-8 items-center justify-center rounded-lg border shadow-lg backdrop-blur-sm transition-colors"
       title="Keyboard shortcuts (?)"
       aria-label="Show keyboard shortcuts"
     >
-      <Keyboard className="h-4 w-4 text-muted-foreground" />
+      <Keyboard className="text-muted-foreground h-4 w-4" />
     </button>
   );
 }

@@ -34,7 +34,8 @@ interface EdgeEvidencePosition {
   y: number;
 }
 
-type RelationshipFocus = "all" | "supports" | "contradicts" | "extends" | "cites";
+type RelationshipFocus =
+  "all" | "supports" | "contradicts" | "extends" | "cites";
 
 // =============================================================================
 // STATE
@@ -93,6 +94,7 @@ interface CanvasStoreState {
   // Features
   physicsEnabled: boolean;
   tutorialActive: boolean;
+  layoutMode: "force" | "temporal";
 }
 
 // =============================================================================
@@ -145,13 +147,18 @@ interface CanvasStoreActions {
   clearSelectedPaper: () => void;
 
   // Edge Evidence
-  showEdgeEvidence: (evidence: EdgeEvidence, position: EdgeEvidencePosition) => void;
+  showEdgeEvidence: (
+    evidence: EdgeEvidence,
+    position: EdgeEvidencePosition,
+  ) => void;
   clearEdgeEvidence: () => void;
 
   // Path Comparison
   setCalculatedPaths: (paths: SemanticPath[]) => void;
   setPathMode: (mode: PathMode) => void;
-  setHighlightedPath: (path: { nodeIds: Set<string>; edgeIds: Set<string> } | null) => void;
+  setHighlightedPath: (
+    path: { nodeIds: Set<string>; edgeIds: Set<string> } | null,
+  ) => void;
 
   // Search & Focus
   setSearchTarget: (target: string | null) => void;
@@ -161,6 +168,7 @@ interface CanvasStoreActions {
   // Features
   setPhysicsEnabled: (enabled: boolean) => void;
   setTutorialActive: (active: boolean) => void;
+  setLayoutMode: (mode: "force" | "temporal") => void;
 
   // Lifecycle
   reset: () => void;
@@ -218,6 +226,7 @@ const initialState: CanvasStoreState = {
 
   physicsEnabled: true,
   tutorialActive: false,
+  layoutMode: "force",
 };
 
 // =============================================================================
@@ -240,7 +249,8 @@ export const useCanvasStore = create<CanvasStoreState & CanvasStoreActions>()(
     setListPanelOpen: (open) => set({ listPanelOpen: open }),
     toggleFilters: () => set((s) => ({ filtersOpen: !s.filtersOpen })),
     toggleChat: () => set((s) => ({ chatOpen: !s.chatOpen })),
-    toggleSelectionMode: () => set((s) => ({ selectionMode: !s.selectionMode })),
+    toggleSelectionMode: () =>
+      set((s) => ({ selectionMode: !s.selectionMode })),
     togglePhysics: () => set((s) => ({ physicsEnabled: !s.physicsEnabled })),
     closeAllPanels: () =>
       set({
@@ -258,7 +268,8 @@ export const useCanvasStore = create<CanvasStoreState & CanvasStoreActions>()(
         highlightedPath: null,
         calculatedPaths: [],
       }),
-    showToastMessage: (message) => set({ toastMessage: message, showToast: true }),
+    showToastMessage: (message) =>
+      set({ toastMessage: message, showToast: true }),
 
     // Loading
     setLoading: (loading) => set({ isLoading: loading }),
@@ -269,7 +280,8 @@ export const useCanvasStore = create<CanvasStoreState & CanvasStoreActions>()(
     setFilterStats: (stats) => set({ filterStats: stats }),
     setFilters: (filters) => set({ filters }),
     setPaperCount: (count) => set({ paperCount: count }),
-    triggerRefresh: () => set((s) => ({ refreshTrigger: s.refreshTrigger + 1 })),
+    triggerRefresh: () =>
+      set((s) => ({ refreshTrigger: s.refreshTrigger + 1 })),
     setSolidNodes: (nodes) => set({ solidNodes: nodes }),
     addSolidNode: (nodeId) => {
       const next = new Set(get().solidNodes);
@@ -304,7 +316,11 @@ export const useCanvasStore = create<CanvasStoreState & CanvasStoreActions>()(
 
     // Paper Inspector
     selectPaper: (paper, evidence) =>
-      set({ selectedPaper: paper, paperEvidence: evidence, inspectorOpen: true }),
+      set({
+        selectedPaper: paper,
+        paperEvidence: evidence,
+        inspectorOpen: true,
+      }),
     clearSelectedPaper: () =>
       set({ selectedPaper: null, paperEvidence: [], inspectorOpen: false }),
 
@@ -326,6 +342,11 @@ export const useCanvasStore = create<CanvasStoreState & CanvasStoreActions>()(
     // Features
     setPhysicsEnabled: (enabled) => set({ physicsEnabled: enabled }),
     setTutorialActive: (active) => set({ tutorialActive: active }),
+    setLayoutMode: (mode) =>
+      set({
+        layoutMode: mode,
+        physicsEnabled: mode === "force",
+      }),
 
     // Lifecycle
     reset: () => set(initialState),

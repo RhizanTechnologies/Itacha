@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle2, AlertTriangle, XCircle, Loader2, RefreshCw } from "lucide-react";
+import {
+  CheckCircle2,
+  AlertTriangle,
+  XCircle,
+  Loader2,
+  RefreshCw,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface ServiceStatus {
@@ -64,26 +70,26 @@ export default function StatusPage() {
   );
 
   return (
-    <div className="container mx-auto px-4 py-16 max-w-3xl">
-      <div className="text-center mb-12">
-        <h1 className="text-4xl font-bold mb-4">System Status</h1>
+    <div className="container mx-auto max-w-3xl px-4 py-16">
+      <div className="mb-12 text-center">
+        <h1 className="mb-4 text-4xl font-bold">System Status</h1>
         {loading ? (
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-muted text-muted-foreground font-medium">
+          <div className="bg-muted text-muted-foreground inline-flex items-center gap-2 rounded-full px-4 py-2 font-medium">
             <Loader2 className="h-5 w-5 animate-spin" />
             Checking services...
           </div>
         ) : error ? (
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-red-500/10 text-red-700 dark:text-red-400 font-medium">
+          <div className="inline-flex items-center gap-2 rounded-full bg-red-500/10 px-4 py-2 font-medium text-red-700 dark:text-red-400">
             <XCircle className="h-5 w-5" />
             Unable to reach health endpoint
           </div>
         ) : allOperational ? (
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-500/10 text-green-700 dark:text-green-400 font-medium">
+          <div className="inline-flex items-center gap-2 rounded-full bg-green-500/10 px-4 py-2 font-medium text-green-700 dark:text-green-400">
             <CheckCircle2 className="h-5 w-5" />
             All Systems Operational
           </div>
         ) : (
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 font-medium">
+          <div className="inline-flex items-center gap-2 rounded-full bg-yellow-500/10 px-4 py-2 font-medium text-yellow-700 dark:text-yellow-400">
             <AlertTriangle className="h-5 w-5" />
             Some Services Degraded
           </div>
@@ -98,11 +104,11 @@ export default function StatusPage() {
             return (
               <div
                 key={service.name}
-                className="p-6 rounded-xl border border-border bg-card flex items-center justify-between"
+                className="border-border bg-card flex items-center justify-between rounded-xl border p-6"
               >
                 <div>
                   <h3 className="font-semibold">{service.name}</h3>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-muted-foreground text-sm">
                     {service.description}
                     {service.latencyMs != null && (
                       <span className="ml-2 text-xs">
@@ -135,9 +141,8 @@ export default function StatusPage() {
           Refresh
         </Button>
         {health?.checkedAt && (
-          <span className="text-sm text-muted-foreground">
-            Last checked:{" "}
-            {new Date(health.checkedAt).toLocaleTimeString()}
+          <span className="text-muted-foreground text-sm">
+            Last checked: {new Date(health.checkedAt).toLocaleTimeString()}
           </span>
         )}
       </div>

@@ -696,13 +696,13 @@ export function AnimatedDemo() {
   };
 
   return (
-    <div className="relative w-full aspect-[4/3] sm:aspect-video bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 rounded-lg sm:rounded-xl overflow-hidden select-none">
+    <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 select-none sm:aspect-video sm:rounded-xl">
       {/* Animated background particles */}
       <BackgroundParticles />
 
       {/* Grid overlay */}
       <div className="absolute inset-0 opacity-[0.07]">
-        <svg className="w-full h-full">
+        <svg className="h-full w-full">
           <defs>
             <pattern
               id="demo-grid"
@@ -725,19 +725,19 @@ export function AnimatedDemo() {
 
       {/* Search bar */}
       <motion.div
-        className="absolute top-3 sm:top-5 left-1/2 -translate-x-1/2 w-[88%] sm:w-[70%] md:w-[55%] max-w-lg z-20"
+        className="absolute top-3 left-1/2 z-20 w-[88%] max-w-lg -translate-x-1/2 sm:top-5 sm:w-[70%] md:w-[55%]"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
         <div className="relative">
-          <div className="bg-slate-800/90 backdrop-blur-md rounded-lg sm:rounded-xl border border-slate-700/80 px-3 sm:px-4 py-2 sm:py-3 flex items-center gap-2 sm:gap-3 shadow-xl">
+          <div className="flex items-center gap-2 rounded-lg border border-slate-700/80 bg-slate-800/90 px-3 py-2 shadow-xl backdrop-blur-md sm:gap-3 sm:rounded-xl sm:px-4 sm:py-3">
             <SearchIcon className="hidden sm:block" />
-            <span className="text-slate-200 text-xs sm:text-sm flex-1 font-mono tracking-tight truncate">
+            <span className="flex-1 truncate font-mono text-xs tracking-tight text-slate-200 sm:text-sm">
               {searchText}
               {(phase === "typing" || phase === "idle") && (
                 <motion.span
-                  className="inline-block w-0.5 h-4 bg-primary ml-0.5 -mb-0.5"
+                  className="bg-primary -mb-0.5 ml-0.5 inline-block h-4 w-0.5"
                   animate={{ opacity: [1, 0] }}
                   transition={{ duration: 0.53, repeat: Infinity }}
                 />
@@ -747,7 +747,7 @@ export function AnimatedDemo() {
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
-                className="text-xs text-slate-500 bg-slate-700/50 px-2 py-0.5 rounded"
+                className="rounded bg-slate-700/50 px-2 py-0.5 text-xs text-slate-500"
               >
                 ⏎
               </motion.div>
@@ -761,7 +761,7 @@ export function AnimatedDemo() {
                 initial={{ opacity: 0, y: -10, scaleY: 0.8 }}
                 animate={{ opacity: 1, y: 0, scaleY: 1 }}
                 exit={{ opacity: 0, y: -10, scaleY: 0.8 }}
-                className="absolute top-full left-0 right-0 mt-1.5 sm:mt-2 bg-slate-800/95 backdrop-blur-md rounded-lg border border-slate-700/80 overflow-hidden shadow-2xl origin-top"
+                className="absolute top-full right-0 left-0 mt-1.5 origin-top overflow-hidden rounded-lg border border-slate-700/80 bg-slate-800/95 shadow-2xl backdrop-blur-md sm:mt-2"
               >
                 {scenario.suggestions
                   .slice(
@@ -776,7 +776,7 @@ export function AnimatedDemo() {
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: i * 0.1 }}
-                      className={`px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm flex items-center gap-2 sm:gap-3 ${
+                      className={`flex items-center gap-2 px-3 py-2 text-xs sm:gap-3 sm:px-4 sm:py-2.5 sm:text-sm ${
                         i === 0
                           ? "bg-primary/20 text-primary"
                           : "text-slate-300 hover:bg-slate-700/50"
@@ -785,7 +785,7 @@ export function AnimatedDemo() {
                       <SearchIcon small className="hidden sm:block" />
                       <span className="truncate">{suggestion}</span>
                       {i === 0 && (
-                        <span className="ml-auto text-[8px] sm:text-[10px] text-primary/70 bg-primary/10 px-1 sm:px-1.5 py-0.5 rounded whitespace-nowrap">
+                        <span className="text-primary/70 bg-primary/10 ml-auto rounded px-1 py-0.5 text-[8px] whitespace-nowrap sm:px-1.5 sm:text-[10px]">
                           Top result
                         </span>
                       )}
@@ -801,7 +801,7 @@ export function AnimatedDemo() {
       <AnimatePresence>
         {phase === "loading" && (
           <motion.div
-            className="absolute inset-0 flex items-center justify-center z-10"
+            className="absolute inset-0 z-10 flex items-center justify-center"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -811,7 +811,7 @@ export function AnimatedDemo() {
                 {[0, 1, 2].map((i) => (
                   <motion.div
                     key={i}
-                    className="w-2.5 h-2.5 rounded-full bg-primary"
+                    className="bg-primary h-2.5 w-2.5 rounded-full"
                     animate={{
                       scale: [1, 1.4, 1],
                       opacity: [0.5, 1, 0.5],
@@ -824,7 +824,7 @@ export function AnimatedDemo() {
                   />
                 ))}
               </div>
-              <span className="text-[10px] sm:text-xs text-slate-500">
+              <span className="text-[10px] text-slate-500 sm:text-xs">
                 Analyzing citation network...
               </span>
             </div>
@@ -834,15 +834,15 @@ export function AnimatedDemo() {
 
       {/* Main graph area */}
       <motion.div
-        className="absolute inset-0 pt-14 sm:pt-20 pb-10 sm:pb-12 px-2 sm:px-4"
+        className="absolute inset-0 px-2 pt-14 pb-10 sm:px-4 sm:pt-20 sm:pb-12"
         animate={{ scale: graphScale }}
         transition={{ type: "spring", damping: 20 }}
       >
         {/* Graph content container - shared coordinate system for nodes AND edges */}
-        <div className="relative w-full h-full">
+        <div className="relative h-full w-full">
           {/* Edges SVG layer */}
           <svg
-            className="absolute inset-0 w-full h-full pointer-events-none"
+            className="pointer-events-none absolute inset-0 h-full w-full"
             preserveAspectRatio="none"
           >
             <defs>
@@ -941,7 +941,7 @@ export function AnimatedDemo() {
               return (
                 <motion.div
                   key={node.id}
-                  className="absolute -translate-x-1/2 -translate-y-1/2 z-10"
+                  className="absolute z-10 -translate-x-1/2 -translate-y-1/2"
                   style={{ left: pos.left, top: pos.top }}
                   initial={{ scale: 0, opacity: 0 }}
                   animate={{
@@ -971,7 +971,7 @@ export function AnimatedDemo() {
                   {/* Hover ring */}
                   {isHovered && !isSelected && (
                     <motion.div
-                      className="absolute rounded-full border-2 border-primary/50"
+                      className="border-primary/50 absolute rounded-full border-2"
                       style={{
                         width: node.size + 12,
                         height: node.size + 12,
@@ -987,7 +987,7 @@ export function AnimatedDemo() {
                   <motion.div
                     className={`rounded-full shadow-lg transition-all duration-200 ${
                       isSelected
-                        ? "bg-primary ring-2 ring-primary ring-offset-2 ring-offset-slate-900"
+                        ? "bg-primary ring-primary ring-2 ring-offset-2 ring-offset-slate-900"
                         : isHovered
                           ? "bg-slate-600 ring-2 ring-slate-500"
                           : "bg-slate-700"
@@ -1008,7 +1008,7 @@ export function AnimatedDemo() {
                       isHovered ||
                       selectedNodes.length === 0) && (
                       <motion.div
-                        className={`absolute top-full mt-1 sm:mt-1.5 left-1/2 -translate-x-1/2 whitespace-nowrap ${
+                        className={`absolute top-full left-1/2 mt-1 -translate-x-1/2 whitespace-nowrap sm:mt-1.5 ${
                           !isSelected && !isHovered ? "hidden sm:block" : ""
                         }`}
                         initial={{ opacity: 0, y: -5 }}
@@ -1016,7 +1016,7 @@ export function AnimatedDemo() {
                         exit={{ opacity: 0, y: -5 }}
                         transition={{ duration: 0.2 }}
                       >
-                        <div className="text-[8px] sm:text-[10px] text-slate-300 bg-slate-900/90 backdrop-blur-sm px-1.5 sm:px-2 py-0.5 sm:py-1 rounded sm:rounded-md border border-slate-700/50 shadow-lg max-w-[80px] sm:max-w-none truncate">
+                        <div className="max-w-[80px] truncate rounded border border-slate-700/50 bg-slate-900/90 px-1.5 py-0.5 text-[8px] text-slate-300 shadow-lg backdrop-blur-sm sm:max-w-none sm:rounded-md sm:px-2 sm:py-1 sm:text-[10px]">
                           {node.label}
                         </div>
                       </motion.div>
@@ -1027,19 +1027,19 @@ export function AnimatedDemo() {
                   <AnimatePresence>
                     {isHovered && (
                       <motion.div
-                        className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-48 hidden sm:block"
+                        className="absolute bottom-full left-1/2 mb-2 hidden w-48 -translate-x-1/2 sm:block"
                         initial={{ opacity: 0, y: 10, scale: 0.9 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 10, scale: 0.9 }}
                       >
-                        <div className="bg-slate-800/95 backdrop-blur-md rounded-lg border border-slate-700 p-3 shadow-2xl">
-                          <div className="text-[10px] text-slate-500 mb-1">
+                        <div className="rounded-lg border border-slate-700 bg-slate-800/95 p-3 shadow-2xl backdrop-blur-md">
+                          <div className="mb-1 text-[10px] text-slate-500">
                             {node.journal}
                           </div>
-                          <div className="text-xs text-slate-200 font-medium">
+                          <div className="text-xs font-medium text-slate-200">
                             {node.author}
                           </div>
-                          <div className="text-[10px] text-slate-400 mt-1">
+                          <div className="mt-1 text-[10px] text-slate-400">
                             {node.year}
                           </div>
                         </div>
@@ -1057,37 +1057,37 @@ export function AnimatedDemo() {
       <AnimatePresence>
         {showInspector && (
           <motion.div
-            className="absolute right-3 top-16 bottom-14 w-56 z-20 hidden md:block"
+            className="absolute top-16 right-3 bottom-14 z-20 hidden w-56 md:block"
             initial={{ x: 240, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: 240, opacity: 0 }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
           >
-            <div className="h-full bg-slate-800/95 backdrop-blur-md rounded-xl border border-slate-700/80 overflow-hidden shadow-2xl flex flex-col">
+            <div className="flex h-full flex-col overflow-hidden rounded-xl border border-slate-700/80 bg-slate-800/95 shadow-2xl backdrop-blur-md">
               {/* Header */}
-              <div className="p-3 border-b border-slate-700/80 bg-slate-800/50">
-                <div className="flex items-center gap-2 text-[10px] text-slate-400 mb-1.5">
-                  <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+              <div className="border-b border-slate-700/80 bg-slate-800/50 p-3">
+                <div className="mb-1.5 flex items-center gap-2 text-[10px] text-slate-400">
+                  <span className="bg-primary h-2 w-2 animate-pulse rounded-full" />
                   Selected Paper
                 </div>
-                <h3 className="text-xs font-semibold text-slate-100 leading-tight">
+                <h3 className="text-xs leading-tight font-semibold text-slate-100">
                   {scenario.nodes[0].label}
                 </h3>
               </div>
 
               {/* Content */}
-              <div className="p-3 space-y-3 flex-1 overflow-auto">
+              <div className="flex-1 space-y-3 overflow-auto p-3">
                 <div>
-                  <div className="text-[9px] text-slate-500 uppercase tracking-wider mb-1">
+                  <div className="mb-1 text-[9px] tracking-wider text-slate-500 uppercase">
                     Title
                   </div>
-                  <div className="text-[11px] text-slate-300 leading-relaxed">
+                  <div className="text-[11px] leading-relaxed text-slate-300">
                     {scenario.centralPaper.title}
                   </div>
                 </div>
 
                 <div>
-                  <div className="text-[9px] text-slate-500 uppercase tracking-wider mb-1">
+                  <div className="mb-1 text-[9px] tracking-wider text-slate-500 uppercase">
                     Journal
                   </div>
                   <div className="text-[11px] text-slate-300">
@@ -1096,7 +1096,7 @@ export function AnimatedDemo() {
                 </div>
 
                 <div>
-                  <div className="text-[9px] text-slate-500 uppercase tracking-wider mb-1.5">
+                  <div className="mb-1.5 text-[9px] tracking-wider text-slate-500 uppercase">
                     Citations
                   </div>
                   <div className="flex flex-wrap gap-1.5">
@@ -1116,22 +1116,22 @@ export function AnimatedDemo() {
                 </div>
 
                 <div>
-                  <div className="text-[9px] text-slate-500 uppercase tracking-wider mb-1">
+                  <div className="mb-1 text-[9px] tracking-wider text-slate-500 uppercase">
                     Abstract
                   </div>
-                  <div className="text-[10px] text-slate-400 leading-relaxed line-clamp-4">
+                  <div className="line-clamp-4 text-[10px] leading-relaxed text-slate-400">
                     {scenario.centralPaper.abstract}
                   </div>
                 </div>
               </div>
 
               {/* Actions */}
-              <div className="p-2 border-t border-slate-700/80 bg-slate-800/30">
+              <div className="border-t border-slate-700/80 bg-slate-800/30 p-2">
                 <div className="flex gap-1.5">
-                  <div className="flex-1 text-center py-1.5 rounded bg-primary/20 text-primary text-[10px] font-medium">
+                  <div className="bg-primary/20 text-primary flex-1 rounded py-1.5 text-center text-[10px] font-medium">
                     View Paper
                   </div>
-                  <div className="flex-1 text-center py-1.5 rounded bg-slate-700/50 text-slate-400 text-[10px]">
+                  <div className="flex-1 rounded bg-slate-700/50 py-1.5 text-center text-[10px] text-slate-400">
                     Cite
                   </div>
                 </div>
@@ -1147,16 +1147,16 @@ export function AnimatedDemo() {
           <>
             {/* Desktop version */}
             <motion.div
-              className="absolute left-3 bottom-14 w-64 z-20 hidden sm:block"
+              className="absolute bottom-14 left-3 z-20 hidden w-64 sm:block"
               initial={{ y: 20, opacity: 0, scale: 0.9 }}
               animate={{ y: 0, opacity: 1, scale: 1 }}
               exit={{ y: 20, opacity: 0, scale: 0.9 }}
               transition={{ type: "spring", damping: 20 }}
             >
-              <div className="bg-slate-800/95 backdrop-blur-md rounded-xl border border-slate-700/80 shadow-2xl overflow-hidden">
+              <div className="overflow-hidden rounded-xl border border-slate-700/80 bg-slate-800/95 shadow-2xl backdrop-blur-md">
                 {/* Header */}
-                <div className="px-3 py-2 border-b border-slate-700/80 bg-gradient-to-r from-primary/20 to-transparent flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-full bg-primary/30 flex items-center justify-center">
+                <div className="from-primary/20 flex items-center gap-2 border-b border-slate-700/80 bg-gradient-to-r to-transparent px-3 py-2">
+                  <div className="bg-primary/30 flex h-5 w-5 items-center justify-center rounded-full">
                     <SparklesIcon />
                   </div>
                   <span className="text-[11px] font-medium text-slate-200">
@@ -1166,11 +1166,11 @@ export function AnimatedDemo() {
 
                 {/* Message */}
                 <div className="p-3">
-                  <div className="text-[11px] text-slate-300 leading-relaxed">
+                  <div className="text-[11px] leading-relaxed text-slate-300">
                     {aiTypingText}
                     {aiTypingText.length < scenario.aiInsight.length && (
                       <motion.span
-                        className="inline-block w-1 h-3 bg-primary/70 ml-0.5"
+                        className="bg-primary/70 ml-0.5 inline-block h-3 w-1"
                         animate={{ opacity: [1, 0] }}
                         transition={{ duration: 0.4, repeat: Infinity }}
                       />
@@ -1181,15 +1181,15 @@ export function AnimatedDemo() {
                 {/* Quick actions */}
                 {aiTypingText.length === scenario.aiInsight.length && (
                   <motion.div
-                    className="px-3 pb-3 flex gap-2"
+                    className="flex gap-2 px-3 pb-3"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.3 }}
                   >
-                    <div className="text-[9px] px-2 py-1 rounded-full bg-slate-700/50 text-slate-400 cursor-pointer hover:bg-slate-700">
+                    <div className="cursor-pointer rounded-full bg-slate-700/50 px-2 py-1 text-[9px] text-slate-400 hover:bg-slate-700">
                       Tell me more
                     </div>
-                    <div className="text-[9px] px-2 py-1 rounded-full bg-slate-700/50 text-slate-400 cursor-pointer hover:bg-slate-700">
+                    <div className="cursor-pointer rounded-full bg-slate-700/50 px-2 py-1 text-[9px] text-slate-400 hover:bg-slate-700">
                       Find similar
                     </div>
                   </motion.div>
@@ -1199,21 +1199,21 @@ export function AnimatedDemo() {
 
             {/* Mobile compact toast version */}
             <motion.div
-              className="absolute left-2 right-2 bottom-10 z-20 sm:hidden"
+              className="absolute right-2 bottom-10 left-2 z-20 sm:hidden"
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 20, opacity: 0 }}
             >
-              <div className="bg-slate-800/95 backdrop-blur-md rounded-lg border border-slate-700/80 shadow-xl px-3 py-2 flex items-start gap-2">
-                <div className="w-5 h-5 rounded-full bg-primary/30 flex items-center justify-center shrink-0 mt-0.5">
+              <div className="flex items-start gap-2 rounded-lg border border-slate-700/80 bg-slate-800/95 px-3 py-2 shadow-xl backdrop-blur-md">
+                <div className="bg-primary/30 mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full">
                   <SparklesIcon />
                 </div>
-                <div className="text-[10px] text-slate-300 leading-relaxed line-clamp-2 flex-1">
+                <div className="line-clamp-2 flex-1 text-[10px] leading-relaxed text-slate-300">
                   {aiTypingText.slice(0, 80)}
                   {aiTypingText.length > 80 ? "..." : ""}
                   {aiTypingText.length < scenario.aiInsight.length && (
                     <motion.span
-                      className="inline-block w-1 h-2.5 bg-primary/70 ml-0.5"
+                      className="bg-primary/70 ml-0.5 inline-block h-2.5 w-1"
                       animate={{ opacity: [1, 0] }}
                       transition={{ duration: 0.4, repeat: Infinity }}
                     />
@@ -1229,16 +1229,16 @@ export function AnimatedDemo() {
       <AnimatePresence>
         {showPath && (
           <motion.div
-            className="absolute top-12 sm:top-16 left-1/2 -translate-x-1/2 z-20"
+            className="absolute top-12 left-1/2 z-20 -translate-x-1/2 sm:top-16"
             initial={{ y: -10, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: -10, opacity: 0 }}
           >
-            <div className="bg-slate-800/90 backdrop-blur-md rounded-full border border-slate-700 px-2.5 sm:px-4 py-1 sm:py-1.5 flex items-center gap-1.5 sm:gap-2 shadow-lg">
-              <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full bg-primary/20 flex items-center justify-center">
+            <div className="flex items-center gap-1.5 rounded-full border border-slate-700 bg-slate-800/90 px-2.5 py-1 shadow-lg backdrop-blur-md sm:gap-2 sm:px-4 sm:py-1.5">
+              <div className="bg-primary/20 flex h-3 w-3 items-center justify-center rounded-full sm:h-4 sm:w-4">
                 <PathIcon />
               </div>
-              <span className="text-[9px] sm:text-[11px] text-slate-300">
+              <span className="text-[9px] text-slate-300 sm:text-[11px]">
                 <span className="hidden sm:inline">
                   {scenario.pathDescription}
                 </span>
@@ -1251,7 +1251,7 @@ export function AnimatedDemo() {
 
       {/* Legend - compact on mobile */}
       <motion.div
-        className="absolute bottom-3 left-2 sm:left-3 flex items-center gap-2 sm:gap-4 z-10"
+        className="absolute bottom-3 left-2 z-10 flex items-center gap-2 sm:left-3 sm:gap-4"
         initial={{ opacity: 0 }}
         animate={{
           opacity: visibleEdges.length > 0 ? 1 : 0,
@@ -1261,10 +1261,10 @@ export function AnimatedDemo() {
         {Object.entries(EDGE_COLORS).map(([type, color]) => (
           <div key={type} className="flex items-center gap-1 sm:gap-1.5">
             <span
-              className="w-3 sm:w-4 h-0.5 rounded-full"
+              className="h-0.5 w-3 rounded-full sm:w-4"
               style={{ backgroundColor: color }}
             />
-            <span className="text-[8px] sm:text-[10px] text-slate-500 hidden sm:inline">
+            <span className="hidden text-[8px] text-slate-500 sm:inline sm:text-[10px]">
               {EDGE_LABELS[type as EdgeType]}
             </span>
           </div>
@@ -1275,14 +1275,14 @@ export function AnimatedDemo() {
       <AnimatePresence>
         {visibleNodes.length > 0 && (
           <motion.div
-            className="absolute bottom-3 right-2 sm:right-3 z-10"
+            className="absolute right-2 bottom-3 z-10 sm:right-3"
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
             transition={{ delay: 0.5 }}
           >
-            <div className="px-2 sm:px-3 py-1 sm:py-1.5 rounded-full bg-slate-800/80 border border-slate-700/80 text-[8px] sm:text-[10px] text-slate-400 flex items-center gap-1.5 sm:gap-2 backdrop-blur-sm">
-              <span className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-primary animate-pulse" />
+            <div className="flex items-center gap-1.5 rounded-full border border-slate-700/80 bg-slate-800/80 px-2 py-1 text-[8px] text-slate-400 backdrop-blur-sm sm:gap-2 sm:px-3 sm:py-1.5 sm:text-[10px]">
+              <span className="bg-primary h-1 w-1 animate-pulse rounded-full sm:h-1.5 sm:w-1.5" />
               <span className="hidden sm:inline">
                 {visibleNodes.length} papers · {visibleEdges.length} citations
               </span>
@@ -1295,16 +1295,16 @@ export function AnimatedDemo() {
       </AnimatePresence>
 
       {/* Scenario indicator with replay button */}
-      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-3 z-10">
+      <div className="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-3">
         {/* Replay button */}
         <button
           onClick={handleReplay}
-          className="p-1.5 rounded-full bg-slate-800/80 border border-slate-700/80 hover:bg-slate-700 hover:border-slate-600 transition-colors backdrop-blur-sm group"
+          className="group rounded-full border border-slate-700/80 bg-slate-800/80 p-1.5 backdrop-blur-sm transition-colors hover:border-slate-600 hover:bg-slate-700"
           aria-label="Replay demo"
           title="Replay demo"
         >
           <svg
-            className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-400 group-hover:text-primary transition-colors"
+            className="group-hover:text-primary h-3 w-3 text-slate-400 transition-colors sm:h-3.5 sm:w-3.5"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -1324,9 +1324,9 @@ export function AnimatedDemo() {
             <button
               key={i}
               onClick={() => handleJumpToScenario(i)}
-              className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full transition-all hover:scale-125 ${
+              className={`h-2 w-2 rounded-full transition-all hover:scale-125 sm:h-2.5 sm:w-2.5 ${
                 i === scenarioIndex
-                  ? "bg-primary ring-2 ring-primary/30"
+                  ? "bg-primary ring-primary/30 ring-2"
                   : "bg-slate-700 hover:bg-slate-600"
               }`}
               aria-label={`Go to scenario ${i + 1}`}
@@ -1349,7 +1349,7 @@ function BackgroundParticles() {
       {Array.from({ length: 20 }).map((_, i) => (
         <motion.div
           key={i}
-          className="absolute w-1 h-1 rounded-full bg-primary/30"
+          className="bg-primary/30 absolute h-1 w-1 rounded-full"
           style={{
             left: `${Math.random() * 100}%`,
             top: `${Math.random() * 100}%`,
@@ -1378,7 +1378,7 @@ function SearchIcon({
 }) {
   return (
     <svg
-      className={`${small ? "w-3.5 h-3.5" : "w-4 h-4"} text-slate-400 ${className || ""}`}
+      className={`${small ? "h-3.5 w-3.5" : "h-4 w-4"} text-slate-400 ${className || ""}`}
       fill="none"
       viewBox="0 0 24 24"
       stroke="currentColor"
@@ -1396,7 +1396,7 @@ function SearchIcon({
 function SparklesIcon() {
   return (
     <svg
-      className="w-3 h-3 text-primary"
+      className="text-primary h-3 w-3"
       fill="currentColor"
       viewBox="0 0 20 20"
     >
@@ -1408,7 +1408,7 @@ function SparklesIcon() {
 function PathIcon() {
   return (
     <svg
-      className="w-2.5 h-2.5 text-primary"
+      className="text-primary h-2.5 w-2.5"
       fill="none"
       viewBox="0 0 24 24"
       stroke="currentColor"
@@ -1432,7 +1432,7 @@ function CitationBadge({ type, count }: { type: EdgeType; count: number }) {
 
   return (
     <span
-      className={`px-2 py-0.5 rounded text-[9px] font-medium ${colors[type]}`}
+      className={`rounded px-2 py-0.5 text-[9px] font-medium ${colors[type]}`}
     >
       {count} {type}
     </span>

@@ -3,13 +3,16 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 ## 📚 Documentation
 
 ### User Flow & Authentication
+
 - **[Complete User Flow Guide](./docs/USER_FLOW.md)** - Registration, Sign-in, Onboarding, Usage, Logout
 - **[Authentication State Diagrams](./docs/AUTH_STATE_DIAGRAMS.md)** - Visual flowcharts and state machines
 
 ### Performance & Optimization
+
 - **[Performance Audit](./docs/performance-audit/README.md)** - Animation optimization & scroll performance fixes
 
 ### Codebase
+
 - **[Documentation Hub](./docs/)** - All project documentation
 - **[Codebase Organization](./docs/CLEANUP_SUMMARY.md)** - Project structure and standards
 
@@ -40,7 +43,7 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 - **Backend**: Next.js API Routes
 - **Authentication**: Better Auth v5
 - **Database**: PostgreSQL with Prisma ORM
-- **OAuth Providers**: Google, ORCID
+- **OAuth Providers**: Google (email/password also supported)
 - **Security**: CSRF protection, rate limiting, OWASP headers
 
 ## Project Structure
@@ -61,7 +64,7 @@ ithaca-ui/
 │   │   └── ui/            # UI primitives
 │   ├── hooks/             # Custom React hooks
 │   ├── lib/               # Utility libraries
-│   └── middleware.ts      # Next.js middleware
+│   └── proxy.ts           # Auth + security headers (Next.js proxy)
 ├── prisma/                # Database schema
 ├── docs/                  # Documentation
 ├── public/                # Static assets
@@ -71,13 +74,15 @@ ithaca-ui/
 ## Key Features
 
 ### Authentication
-- ✅ OAuth 2.0 (Google, ORCID)
+
+- ✅ OAuth 2.0 (Google)
 - ✅ Email + Password (with strength validation)
 - ✅ Session-based auth (7-day duration)
-- ✅ Route protection with middleware
+- ✅ Route protection via `src/proxy.ts`
 - ✅ CSRF protection
 
 ### User Experience
+
 - ✅ Sign-up / Registration
 - ✅ Sign-in / Login
 - ✅ Onboarding tutorial
@@ -85,12 +90,14 @@ ithaca-ui/
 - ✅ Smooth logout
 
 ### Performance
+
 - ✅ CSS containment for scroll optimization
 - ✅ Mobile animation optimization
 - ✅ GPU acceleration hints
 - ✅ Target: 55-60 FPS scroll performance
 
 ### Security
+
 - ✅ httpOnly cookies
 - ✅ Rate limiting (10 req/min)
 - ✅ OWASP security headers

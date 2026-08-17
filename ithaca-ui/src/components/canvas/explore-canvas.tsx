@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   SigmaContainer,
   ControlsContainer,
@@ -12,11 +19,15 @@ import { useTheme } from "next-themes";
 import Graph from "graphology";
 import { NodeCircleProgram } from "sigma/rendering";
 import { ForceAtlasControl } from "@/components/canvas/force-atlas-control";
+import { TemporalLayoutControl } from "@/components/canvas/temporal-layout-control";
+import { restoreForceLayout } from "@/lib/temporal-layout";
 import { NodeTooltip } from "@/components/canvas/node-tooltip";
 import { EdgeLabels } from "@/components/canvas/edge-labels";
 import { CanvasErrorBoundary } from "@/components/canvas/canvas-error-boundary";
 import { CanvasLoadingOverlay } from "@/components/canvas/canvas-loading";
 import { CanvasEmptyState } from "@/components/canvas/canvas-empty-state";
+import { ExploreUrlHydrator } from "@/components/canvas/explore-url-hydrator";
+import { E2eEdgeOpener } from "@/components/canvas/e2e-edge-opener";
 import { PaperInspector } from "@/components/inspector/paper-inspector";
 import { PaperListPanel } from "@/components/canvas/paper-list-panel";
 import { List } from "lucide-react";
@@ -53,6 +64,11 @@ import { KeyboardShortcutsHelp } from "@/components/canvas/keyboard-shortcuts-he
 import { useTutorial, CANVAS_TUTORIAL } from "@/hooks/useTutorial";
 import { TutorialOverlay } from "@/components/canvas/canvas-tutorial";
 import { CanvasFooter } from "@/components/canvas/canvas-footer";
+import { OnboardingDialog } from "@/components/auth/onboarding-dialog";
+import {
+  completeOnboarding,
+  needsOnboarding,
+} from "@/app/(app)/onboarding/actions";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
   OverlayManager,
@@ -138,6 +154,24 @@ export function ExploreCanvas() {
 
   // Initialize tutorial
   const tutorial = useTutorial(CANVAS_TUTORIAL);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const onboardingFinishedRef = useRef(false);
+
+  useEffect(() => {
+    void needsOnboarding().then((needed) => {
+      if (needed) setShowOnboarding(true);
+    });
+  }, []);
+
+  const handleOnboardingComplete = useCallback(() => {
+    if (onboardingFinishedRef.current) return;
+    onboardingFinishedRef.current = true;
+    setShowOnboarding(false);
+    void completeOnboarding();
+    if (!tutorial.hasSeenTutorial) {
+      tutorial.start();
+    }
+  }, [tutorial]);
 
   // Memoize the theme-aware hover drawer
   const themeAwareHoverDrawer = useMemo(
@@ -190,7 +224,11 @@ export function ExploreCanvas() {
   );
 
   const handleTooltipExpand = useCallback(
-    (nodeId: string, direction: "in" | "out", type?: "all" | "supports" | "contradicts" | "extends") => {
+    (
+      nodeId: string,
+      direction: "in" | "out",
+      type?: "all" | "supports" | "contradicts" | "extends",
+    ) => {
       refs.graphApiRef.current?.expandNode(nodeId, direction, type);
     },
     [refs],
@@ -270,9 +308,13 @@ export function ExploreCanvas() {
   );
 
   return (
-    <div className="h-full w-full flex flex-row">
+    <div className="flex h-full w-full flex-row">
+      <Suspense fallback={null}>
+        <ExploreUrlHydrator onSearchPaper={handleSearchPaper} />
+        <E2eEdgeOpener />
+      </Suspense>
       {/* Main Canvas Area */}
-      <div className="flex-1 h-full relative overflow-x-auto min-w-[320px]">
+      <div className="relative h-full min-w-[320px] flex-1 overflow-x-auto">
         <CanvasErrorBoundary
           onError={(error) => debug.error("Canvas rendering error:", error)}
         >
@@ -347,9 +389,29 @@ export function ExploreCanvas() {
               {!isMobile && <FullScreenControl />}
               {!isMobile && (
                 <ForceAtlasControl
-                  externalIsRunning={state.physicsEnabled}
-                  onToggle={() => actions.togglePhysics()}
+                  externalIsRunning={
+                    state.physicsEnabled && state.layoutMode === "force"
+                  }
+                  onToggle={() => {
+                    if (state.layoutMode === "temporal") {
+                      const graph = refs.graphRef.current;
+                      if (graph) {
+                        restoreForceLayout(graph);
+                        refs.sigmaRef.current?.refresh();
+                      }
+                      actions.setLayoutMode("force");
+                    }
+                    actions.togglePhysics();
+                  }}
                   nodeCount={state.graphStats.nodeCount}
+                />
+              )}
+              {!isMobile && (
+                <TemporalLayoutControl
+                  layoutMode={state.layoutMode}
+                  onChange={(mode) => actions.setLayoutMode(mode)}
+                  minYear={state.dataRanges.minYear}
+                  maxYear={state.dataRanges.maxYear}
                 />
               )}
             </ControlsContainer>
@@ -415,7 +477,7 @@ export function ExploreCanvas() {
                 <Button
                   variant={state.listPanelOpen ? "default" : "outline"}
                   size="icon"
-                  className="h-9 w-9 rounded-full shadow-md z-30 pointer-events-auto"
+                  className="pointer-events-auto z-30 h-9 w-9 rounded-full shadow-md"
                   onClick={() => actions.setListPanelOpen(!state.listPanelOpen)}
                   title="Toggle List View"
                 >
@@ -437,16 +499,16 @@ export function ExploreCanvas() {
 
           {state.focusModeNode && (
             <TopCenterZone className="animate-in slide-in-from-top-2 fade-in duration-300">
-              <div className="bg-primary/90 backdrop-blur-md text-primary-foreground px-4 py-2 rounded-full shadow-lg flex items-center gap-3 border border-primary-foreground/20">
+              <div className="bg-primary/90 text-primary-foreground border-primary-foreground/20 flex items-center gap-3 rounded-full border px-4 py-2 shadow-lg backdrop-blur-md">
                 <div className="flex flex-col items-center leading-none">
-                  <span className="text-[10px] font-medium opacity-80 uppercase tracking-widest">
+                  <span className="text-[10px] font-medium tracking-widest uppercase opacity-80">
                     Focus Mode
                   </span>
                 </div>
-                <div className="h-4 w-px bg-primary-foreground/30" />
+                <div className="bg-primary-foreground/30 h-4 w-px" />
                 <button
                   onClick={() => actions.setFocusModeNode(null)}
-                  className="text-xs font-bold hover:bg-white/20 px-2 py-1 rounded transition-colors"
+                  className="rounded px-2 py-1 text-xs font-bold transition-colors hover:bg-white/20"
                 >
                   Exit Focus
                 </button>
@@ -501,10 +563,22 @@ export function ExploreCanvas() {
             <BottomRightZone>
               <button
                 onClick={() => actions.setSaveDialogOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-card/90 backdrop-blur border border-border text-sm font-medium hover:bg-muted transition-colors shadow-sm"
+                className="bg-card/90 border-border hover:bg-muted flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium shadow-sm backdrop-blur transition-colors"
                 title="Save graph to dashboard"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
+                </svg>
                 Save
               </button>
               <ShareButton onClick={() => actions.setShareOpen(true)} />
@@ -644,6 +718,15 @@ export function ExploreCanvas() {
           paths={state.calculatedPaths}
           currentMode={state.pathMode}
           onModeChange={switchPathMode}
+        />
+
+        <OnboardingDialog
+          open={showOnboarding}
+          onOpenChange={(open) => {
+            if (!open) handleOnboardingComplete();
+            else setShowOnboarding(true);
+          }}
+          onComplete={handleOnboardingComplete}
         />
 
         <KeyboardShortcutsHelp

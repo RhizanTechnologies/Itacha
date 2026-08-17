@@ -1,29 +1,35 @@
-/**
- * Citation Classification API Route
- *
- * POST /api/classify
- * Body: { citations: [{ citingId, citedId, citingTitle, citingAbstract, citedTitle, citedAbstract }] }
- * Returns: { results: ClassificationResult[], stats: { cached, classified, failed } }
- *
- * Supports both single and batch classification.
- * Cache-first: only calls LLM for pairs not already in the database.
- */
-
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { z } from "zod";
 import {
   classifyBatch,
   type ClassificationInput,
 } from "@/lib/api/citation-classifier";
+import { withApiTelemetry } from "@/lib/api/api-telemetry";
+import { getOptionalOrganizationContextFromRequest } from "@/lib/api/request-organization";
+import {
+  apiError,
+  apiSuccess,
+  createApiContext,
+} from "@/lib/api/api-contracts";
 import {
   requireApiAuth,
   checkApiRateLimit,
   isRejection,
 } from "@/lib/api/api-auth";
-
-// =============================================================================
-// VALIDATION
-// =============================================================================
+import {
+  assertAiBudgetAvailable,
+  recordAiUsage,
+} from "@/lib/platform/ai-usage";
+import { FEATURE_FLAGS } from "@/lib/platform/feature-flags";
+import { isFeatureEnabledForOrganization } from "@/lib/platform/org-rollout";
+import { PLATFORM_LIMITS } from "@/lib/platform/limits";
+import {
+  buildAiProvenance,
+  CLASSIFIER_PROMPT_VERSION,
+  containsPromptInjectionRisk,
+} from "@/modules/ai/provenance";
+import { recordAuditEvent } from "@/lib/organization-context";
+import { AuthorizationError } from "@/lib/tenancy-policy";
 
 const citationSchema = z.object({
   citingId: z.string().min(1),
@@ -37,60 +43,149 @@ const citationSchema = z.object({
 });
 
 const requestSchema = z.object({
-  citations: z.array(citationSchema).min(1).max(50),
+  citations: z
+    .array(citationSchema)
+    .min(1)
+    .max(PLATFORM_LIMITS.ai.maxBatchSize),
 });
 
-// =============================================================================
-// HANDLER
-// =============================================================================
-
 export async function POST(request: NextRequest) {
-  const authResult = await requireApiAuth(request);
+  const context = createApiContext(request);
+  const orgContext = await getOptionalOrganizationContextFromRequest(request);
+  if (
+    !(await isFeatureEnabledForOrganization(
+      FEATURE_FLAGS.aiClassification,
+      orgContext?.organizationId,
+    ))
+  ) {
+    return apiError(
+      "SERVICE_UNAVAILABLE",
+      "AI classification is temporarily disabled",
+      context,
+    );
+  }
+
+  const authResult = await requireApiAuth(request, context);
   if (isRejection(authResult)) return authResult;
 
   const rateLimited = await checkApiRateLimit(
     authResult.user.id,
     "classify",
     30,
+    context,
+    orgContext?.organizationId,
   );
   if (rateLimited) return rateLimited;
 
   try {
-    const body = await request.json();
-    const parsed = requestSchema.safeParse(body);
+    return await withApiTelemetry(
+      context,
+      {
+        route: "/api/classify",
+        userId: authResult.user.id,
+        organizationId: orgContext?.organizationId,
+      },
+      async () => {
+        const body = await request.json();
+        const parsed = requestSchema.safeParse(body);
+        if (!parsed.success) {
+          throw new Error("Invalid request body");
+        }
 
-    if (!parsed.success) {
-      return NextResponse.json(
-        {
-          error: "Invalid request body",
-          details: parsed.error.flatten().fieldErrors,
-        },
-        { status: 400 },
-      );
-    }
+        const { citations } = parsed.data;
+        for (const citation of citations) {
+          const untrustedText = [
+            citation.citingTitle,
+            citation.citedTitle,
+            citation.citingAbstract,
+            citation.citedAbstract,
+            ...(citation.citationContexts ?? []),
+          ].join("\n");
+          if (containsPromptInjectionRisk(untrustedText)) {
+            throw new Error("Unsupported instruction patterns in citation content");
+          }
+        }
 
-    const { citations } = parsed.data;
+        if (orgContext) {
+          await assertAiBudgetAvailable(
+            orgContext.organizationId,
+            orgContext.organization.maxAiRequests,
+            citations.length,
+          );
+        }
 
-    const results = await classifyBatch(
-      citations as ClassificationInput[],
-      3,
+        const results = await classifyBatch(
+          citations as ClassificationInput[],
+          3,
+        );
+
+        if (orgContext) {
+          const classified = results.filter((result) => !result.cached);
+          if (classified.length > 0) {
+            await recordAiUsage({
+              organizationId: orgContext.organizationId,
+              userId: orgContext.userId,
+              operation: "classify",
+              provider: classified[0]?.provider ?? "unknown",
+              model: "citation-classifier",
+              inputText: JSON.stringify(citations),
+              outputText: JSON.stringify(results),
+            });
+            await recordAuditEvent(orgContext, {
+              action: "ai.classify",
+              entityType: "CitationCache",
+              metadata: {
+                batchSize: citations.length,
+                classified: classified.length,
+              },
+            });
+          }
+        }
+
+        const stats = {
+          total: results.length,
+          cached: results.filter((result) => result.cached).length,
+          classified: results.filter(
+            (result) => !result.cached && result.provider !== "fallback",
+          ).length,
+          failed: results.filter((result) => result.provider === "fallback")
+            .length,
+        };
+
+        const provenance = buildAiProvenance({
+          provider: "ithaca-classifier",
+          model: "citation-classifier",
+          promptVersion: CLASSIFIER_PROMPT_VERSION,
+          classifierVersion: 7,
+          sourceIds: citations.flatMap((citation) => [
+            citation.citingId,
+            citation.citedId,
+          ]),
+          evidence:
+            citations.flatMap((citation) => citation.citationContexts ?? [])
+              .length > 0
+              ? citations.flatMap((citation) => citation.citationContexts ?? [])
+              : ["abstract-and-title"],
+          confidence: stats.failed === 0 ? 1 : 0.5,
+        });
+
+        return apiSuccess({ results, stats, provenance }, context);
+      },
     );
-
-    const stats = {
-      total: results.length,
-      cached: results.filter((r) => r.cached).length,
-      classified: results.filter((r) => !r.cached && r.provider !== "fallback")
-        .length,
-      failed: results.filter((r) => r.provider === "fallback").length,
-    };
-
-    return NextResponse.json({ results, stats });
   } catch (error) {
+    if (error instanceof Error && error.message === "Invalid request body") {
+      return apiError("INVALID_REQUEST", error.message, context);
+    }
+    if (
+      error instanceof Error &&
+      error.message.includes("Unsupported instruction patterns")
+    ) {
+      return apiError("INVALID_REQUEST", error.message, context);
+    }
+    if (error instanceof AuthorizationError) {
+      return apiError("RATE_LIMIT_EXCEEDED", error.message, context);
+    }
     console.error("[/api/classify] Error:", error);
-
-    return NextResponse.json(
-      { error: "Classification failed" },
-      { status: 500 },
-    );
+    return apiError("INTERNAL_ERROR", "Classification failed", context);
   }
 }

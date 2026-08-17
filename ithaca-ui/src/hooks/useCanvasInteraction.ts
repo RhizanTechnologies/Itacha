@@ -54,29 +54,43 @@ export function useCanvasInteraction() {
       actions.setLoading(true);
 
       try {
-        const isTopic = paperId.startsWith("topic-");
+        const isQuestion = paperId.startsWith("question-");
+        const isTopic = paperId.startsWith("topic-") || isQuestion;
 
         let nodes: any[] = [];
         let edges: any[] = [];
 
         if (isTopic) {
-          const query = paperId.replace("topic-", "");
-          const data = await graphAPI.fetchTopicSlice(query, paperCount);
+          const query = paperId
+            .replace(/^question-/, "")
+            .replace(/^topic-/, "");
+          const sliceSize = isQuestion
+            ? Math.min(Math.max(paperCount, 40), 80)
+            : paperCount;
+          const data = await graphAPI.fetchTopicSlice(query, sliceSize);
           nodes = data.nodes;
           edges = data.edges;
+          if (isQuestion) {
+            actions.setRelationshipFocus("contradicts");
+          }
         } else {
-          const data = await graphAPI.fetchPaperContext(
-            paperId,
-            paperCount,
-          );
+          const data = await graphAPI.fetchPaperContext(paperId, paperCount);
           nodes = data.nodes;
           edges = data.edges;
         }
 
-        // Apply relationship focus filter: keep only edges matching the selected type
-        const focus = relationshipFocus;
+        // Apply relationship focus filter: keep only edges matching the selected type.
+        // Questions bias toward contradictions but still show the full map first.
+        const focus = isQuestion ? "all" : relationshipFocus;
         if (focus !== "all") {
           edges = edges.filter((e: any) => e.edgeType === focus);
+        } else if (isQuestion) {
+          // Surface contradictions first without hiding the rest of the debate.
+          edges = [...edges].sort((a, b) => {
+            const rank = (type: string) =>
+              type === "contradicts" ? 0 : type === "supports" ? 1 : 2;
+            return rank(a.edgeType) - rank(b.edgeType);
+          });
         }
 
         // Handle orphan nodes (nodes with no edges)

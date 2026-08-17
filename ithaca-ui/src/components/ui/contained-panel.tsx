@@ -100,7 +100,7 @@ export function ContainedPanel({
       {backdrop !== false && (
         <div
           className={cn(
-            "absolute inset-0 z-40 animate-in fade-in-0 duration-200",
+            "animate-in fade-in-0 absolute inset-0 z-40 duration-200",
             backdropClass,
           )}
           onClick={() => onOpenChange(false)}
@@ -111,37 +111,40 @@ export function ContainedPanel({
       <div
         ref={panelRef}
         className={cn(
-          "absolute z-50 bg-background shadow-2xl flex flex-col",
+          "bg-background absolute z-50 flex flex-col shadow-2xl",
           "animate-in duration-300 ease-out",
           side === "right" &&
-            "inset-y-0 right-0 w-full max-w-xl border-l slide-in-from-right",
+            "slide-in-from-right inset-y-0 right-0 w-full max-w-xl border-l",
           side === "left" &&
-            "inset-y-0 left-0 w-full max-w-xl border-r slide-in-from-left",
+            "slide-in-from-left inset-y-0 left-0 w-full max-w-xl border-r",
           side === "bottom" &&
-            "inset-x-0 bottom-0 border-t slide-in-from-bottom",
+            "slide-in-from-bottom inset-x-0 bottom-0 border-t",
           // Only apply className height when not actively dragging
           side === "bottom" && !dragHeight && "h-[60%]",
           className,
         )}
-        style={side === "bottom" && dragHeight ? { height: dragHeight } : undefined}
+        style={
+          side === "bottom" && dragHeight ? { height: dragHeight } : undefined
+        }
       >
         {/* Drag Handle — functional when resizable */}
         {side === "bottom" && (
           <div
             className={cn(
-              "flex items-center justify-center py-2 shrink-0",
-              resizable && "cursor-ns-resize select-none hover:bg-muted/50 transition-colors",
+              "flex shrink-0 items-center justify-center py-2",
+              resizable &&
+                "hover:bg-muted/50 cursor-ns-resize transition-colors select-none",
             )}
             onPointerDown={resizable ? handlePointerDown : undefined}
           >
-            <div className="h-1.5 w-12 rounded-full bg-muted-foreground/30" />
+            <div className="bg-muted-foreground/30 h-1.5 w-12 rounded-full" />
           </div>
         )}
 
         {/* Close button */}
         <button
           onClick={() => onOpenChange(false)}
-          className="absolute top-4 right-4 z-10 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+          className="ring-offset-background focus:ring-ring absolute top-4 right-4 z-10 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-none"
         >
           <XIcon className="h-4 w-4" />
           <span className="sr-only">Close</span>
@@ -203,7 +206,7 @@ export function ContainedPanelDescription({
   className,
 }: ContainedPanelDescriptionProps) {
   return (
-    <p className={cn("text-sm text-muted-foreground", className)}>{children}</p>
+    <p className={cn("text-muted-foreground text-sm", className)}>{children}</p>
   );
 }
 
@@ -242,7 +245,7 @@ export function ContainedPanelFooter({
 }: ContainedPanelFooterProps) {
   return (
     <div
-      className={cn("mt-auto border-t p-4 flex gap-2 justify-end", className)}
+      className={cn("mt-auto flex justify-end gap-2 border-t p-4", className)}
     >
       {children}
     </div>

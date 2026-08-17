@@ -1,0 +1,27 @@
+[
+  {
+    "id": "supports-method-replication",
+    "expected": "supports",
+    "predicted": "supports"
+  },
+  {
+    "id": "contradicts-counter-evidence",
+    "expected": "contradicts",
+    "predicted": "contradicts"
+  },
+  {
+    "id": "extends-new-domain",
+    "expected": "extends",
+    "predicted": "extends"
+  },
+  {
+    "id": "cites-background",
+    "expected": "cites",
+    "predicted": "cites"
+  },
+  {
+    "id": "misclassified-support-as-cites",
+    "expected": "supports",
+    "predicted": "cites"
+  }
+]

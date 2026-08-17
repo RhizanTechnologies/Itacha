@@ -18,10 +18,10 @@ export function CanvasLoadingOverlay({
   if (!isLoading) return null;
 
   return (
-    <div className="absolute inset-0 z-40 flex items-center justify-center bg-background/50 backdrop-blur-sm transition-opacity duration-300">
-      <div className="flex flex-col items-center gap-3 rounded-lg bg-card/95 p-6 shadow-lg border border-border">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-sm font-medium text-muted-foreground">{message}</p>
+    <div className="bg-background/50 absolute inset-0 z-40 flex items-center justify-center backdrop-blur-sm transition-opacity duration-300">
+      <div className="bg-card/95 border-border flex flex-col items-center gap-3 rounded-lg border p-6 shadow-lg">
+        <Loader2 className="text-primary h-8 w-8 animate-spin" />
+        <p className="text-muted-foreground text-sm font-medium">{message}</p>
       </div>
     </div>
   );
@@ -33,26 +33,26 @@ export function CanvasLoadingOverlay({
  */
 export function CanvasSkeleton() {
   return (
-    <div className="absolute inset-0 flex items-center justify-center bg-background">
+    <div className="bg-background absolute inset-0 flex items-center justify-center">
       {/* Animated dot pattern to suggest graph nodes */}
-      <div className="relative w-full h-full overflow-hidden">
+      <div className="relative h-full w-full overflow-hidden">
         {/* Central cluster */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
           <div className="relative">
             {/* Central node */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-primary/30 animate-pulse" />
-            
+            <div className="bg-primary/30 absolute top-1/2 left-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 animate-pulse rounded-full" />
+
             {/* Surrounding nodes */}
             {[...Array(6)].map((_, i) => {
               const angle = (i * 60 * Math.PI) / 180;
               const radius = 60;
               const x = Math.cos(angle) * radius;
               const y = Math.sin(angle) * radius;
-              
+
               return (
                 <div
                   key={i}
-                  className="absolute w-3 h-3 rounded-full bg-muted-foreground/20 animate-pulse"
+                  className="bg-muted-foreground/20 absolute h-3 w-3 animate-pulse rounded-full"
                   style={{
                     left: `calc(50% + ${x}px)`,
                     top: `calc(50% + ${y}px)`,
@@ -65,14 +65,14 @@ export function CanvasSkeleton() {
 
             {/* Connection lines */}
             <svg
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 opacity-20"
+              className="absolute top-1/2 left-1/2 h-40 w-40 -translate-x-1/2 -translate-y-1/2 opacity-20"
               viewBox="-80 -80 160 160"
             >
               {[...Array(6)].map((_, i) => {
                 const angle = (i * 60 * Math.PI) / 180;
                 const x = Math.cos(angle) * 60;
                 const y = Math.sin(angle) * 60;
-                
+
                 return (
                   <line
                     key={i}
@@ -91,9 +91,11 @@ export function CanvasSkeleton() {
         </div>
 
         {/* Loading text */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">Initializing visualization...</p>
+        <div className="absolute bottom-8 left-1/2 flex -translate-x-1/2 flex-col items-center gap-2">
+          <Loader2 className="text-muted-foreground h-5 w-5 animate-spin" />
+          <p className="text-muted-foreground text-sm">
+            Initializing visualization...
+          </p>
         </div>
       </div>
     </div>

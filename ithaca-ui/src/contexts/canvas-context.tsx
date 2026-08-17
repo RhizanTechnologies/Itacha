@@ -139,6 +139,7 @@ export function useCanvasActions() {
       // Features
       setPhysicsEnabled: useCanvasStore.getState().setPhysicsEnabled,
       setTutorialActive: useCanvasStore.getState().setTutorialActive,
+      setLayoutMode: useCanvasStore.getState().setLayoutMode,
     };
   }, []);
 }

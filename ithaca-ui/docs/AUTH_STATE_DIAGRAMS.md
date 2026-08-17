@@ -338,7 +338,7 @@ REQUEST ARRIVES
       ┌────────┼────────┬────────┐
       │        │        │        │
       ▼        ▼        ▼        ▼
-    
+
 AUTH    PUBLIC  PROTECTED  PROTECTED
 ROUTE   ROUTE   ROUTE      ROUTE
 (signin,(/,etc) (/explore, (/dashboard
@@ -630,7 +630,7 @@ BEGIN TRANSACTION
       │
       ├─ Insert User
       │  INSERT INTO "User" (
-      │    id, name, email, 
+      │    id, name, email,
       │    emailVerified, hasCompletedOnboarding,
       │    createdAt, updatedAt
       │  ) VALUES (...)
@@ -650,7 +650,7 @@ BEGIN TRANSACTION
       │
       └─ If Email+Password:
          └─ Hash password and save
-            UPDATE "Account" 
+            UPDATE "Account"
             SET password = bcrypt(password)
             WHERE userId = ...
 
@@ -1005,7 +1005,7 @@ State Transitions:
 UNAUTHENTICATED
       │
       ├─ User clicks Sign In/Up
-      │                           
+      │
       ▼
 AUTHENTICATING
       │

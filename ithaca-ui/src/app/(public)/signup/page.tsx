@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import {
   Mail,
-  IdCard,
   Globe,
   Loader2,
   Eye,
@@ -17,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth-client";
 import { useSession } from "@/lib/auth-client";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 // Password strength checker
 function getPasswordStrength(password: string): {
@@ -40,18 +39,33 @@ function getPasswordStrength(password: string): {
 }
 
 export default function SignUpPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="bg-background flex min-h-screen items-center justify-center">
+          <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
+        </div>
+      }
+    >
+      <SignUpContent />
+    </Suspense>
+  );
+}
+
+function SignUpContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl") || "/explore";
   const { data: session, isPending } = useSession();
 
-  // Redirect authenticated users to explore
   useEffect(() => {
     if (!isPending && session?.user) {
-      router.replace("/explore");
+      router.replace(callbackUrl);
     }
-  }, [session, isPending, router]);
+  }, [session, isPending, router, callbackUrl]);
 
   // Form state
-  const [mode, setMode] = useState<"oauth" | "email">("oauth");
+  const [mode, setMode] = useState<"oauth" | "email">("email");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -70,8 +84,8 @@ export default function SignUpPage() {
   // Show loading while checking session
   if (isPending) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="bg-background flex min-h-screen items-center justify-center">
+        <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
       </div>
     );
   }
@@ -79,8 +93,8 @@ export default function SignUpPage() {
   // If user is logged in, don't render the form (redirect will happen)
   if (session?.user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="bg-background flex min-h-screen items-center justify-center">
+        <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
       </div>
     );
   }
@@ -122,30 +136,28 @@ export default function SignUpPage() {
     }
   };
 
-  // OAuth signup
-  const handleOAuthSignUp = async (provider: "google" | "orcid") => {
+  const handleGoogleSignUp = async () => {
     setIsLoading(true);
     setError(null);
     try {
       await authClient.signIn.social({
-        provider: provider,
-        callbackURL: "/explore",
+        provider: "google",
+        callbackURL: callbackUrl,
       });
     } catch (err) {
-      console.error(`${provider} sign-up error:`, err);
-      setError(`Failed to sign up with ${provider}. Please try again.`);
+      setError("Failed to sign up with Google. Please try again.");
       setIsLoading(false);
     }
   };
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background px-4">
-        <div className="text-center max-w-md">
-          <div className="size-16 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mx-auto mb-4">
+      <div className="bg-background flex min-h-screen items-center justify-center px-4">
+        <div className="max-w-md text-center">
+          <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
             <Mail className="size-8 text-blue-600 dark:text-blue-400" />
           </div>
-          <h1 className="text-2xl font-bold mb-2">Check your email</h1>
+          <h1 className="mb-2 text-2xl font-bold">Check your email</h1>
           <p className="text-muted-foreground mb-6">
             We&apos;ve sent a verification link to{" "}
             <strong className="text-foreground">{email}</strong>. Click the link
@@ -179,7 +191,7 @@ export default function SignUpPage() {
             </Button>
             <Link
               href="/signin"
-              className="text-sm text-primary hover:underline"
+              className="text-primary text-sm hover:underline"
             >
               Back to Sign In
             </Link>
@@ -190,15 +202,15 @@ export default function SignUpPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
+    <div className="bg-background flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-md">
         {/* Header */}
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 mb-6">
+        <div className="mb-8 text-center">
+          <Link href="/" className="mb-6 inline-flex items-center gap-2">
             <img src="/logo.svg" alt="Ithaca" className="size-10" />
             <span className="text-2xl font-bold">Ithaca</span>
           </Link>
-          <h1 className="text-3xl font-bold mb-2">Create your account</h1>
+          <h1 className="mb-2 text-3xl font-bold">Create your account</h1>
           <p className="text-muted-foreground">
             Join the research community exploring citation networks
           </p>
@@ -206,16 +218,16 @@ export default function SignUpPage() {
 
         {/* Error Message */}
         {error && (
-          <div className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm flex items-center gap-2">
+          <div className="bg-destructive/10 border-destructive/20 text-destructive mb-4 flex items-center gap-2 rounded-lg border p-3 text-sm">
             <AlertCircle className="h-4 w-4 shrink-0" />
             {error}
           </div>
         )}
 
         {/* Card */}
-        <div className="bg-card border border-border rounded-xl p-6 shadow-lg">
+        <div className="bg-card border-border rounded-xl border p-6 shadow-lg">
           {/* Mode Toggle */}
-          <div className="flex gap-2 mb-6">
+          <div className="mb-6 flex gap-2">
             <Button
               variant={mode === "oauth" ? "default" : "outline"}
               className="flex-1"
@@ -233,45 +245,24 @@ export default function SignUpPage() {
           </div>
 
           {mode === "oauth" ? (
-            <div className="flex flex-col gap-4">
-              {/* ORCID Button */}
-              <Button
-                variant="outline"
-                className="relative h-12 justify-center bg-muted hover:bg-orcid/10 hover:border-orcid transition-all"
-                onClick={() => handleOAuthSignUp("orcid")}
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <Loader2 className="absolute left-4 h-5 w-5 animate-spin" />
-                ) : (
-                  <IdCard className="absolute left-4 h-5 w-5 text-orcid" />
-                )}
-                <span className="font-bold">Sign up with ORCID</span>
-                <span className="absolute right-3 bg-orcid text-white text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
-                  Recommended
-                </span>
-              </Button>
-
-              {/* Google Button */}
-              <Button
-                variant="outline"
-                className="relative h-12 justify-center"
-                onClick={() => handleOAuthSignUp("google")}
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <Loader2 className="absolute left-4 h-5 w-5 animate-spin" />
-                ) : (
-                  <Globe className="absolute left-4 h-5 w-5" />
-                )}
-                <span className="font-semibold">Sign up with Google</span>
-              </Button>
-            </div>
+            <Button
+              variant="outline"
+              className="relative h-12 w-full justify-center"
+              onClick={handleGoogleSignUp}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <Loader2 className="absolute left-4 h-5 w-5 animate-spin" />
+              ) : (
+                <Globe className="absolute left-4 h-5 w-5" />
+              )}
+              <span className="font-semibold">Sign up with Google</span>
+            </Button>
           ) : (
             <form onSubmit={handleEmailSignup} className="flex flex-col gap-4">
               {/* Name */}
               <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold text-muted-foreground uppercase">
+                <label className="text-muted-foreground text-xs font-semibold uppercase">
                   Full Name
                 </label>
                 <Input
@@ -286,7 +277,7 @@ export default function SignUpPage() {
 
               {/* Email */}
               <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold text-muted-foreground uppercase">
+                <label className="text-muted-foreground text-xs font-semibold uppercase">
                   Email Address
                 </label>
                 <Input
@@ -301,7 +292,7 @@ export default function SignUpPage() {
 
               {/* Password */}
               <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold text-muted-foreground uppercase">
+                <label className="text-muted-foreground text-xs font-semibold uppercase">
                   Password
                 </label>
                 <div className="relative">
@@ -318,7 +309,7 @@ export default function SignUpPage() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    className="text-muted-foreground hover:text-foreground absolute top-1/2 right-3 -translate-y-1/2"
                   >
                     {showPassword ? (
                       <EyeOff className="h-4 w-4" />
@@ -343,7 +334,7 @@ export default function SignUpPage() {
                         />
                       ))}
                     </div>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-muted-foreground text-xs">
                       Password strength:{" "}
                       <span className="font-medium">
                         {passwordStrength.label}
@@ -355,7 +346,7 @@ export default function SignUpPage() {
 
               {/* Confirm Password */}
               <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold text-muted-foreground uppercase">
+                <label className="text-muted-foreground text-xs font-semibold uppercase">
                   Confirm Password
                 </label>
                 <Input
@@ -367,7 +358,7 @@ export default function SignUpPage() {
                   disabled={isLoading}
                 />
                 {confirmPassword && !passwordsMatch && (
-                  <p className="text-xs text-destructive flex items-center gap-1">
+                  <p className="text-destructive flex items-center gap-1 text-xs">
                     <AlertCircle className="h-3 w-3" />
                     Passwords do not match
                   </p>
@@ -391,23 +382,23 @@ export default function SignUpPage() {
         </div>
 
         {/* Footer */}
-        <div className="text-center mt-6">
-          <p className="text-sm text-muted-foreground">
+        <div className="mt-6 text-center">
+          <p className="text-muted-foreground text-sm">
             Already have an account?{" "}
             <Link
               href="/signin"
-              className="text-primary hover:underline font-medium"
+              className="text-primary font-medium hover:underline"
             >
               Sign in
             </Link>
           </p>
-          <p className="text-xs text-muted-foreground mt-4">
+          <p className="text-muted-foreground mt-4 text-xs">
             By creating an account, you agree to Ithaca's{" "}
-            <Link href="/terms" className="underline hover:text-foreground">
+            <Link href="/terms" className="hover:text-foreground underline">
               Terms
             </Link>{" "}
             and{" "}
-            <Link href="/privacy" className="underline hover:text-foreground">
+            <Link href="/privacy" className="hover:text-foreground underline">
               Privacy Policy
             </Link>
             .

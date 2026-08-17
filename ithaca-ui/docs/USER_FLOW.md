@@ -33,7 +33,7 @@ LANDING PAGE
     └─→ Existing User ──→ SIGN IN ──→ OAuth or Email+Password
                               │
                               └─→ Forgot Password? ──→ Email Reset Link
-                              
+
 POST-LOGIN
     │
     ├─→ SESSION CREATED ──→ httpOnly Cookie + DB Record
@@ -63,9 +63,11 @@ USER MENU (Avatar Click)
 ## 1. Registration / Sign-Up Flow
 
 ### Overview
+
 Users can register via OAuth (Google, ORCID) or traditional email + password.
 
 ### File Reference
+
 - **Page:** `src/app/(public)/signup/page.tsx` (339 lines)
 - **Auth Library:** `src/lib/auth-client.ts` (uses Better Auth v5)
 - **ORCID Config:** `src/lib/auth-orcid.ts` (68 lines)
@@ -73,6 +75,7 @@ Users can register via OAuth (Google, ORCID) or traditional email + password.
 ### Sign-Up Methods
 
 #### Method A: OAuth (Google)
+
 ```
 1. Click "Sign in with Google" button
 2. Redirected to Google OAuth consent screen
@@ -84,6 +87,7 @@ Users can register via OAuth (Google, ORCID) or traditional email + password.
 ```
 
 **Flow in Code:**
+
 ```typescript
 // src/app/(public)/signup/page.tsx
 await authClient.signIn.social({
@@ -93,6 +97,7 @@ await authClient.signIn.social({
 ```
 
 #### Method B: ORCID OAuth
+
 ```
 1. Click "Sign in with ORCID" button (marked as "Recommended")
 2. Redirected to ORCID OAuth consent screen
@@ -107,11 +112,13 @@ await authClient.signIn.social({
 ```
 
 **ORCID OAuth Endpoints:**
+
 - Authorization: `https://orcid.org/oauth/authorize`
 - Token Exchange: `https://orcid.org/oauth/token`
 - User Info: `https://pub.orcid.org/v3.0/{orcid}/person`
 
 #### Method C: Email & Password Registration
+
 ```
 STEP 1: Basic Info
 ├─ Enter Name (optional)
@@ -146,6 +153,7 @@ STEP 3: Account Created
 ```
 
 **Sign-Up Form State:**
+
 ```typescript
 // From src/app/(public)/signup/page.tsx
 {
@@ -156,7 +164,7 @@ STEP 3: Account Created
   passwordStrength: {
     level: "weak" | "fair" | "good" | "strong" | "veryStrong";
     score: number;
-  };
+  }
   isLoading: boolean;
   error: string | null;
   success: boolean;
@@ -166,9 +174,10 @@ STEP 3: Account Created
 ### Database Changes After Sign-Up
 
 **User Table:**
+
 ```sql
 INSERT INTO "User" (
-  id, name, email, emailVerified, 
+  id, name, email, emailVerified,
   image, hasCompletedOnboarding, createdAt, updatedAt
 ) VALUES (
   'user_abc123', 'John Doe', 'john@example.com', false,
@@ -177,9 +186,10 @@ INSERT INTO "User" (
 ```
 
 **Session Table (if OAuth):**
+
 ```sql
 INSERT INTO "Account" (
-  id, userId, accountId, providerId, 
+  id, userId, accountId, providerId,
   accessToken, refreshToken, createdAt
 ) VALUES (
   'account_123', 'user_abc123', 'google_abc',
@@ -192,6 +202,7 @@ INSERT INTO "Account" (
 ## 2. Sign-In / Login Flow
 
 ### File Reference
+
 - **Page:** `src/app/(public)/signin/page.tsx` (247 lines)
 - **Dialog Component:** `src/components/auth/sign-in-dialog.tsx` (165 lines)
 - **Auth Client:** `src/lib/auth-client.ts`
@@ -199,6 +210,7 @@ INSERT INTO "Account" (
 ### Sign-In Methods
 
 #### Method A: OAuth Sign-In (Quick)
+
 ```
 UI: Two buttons side-by-side
 ├─ "Sign in with ORCID" (Recommended badge)
@@ -215,6 +227,7 @@ Flow:
 ```
 
 #### Method B: Email & Password Sign-In
+
 ```
 STEP 1: Email Entry
 ├─ Email input field
@@ -242,6 +255,7 @@ Error Handling:
 ```
 
 **Sign-In Form State:**
+
 ```typescript
 {
   email: string;
@@ -254,6 +268,7 @@ Error Handling:
 ```
 
 #### Method C: Magic Link (Passwordless) - PLANNED
+
 ```
 Email entered → Magic link sent → User clicks link → Logged in
 Status: Partially implemented in sign-in-dialog.tsx (commented)
@@ -262,6 +277,7 @@ Status: Partially implemented in sign-in-dialog.tsx (commented)
 ### Sign-In UI States
 
 **Initial State:**
+
 ```
 ┌─────────────────────────────────────┐
 │ Quick Sign In (OAuth)               │
@@ -275,6 +291,7 @@ Status: Partially implemented in sign-in-dialog.tsx (commented)
 ```
 
 **After Email Entered:**
+
 ```
 ┌─────────────────────────────────────┐
 │ Back button                         │
@@ -294,6 +311,7 @@ Status: Partially implemented in sign-in-dialog.tsx (commented)
 ## 3. Session Management
 
 ### File Reference
+
 - **Config:** `src/lib/auth.ts` (78 lines)
 - **Middleware:** `src/middleware.ts` (121 lines)
 - **Database:** `prisma/schema.prisma` (User, Session, Account models)
@@ -301,6 +319,7 @@ Status: Partially implemented in sign-in-dialog.tsx (commented)
 ### Session Configuration
 
 **Session Duration Settings:**
+
 ```typescript
 // From src/lib/auth.ts
 session: {
@@ -314,6 +333,7 @@ session: {
 ```
 
 **Cookie Configuration:**
+
 ```typescript
 cookie: {
   secure: NODE_ENV === "production",  // HTTPS only in prod
@@ -327,6 +347,7 @@ cookie: {
 ### Session Storage
 
 **Stored in PostgreSQL:**
+
 ```sql
 -- Session table structure
 CREATE TABLE "Session" (
@@ -389,15 +410,16 @@ CREATE TABLE "Session" (
 ### Accessing Session in Components
 
 **Client-Side (React Components):**
+
 ```typescript
 import { useSession } from "@/lib/auth-client";
 
 export function UserProfile() {
   const { data: session, isPending } = useSession();
-  
+
   if (isPending) return <div>Loading...</div>;
   if (!session) return <div>Not logged in</div>;
-  
+
   return (
     <div>
       Welcome, {session.user.name}!
@@ -409,18 +431,19 @@ export function UserProfile() {
 ```
 
 **Server-Side:**
+
 ```typescript
 import { auth } from "@/lib/auth";
 
 export async function GET(request: Request) {
   const session = await auth.api.getSession({
-    headers: request.headers
+    headers: request.headers,
   });
-  
+
   if (!session) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
-  
+
   return Response.json({ user: session.user });
 }
 ```
@@ -430,18 +453,18 @@ export async function GET(request: Request) {
 ```typescript
 type Session = {
   user: {
-    id: string;                    // CUID unique ID
-    name: string | null;           // Display name
-    email: string;                 // Email address
-    emailVerified: boolean;         // Email verified?
-    image: string | null;          // Avatar URL
-    orcidId: string | null;        // ORCID ID (if logged in via ORCID)
+    id: string; // CUID unique ID
+    name: string | null; // Display name
+    email: string; // Email address
+    emailVerified: boolean; // Email verified?
+    image: string | null; // Avatar URL
+    orcidId: string | null; // ORCID ID (if logged in via ORCID)
     hasCompletedOnboarding: boolean; // Tutorial completed?
-    createdAt: Date;               // Account creation time
-    updatedAt: Date;               // Last updated
+    createdAt: Date; // Account creation time
+    updatedAt: Date; // Last updated
   };
-  expiresAt: Date;                // Session expiration time
-}
+  expiresAt: Date; // Session expiration time
+};
 ```
 
 ---
@@ -449,6 +472,7 @@ type Session = {
 ## 4. Onboarding
 
 ### File Reference
+
 - **Component:** `src/components/auth/onboarding-dialog.tsx` (124 lines)
 - **Database Flag:** `User.hasCompletedOnboarding`
 
@@ -467,12 +491,14 @@ Display: Modal dialog that blocks interaction until dismissed
 ### Onboarding Content
 
 **Title & Purpose:**
+
 - Title: "How to read the graph"
-- Badge: "New User Guide" 
+- Badge: "New User Guide"
 - Icon: Network/graph icon
 - Description: "Learn how to interpret the citation network visualization"
 
 **Section 1: Nodes (Papers)**
+
 ```
 Visual: Example graph with nodes of different sizes and colors
 
@@ -490,6 +516,7 @@ Content:
 ```
 
 **Section 2: Edges (Connections)**
+
 ```
 Visual: Example connections between nodes
 
@@ -509,6 +536,7 @@ Content:
 ```
 
 **Section 3: Interactions**
+
 ```
 Content:
 ├─ Zoom with mouse wheel
@@ -521,6 +549,7 @@ Content:
 ### Dismissing Onboarding
 
 **Methods:**
+
 1. **"Get Started" Button:**
    - Sets `hasCompletedOnboarding: true`
    - Closes dialog
@@ -534,6 +563,7 @@ Content:
    - May close without setting flag (depends on implementation)
 
 **Post-Onboarding:**
+
 ```
 User clicks "Get Started"
         ↓
@@ -551,6 +581,7 @@ Onboarding won't show again for this user
 ## 5. App Usage / Dashboard
 
 ### File Reference
+
 - **Main Dashboard:** `src/app/(app)/dashboard/page.tsx` (425 lines)
 - **Canvas/Explore:** `src/app/(app)/explore/page.tsx`
 - **Canvas Layout:** `src/components/layout/canvas-layout.tsx` (100+ lines)
@@ -597,6 +628,7 @@ After login, user can access:
 ### Dashboard Layout
 
 **Header Section:**
+
 ```
 ┌──────────────────────────────────────────────────────┐
 │ Profile Avatar          │ Name: John Doe             │
@@ -609,6 +641,7 @@ After login, user can access:
 ```
 
 **Statistics Cards:**
+
 ```
 ┌───────────────────┬───────────────────┬───────────────────┐
 │ Saved Graphs      │ Collections       │ Edges Corrected   │
@@ -619,6 +652,7 @@ After login, user can access:
 ```
 
 **Tabbed Navigation:**
+
 ```
 [Overview] [My Graphs] [Collections] [History] [Settings]
 
@@ -661,6 +695,7 @@ Settings Tab:
 ### User Interactions in App
 
 **1. Viewing the Canvas (/explore)**
+
 ```
 User Action: Click /explore or "Explore" button
         ↓
@@ -686,6 +721,7 @@ Interactions:
 ```
 
 **2. Creating a Project**
+
 ```
 User Action: Click "New Project"
         ↓
@@ -702,6 +738,7 @@ Project created:
 ```
 
 **3. Searching for Papers**
+
 ```
 User Action: Go to /search or use search in /explore
         ↓
@@ -725,6 +762,7 @@ User can:
 ```
 
 **4. Correcting Citations**
+
 ```
 User Action: Identify citation error in graph
         ↓
@@ -750,6 +788,7 @@ Correction submitted:
 ## 6. Logout Flow
 
 ### File Reference
+
 - **User Button:** `src/components/auth/user-button.tsx` (85 lines)
 - **User Menu:** `src/components/auth/user-menu.tsx` (201 lines)
 - **Auth Client:** `src/lib/auth-client.ts`
@@ -757,6 +796,7 @@ Correction submitted:
 ### Logout Process
 
 **Step 1: Access User Menu**
+
 ```
 User clicks avatar button (top right corner)
         ↓
@@ -771,6 +811,7 @@ User menu dropdown appears:
 ```
 
 **Step 2: Click Logout**
+
 ```
 User clicks "LOGOUT" button
         ↓
@@ -781,6 +822,7 @@ Loading state activated:
 ```
 
 **Step 3: Session Termination**
+
 ```
 authClient.signOut() called:
 
@@ -798,6 +840,7 @@ Frontend:
 ```
 
 **Step 4: Redirect to Home**
+
 ```
 Logout completes
         ↓
@@ -816,7 +859,7 @@ const handleSignOut = async () => {
   setIsLoading(true);
   try {
     await authClient.signOut();
-    router.push("/");  // Redirect to home
+    router.push("/"); // Redirect to home
   } catch (error) {
     console.error("Sign out error:", error);
     // Show error toast to user
@@ -829,21 +872,23 @@ const handleSignOut = async () => {
 ### Session Cleanup
 
 **Database Operations:**
+
 ```sql
 -- Session deleted
-DELETE FROM "Session" 
+DELETE FROM "Session"
 WHERE userId = 'user_abc123';
 
 -- Any temporary data cleaned
-DELETE FROM "temporary_session_data" 
+DELETE FROM "temporary_session_data"
 WHERE userId = 'user_abc123';
 ```
 
 **Cookie Cleared:**
+
 ```
 HTTP Response Header:
-Set-Cookie: ithaca.session=; Path=/; 
-            HttpOnly; Secure; SameSite=Lax; 
+Set-Cookie: ithaca.session=; Path=/;
+            HttpOnly; Secure; SameSite=Lax;
             Expires=Thu, 01 Jan 1970 00:00:00 GMT
 ```
 
@@ -852,6 +897,7 @@ Set-Cookie: ithaca.session=; Path=/;
 ## 7. Route Protection
 
 ### File Reference
+
 - **Middleware:** `src/middleware.ts` (121 lines)
 - **Environment:** `src/lib/env.ts`
 
@@ -859,16 +905,16 @@ Set-Cookie: ithaca.session=; Path=/;
 
 ```typescript
 const publicRoutes = [
-  "/",                    // Landing page
-  "/about",              // About page
-  "/blog",               // Blog
-  "/docs",               // Documentation
-  "/api",                // API docs
-  "/privacy",            // Privacy policy
-  "/terms",              // Terms of service
-  "/changelog",          // Changelog
-  "/roadmap",            // Roadmap
-  "/status",             // Status page
+  "/", // Landing page
+  "/about", // About page
+  "/blog", // Blog
+  "/docs", // Documentation
+  "/api", // API docs
+  "/privacy", // Privacy policy
+  "/terms", // Terms of service
+  "/changelog", // Changelog
+  "/roadmap", // Roadmap
+  "/status", // Status page
 ];
 ```
 
@@ -1014,7 +1060,7 @@ Database:
                               ├─ Email entered
                               ├─ Password entered
                               └─ Verify against database
-                          
+
                           ↓
 ┌──────────────────────────────────────────────────────────┐
 │              BETTER AUTH PROCESSES REQUEST               │
@@ -1187,10 +1233,10 @@ import { useSession } from "@/lib/auth-client";
 
 export function MyComponent() {
   const { data: session, isPending, error } = useSession();
-  
+
   if (isPending) return <Skeleton />;
   if (!session) return <NeedLoginMessage />;
-  
+
   return <LoggedInContent user={session.user} />;
 }
 ```
@@ -1202,16 +1248,13 @@ import { auth } from "@/lib/auth";
 
 export async function GET(request: Request) {
   const session = await auth.api.getSession({
-    headers: request.headers
+    headers: request.headers,
   });
-  
+
   if (!session) {
-    return Response.json(
-      { error: "Unauthorized" },
-      { status: 401 }
-    );
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
-  
+
   // Use session.user in your logic
   return Response.json({ data: session.user });
 }
@@ -1227,11 +1270,11 @@ import { redirect } from "next/navigation";
 
 export function ProtectedComponent() {
   const { data: session } = useSession();
-  
+
   if (!session) {
     return redirect("/signin");
   }
-  
+
   return <YourComponent user={session.user} />;
 }
 ```
@@ -1245,7 +1288,7 @@ const updatedUser = await db.user.update({
   data: {
     name: "New Name",
     hasCompletedOnboarding: true,
-  }
+  },
 });
 ```
 
@@ -1259,7 +1302,7 @@ export const auth = initializeAuth({
   plugins: [
     // ...existing plugins
     orcidAuthProvider,
-  ]
+  ],
 });
 ```
 
@@ -1271,7 +1314,7 @@ export const auth = initializeAuth({
 // Automatic: Use callbackURL parameter
 await authClient.signIn.social({
   provider: "google",
-  callbackURL: "/dashboard",  // Redirect here after login
+  callbackURL: "/dashboard", // Redirect here after login
 });
 
 // Manual: After successful auth
@@ -1402,16 +1445,16 @@ npm run build
 
 ### File Quick Links
 
-| Purpose | File |
-|---------|------|
-| Signup page | `src/app/(public)/signup/page.tsx` |
-| Signin page | `src/app/(public)/signin/page.tsx` |
-| Dashboard | `src/app/(app)/dashboard/page.tsx` |
-| Auth config | `src/lib/auth.ts` |
-| Middleware | `src/middleware.ts` |
-| Prisma schema | `prisma/schema.prisma` |
-| Onboarding | `src/components/auth/onboarding-dialog.tsx` |
-| User menu | `src/components/auth/user-menu.tsx` |
+| Purpose       | File                                        |
+| ------------- | ------------------------------------------- |
+| Signup page   | `src/app/(public)/signup/page.tsx`          |
+| Signin page   | `src/app/(public)/signin/page.tsx`          |
+| Dashboard     | `src/app/(app)/dashboard/page.tsx`          |
+| Auth config   | `src/lib/auth.ts`                           |
+| Middleware    | `src/middleware.ts`                         |
+| Prisma schema | `prisma/schema.prisma`                      |
+| Onboarding    | `src/components/auth/onboarding-dialog.tsx` |
+| User menu     | `src/components/auth/user-menu.tsx`         |
 
 ### Helpful Links
 

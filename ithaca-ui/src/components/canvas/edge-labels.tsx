@@ -2,7 +2,13 @@
 
 import { useRegisterEvents, useSigma } from "@react-sigma/core";
 import { useEffect, useState } from "react";
-import { CheckCircle, XCircle, ArrowRightCircle, AlertTriangle, Link2 } from "lucide-react";
+import {
+  CheckCircle,
+  XCircle,
+  ArrowRightCircle,
+  AlertTriangle,
+  Link2,
+} from "lucide-react";
 
 interface EdgeLabelData {
   visible: boolean;
@@ -35,16 +41,16 @@ export function EdgeLabels() {
         const edgeData = sigma.getGraph().getEdgeAttributes(event.edge);
         const source = sigma.getGraph().source(event.edge);
         const target = sigma.getGraph().target(event.edge);
-        
+
         // Get node positions to calculate edge midpoint
         const sourcePos = sigma.getNodeDisplayData(source);
         const targetPos = sigma.getNodeDisplayData(target);
-        
+
         if (sourcePos && targetPos) {
           // Convert graph coordinates to screen coordinates
           const sourceScreen = sigma.graphToViewport(sourcePos);
           const targetScreen = sigma.graphToViewport(targetPos);
-          
+
           // Calculate midpoint
           const midX = (sourceScreen.x + targetScreen.x) / 2;
           const midY = (sourceScreen.y + targetScreen.y) / 2;
@@ -109,16 +115,20 @@ export function EdgeLabels() {
 
   return (
     <div
-      className="fixed z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-150"
+      className="animate-in fade-in zoom-in-95 pointer-events-none fixed z-50 duration-150"
       style={{
         left: label.x,
         top: label.y,
         transform: "translate(-50%, -50%)",
       }}
     >
-      <div className={`${typeConfig.bgColor} border ${typeConfig.borderColor} px-2 py-1 rounded shadow-lg flex items-center gap-1.5 backdrop-blur-sm`}>
+      <div
+        className={`${typeConfig.bgColor} border ${typeConfig.borderColor} flex items-center gap-1.5 rounded px-2 py-1 shadow-lg backdrop-blur-sm`}
+      >
         <Icon className={`${typeConfig.color} h-3.5 w-3.5`} />
-        <span className={`${typeConfig.color} text-xs font-mono font-bold tracking-tight`}>
+        <span
+          className={`${typeConfig.color} font-mono text-xs font-bold tracking-tight`}
+        >
           {typeConfig.label} ({label.confidence}%)
         </span>
       </div>

@@ -58,14 +58,14 @@ export function NodeSelectionTool({
   return (
     <button
       onClick={onToggle}
-      className={`flex items-center gap-2 px-3 py-2 rounded-lg border shadow-lg transition-all ${
+      className={`flex items-center gap-2 rounded-lg border px-3 py-2 shadow-lg transition-all ${
         isActive
           ? "bg-primary text-primary-foreground border-primary"
-          : "bg-card/90 backdrop-blur border-border hover:bg-muted"
+          : "bg-card/90 border-border hover:bg-muted backdrop-blur"
       }`}
     >
       <MousePointer className="h-4 w-4" />
-      <span className="text-sm font-medium hidden md:inline">
+      <span className="hidden text-sm font-medium md:inline">
         {isActive ? "Selecting..." : "Select Nodes"}
       </span>
       {selectedNodes.length > 0 && (
@@ -95,9 +95,11 @@ function NodeSlot({
 
   if (!nodeId) {
     return (
-      <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-border/60 bg-muted/20 min-w-0">
-        <div className={`h-3 w-3 rounded-full border-2 ${isSource ? "border-emerald-500/40" : "border-blue-500/40"}`} />
-        <span className="text-xs text-muted-foreground">
+      <div className="border-border/60 bg-muted/20 flex min-w-0 items-center gap-2 rounded-lg border border-dashed px-3 py-2">
+        <div
+          className={`h-3 w-3 rounded-full border-2 ${isSource ? "border-emerald-500/40" : "border-blue-500/40"}`}
+        />
+        <span className="text-muted-foreground text-xs">
           Click a node to set {role.toLowerCase()}
         </span>
       </div>
@@ -105,22 +107,30 @@ function NodeSlot({
   }
 
   return (
-    <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border min-w-0 ${
-      isSource ? "border-emerald-500/40 bg-emerald-500/5" : "border-blue-500/40 bg-blue-500/5"
-    }`}>
-      <div className={`h-3 w-3 rounded-full shrink-0 ${isSource ? "bg-emerald-500" : "bg-blue-500"}`} />
+    <div
+      className={`flex min-w-0 items-center gap-2 rounded-lg border px-3 py-2 ${
+        isSource
+          ? "border-emerald-500/40 bg-emerald-500/5"
+          : "border-blue-500/40 bg-blue-500/5"
+      }`}
+    >
+      <div
+        className={`h-3 w-3 shrink-0 rounded-full ${isSource ? "bg-emerald-500" : "bg-blue-500"}`}
+      />
       <div className="min-w-0 flex-1">
-        <span className={`text-[10px] font-bold uppercase tracking-wider ${isSource ? "text-emerald-600 dark:text-emerald-400" : "text-blue-600 dark:text-blue-400"}`}>
+        <span
+          className={`text-[10px] font-bold tracking-wider uppercase ${isSource ? "text-emerald-600 dark:text-emerald-400" : "text-blue-600 dark:text-blue-400"}`}
+        >
           {role}
         </span>
-        <p className="text-xs font-medium truncate">{label || nodeId}</p>
+        <p className="truncate text-xs font-medium">{label || nodeId}</p>
       </div>
       {onRemove && (
         <button
           onClick={onRemove}
-          className="shrink-0 p-0.5 rounded hover:bg-muted transition-colors"
+          className="hover:bg-muted shrink-0 rounded p-0.5 transition-colors"
         >
-          <X className="h-3 w-3 text-muted-foreground" />
+          <X className="text-muted-foreground h-3 w-3" />
         </button>
       )}
     </div>
@@ -145,12 +155,12 @@ export function SelectionPanel({
   const targetId = selectedNodes[1] || null;
 
   return (
-    <div className="bg-card/95 backdrop-blur border border-border rounded-xl shadow-2xl p-4 w-[90vw] md:w-auto md:min-w-96 max-w-lg animate-in slide-in-from-bottom-4 fade-in">
+    <div className="bg-card/95 border-border animate-in slide-in-from-bottom-4 fade-in w-[90vw] max-w-lg rounded-xl border p-4 shadow-2xl backdrop-blur md:w-auto md:min-w-96">
       {/* Header */}
-      <div className="flex items-center justify-between mb-3">
+      <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <GitCompare className="h-4 w-4 text-primary" />
-          <h3 className="font-bold text-sm">Find Path</h3>
+          <GitCompare className="text-primary h-4 w-4" />
+          <h3 className="text-sm font-bold">Find Path</h3>
         </div>
         <Button
           variant="ghost"
@@ -164,8 +174,8 @@ export function SelectionPanel({
       </div>
 
       {/* Source → Target slots */}
-      <div className="flex items-center gap-2 mb-3">
-        <div className="flex-1 min-w-0">
+      <div className="mb-3 flex items-center gap-2">
+        <div className="min-w-0 flex-1">
           <NodeSlot
             role="Source"
             nodeId={sourceId}
@@ -173,8 +183,8 @@ export function SelectionPanel({
             onRemove={sourceId ? () => onRemoveNode(sourceId) : undefined}
           />
         </div>
-        <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
-        <div className="flex-1 min-w-0">
+        <ArrowRight className="text-muted-foreground h-4 w-4 shrink-0" />
+        <div className="min-w-0 flex-1">
           <NodeSlot
             role="Target"
             nodeId={targetId}
@@ -206,7 +216,12 @@ export function SelectionPanel({
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-1" title="Export selected">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1"
+              title="Export selected"
+            >
               <Download className="h-3.5 w-3.5" />
             </Button>
           </DropdownMenuTrigger>
@@ -241,7 +256,7 @@ export function SelectionInstruction({
         : "Ready to find path — or click a node to replace target";
 
   return (
-    <div className="bg-primary text-primary-foreground px-4 py-2 rounded-full shadow-lg animate-in fade-in">
+    <div className="bg-primary text-primary-foreground animate-in fade-in rounded-full px-4 py-2 shadow-lg">
       <div className="flex items-center gap-2 text-sm">
         <MousePointer className="h-4 w-4" />
         <span>{message}</span>

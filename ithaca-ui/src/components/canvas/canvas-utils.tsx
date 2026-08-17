@@ -25,8 +25,8 @@ export function NewArgumentToast({
 
   return (
     <div className="animate-in slide-in-from-bottom-4 fade-in duration-500">
-      <div className="bg-card/95 backdrop-blur-sm border border-primary/30 shadow-[0_0_20px_rgba(59,130,246,0.2)] rounded-lg p-1 pr-4 flex items-center gap-3">
-        <div className="bg-primary/20 text-primary p-2 rounded flex items-center justify-center">
+      <div className="bg-card/95 border-primary/30 flex items-center gap-3 rounded-lg border p-1 pr-4 shadow-[0_0_20px_rgba(59,130,246,0.2)] backdrop-blur-sm">
+        <div className="bg-primary/20 text-primary flex items-center justify-center rounded p-2">
           <Lightbulb className="h-5 w-5" />
         </div>
         <div className="flex flex-col">
@@ -37,7 +37,7 @@ export function NewArgumentToast({
         </div>
         <button
           onClick={onClose}
-          className="ml-4 text-muted-foreground hover:text-foreground transition-colors"
+          className="text-muted-foreground hover:text-foreground ml-4 transition-colors"
         >
           <X className="h-4 w-4" />
         </button>

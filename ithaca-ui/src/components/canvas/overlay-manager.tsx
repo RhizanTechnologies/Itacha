@@ -101,9 +101,7 @@ interface OverlayManagerProps {
  */
 export function OverlayManager({ children, className }: OverlayManagerProps) {
   return (
-    <div
-      className={cn("absolute inset-0 pointer-events-none z-10", className)}
-    >
+    <div className={cn("pointer-events-none absolute inset-0 z-10", className)}>
       {children}
     </div>
   );
@@ -184,5 +182,3 @@ export function BottomRightZone({ children, className }: ZoneProps) {
     </OverlaySlot>
   );
 }
-
-

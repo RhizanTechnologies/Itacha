@@ -1,12 +1,52 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { apiError, type ApiRequestContext } from "@/lib/api/api-contracts";
+import {
+  checkDistributedLimit,
+  getRedis,
+} from "@/lib/platform/redis";
 
 const WINDOW_MS = 60_000; // 1-minute sliding window
 
-interface AuthResult {
+export interface AuthResult {
   session: { userId: string };
   user: { id: string; email: string; name: string | null };
+}
+
+interface RateLimitRecord {
+  count: number;
+  windowStart: Date;
+}
+
+export type RateLimitDecision =
+  | { action: "reset" }
+  | { action: "increment" }
+  | { action: "reject"; retryAfterSeconds: number };
+
+export function evaluateRateLimit(
+  record: RateLimitRecord | null,
+  maxPerMinute: number,
+  now: Date,
+): RateLimitDecision {
+  const windowStart = new Date(now.getTime() - WINDOW_MS);
+
+  if (!record || record.windowStart < windowStart) {
+    return { action: "reset" };
+  }
+
+  if (record.count >= maxPerMinute) {
+    const resetAt = new Date(record.windowStart.getTime() + WINDOW_MS);
+    return {
+      action: "reject",
+      retryAfterSeconds: Math.max(
+        0,
+        Math.ceil((resetAt.getTime() - now.getTime()) / 1000),
+      ),
+    };
+  }
+
+  return { action: "increment" };
 }
 
 /**
@@ -15,15 +55,17 @@ interface AuthResult {
  */
 export async function requireApiAuth(
   request: NextRequest,
+  context: ApiRequestContext,
 ): Promise<AuthResult | NextResponse> {
   const session = await auth.api.getSession({
     headers: request.headers,
   });
 
   if (!session?.user?.id) {
-    return NextResponse.json(
-      { error: "Authentication required" },
-      { status: 401 },
+    return apiError(
+      "AUTHENTICATION_REQUIRED",
+      "Authentication required",
+      context,
     );
   }
 
@@ -44,41 +86,99 @@ export async function requireApiAuth(
  *
  * Returns null if allowed, or a 429 NextResponse if rate-limited.
  */
+async function resolveRateLimitOrganizationId(
+  userId: string,
+  organizationId?: string | null,
+): Promise<string | null> {
+  if (organizationId) return organizationId;
+
+  const personal = await prisma.organization.findFirst({
+    where: { personalOwnerId: userId },
+    select: { id: true },
+  });
+  if (personal) return personal.id;
+
+  const membership = await prisma.membership.findFirst({
+    where: { userId },
+    orderBy: { createdAt: "asc" },
+    select: { organizationId: true },
+  });
+  return membership?.organizationId ?? null;
+}
+
 export async function checkApiRateLimit(
   userId: string,
   endpoint: string,
   maxPerMinute: number,
+  context: ApiRequestContext,
+  organizationId?: string | null,
 ): Promise<NextResponse | null> {
   const now = new Date();
-  const windowStart = new Date(now.getTime() - WINDOW_MS);
 
   try {
+    if (getRedis()) {
+      try {
+        const distributed = await checkDistributedLimit({
+          key: `rate-limit:${userId}:${endpoint}:${Math.floor(now.getTime() / WINDOW_MS)}`,
+          maximum: maxPerMinute,
+          windowSeconds: WINDOW_MS / 1000,
+        });
+        if (!distributed.allowed) {
+          return apiError(
+            "RATE_LIMIT_EXCEEDED",
+            "Rate limit exceeded",
+            context,
+            {
+              retryAfterSeconds: WINDOW_MS / 1000,
+              headers: { "Retry-After": String(WINDOW_MS / 1000) },
+            },
+          );
+        }
+        return null;
+      } catch (error) {
+        console.warn(
+          "[rate-limit] Redis unavailable, falling back to Postgres",
+          error,
+        );
+      }
+    }
+
+    const resolvedOrganizationId = await resolveRateLimitOrganizationId(
+      userId,
+      organizationId,
+    );
+    if (!resolvedOrganizationId) {
+      console.warn(
+        "[rate-limit] No organization context for user, skipping DB limiter",
+      );
+      return null;
+    }
+
     const record = await prisma.apiRateLimit.findUnique({
       where: { userId_endpoint: { userId, endpoint } },
     });
+    const decision = evaluateRateLimit(record, maxPerMinute, now);
 
-    if (!record || record.windowStart < windowStart) {
+    if (decision.action === "reset") {
       await prisma.apiRateLimit.upsert({
         where: { userId_endpoint: { userId, endpoint } },
         update: { count: 1, windowStart: now },
-        create: { userId, endpoint, count: 1, windowStart: now },
+        create: {
+          userId,
+          endpoint,
+          organizationId: resolvedOrganizationId,
+          count: 1,
+          windowStart: now,
+        },
       });
       return null;
     }
 
-    if (record.count >= maxPerMinute) {
-      const resetAt = new Date(record.windowStart.getTime() + WINDOW_MS);
-      const retryAfter = Math.ceil(
-        (resetAt.getTime() - now.getTime()) / 1000,
-      );
-
-      return NextResponse.json(
-        { error: "Rate limit exceeded", retryAfterSeconds: retryAfter },
-        {
-          status: 429,
-          headers: { "Retry-After": String(retryAfter) },
-        },
-      );
+    if (decision.action === "reject") {
+      return apiError("RATE_LIMIT_EXCEEDED", "Rate limit exceeded", context, {
+        retryAfterSeconds: decision.retryAfterSeconds,
+        headers: { "Retry-After": String(decision.retryAfterSeconds) },
+      });
     }
 
     await prisma.apiRateLimit.update({
@@ -89,9 +189,13 @@ export async function checkApiRateLimit(
     return null;
   } catch (error) {
     console.error("[rate-limit] DB error, blocking request:", error);
-    return NextResponse.json(
-      { error: "Service temporarily unavailable" },
-      { status: 503, headers: { "Retry-After": "5" } },
+    return apiError(
+      "SERVICE_UNAVAILABLE",
+      "Service temporarily unavailable",
+      context,
+      {
+        headers: { "Retry-After": "5" },
+      },
     );
   }
 }

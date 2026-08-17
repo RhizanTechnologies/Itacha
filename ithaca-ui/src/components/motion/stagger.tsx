@@ -38,7 +38,11 @@ export function Stagger({
               },
             }
       }
-      style={shouldReduceMotion ? undefined : ({ contain: "layout style paint" } as React.CSSProperties)}
+      style={
+        shouldReduceMotion
+          ? undefined
+          : ({ contain: "layout style paint" } as React.CSSProperties)
+      }
     >
       {children}
     </motion.div>
@@ -74,7 +78,11 @@ export function StaggerItem({
               },
             }
       }
-      style={shouldReduceMotion ? undefined : ({ willChange: "transform, opacity" } as React.CSSProperties)}
+      style={
+        shouldReduceMotion
+          ? undefined
+          : ({ willChange: "transform, opacity" } as React.CSSProperties)
+      }
     >
       {children}
     </motion.div>

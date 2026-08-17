@@ -18,7 +18,8 @@ import { jsPDF } from "jspdf";
 // TYPES
 // =============================================================================
 
-export type ExportFormat = "png" | "svg" | "graphml" | "json" | "csv" | "pdf";
+export type ExportFormat =
+  "png" | "svg" | "graphml" | "json" | "csv" | "pdf" | "debate-md";
 
 export interface ExportMetadata {
   title: string;
@@ -1228,6 +1229,35 @@ export async function exportAsPDF(
 }
 
 /**
+ * Export a markdown Debate Report of contested claims, evidence, and corrections.
+ */
+export async function exportAsDebateReport(
+  graph: Graph,
+  options: Partial<ExportOptions> = {},
+): Promise<string> {
+  const { buildDebateReport, renderDebateReportMarkdown } =
+    await import("./debate-report");
+  const filename = options.filename?.endsWith(".md")
+    ? options.filename
+    : `${options.filename || "debate-report"}.md`;
+
+  const report = buildDebateReport(graph, {
+    title: options.metadata?.title || "Debate Report",
+    query: options.metadata?.query,
+  });
+  const markdown = renderDebateReportMarkdown(report);
+  const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+  debug.graph(`Exported Debate Report: ${filename}`);
+  return url;
+}
+
+/**
  * Main export function - routes to appropriate exporter
  */
 export async function exportGraph(
@@ -1248,6 +1278,8 @@ export async function exportGraph(
       return exportAsCSV(graph, options);
     case "pdf":
       return exportAsPDF(sigma, options, graph);
+    case "debate-md":
+      return exportAsDebateReport(graph, options);
     default:
       throw new Error(`Unsupported export format: ${options.format}`);
   }

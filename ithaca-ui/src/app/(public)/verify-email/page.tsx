@@ -60,17 +60,17 @@ function VerifyEmailContent() {
   }, [token]);
 
   return (
-    <Card className="w-full max-w-md shadow-lg border-muted">
-      <CardHeader className="text-center pb-2">
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-muted/50">
+    <Card className="border-muted w-full max-w-md shadow-lg">
+      <CardHeader className="pb-2 text-center">
+        <div className="bg-muted/50 mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full">
           {status === "verifying" && (
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <Loader2 className="text-primary h-6 w-6 animate-spin" />
           )}
           {status === "success" && (
             <CheckCircle2 className="h-6 w-6 text-green-500" />
           )}
           {status === "error" && (
-            <XCircle className="h-6 w-6 text-destructive" />
+            <XCircle className="text-destructive h-6 w-6" />
           )}
         </div>
         <CardTitle className="text-xl">
@@ -88,7 +88,7 @@ function VerifyEmailContent() {
         </CardDescription>
       </CardHeader>
 
-      <CardContent className="text-center text-sm text-muted-foreground pb-6">
+      <CardContent className="text-muted-foreground pb-6 text-center text-sm">
         {message}
       </CardContent>
 
@@ -110,12 +110,12 @@ function VerifyEmailContent() {
 
 export default function VerifyEmailPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
+    <div className="bg-muted/30 flex min-h-screen items-center justify-center p-4">
       <Suspense
         fallback={
           <Card className="w-full max-w-md shadow-lg">
             <CardHeader className="text-center">
-              <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary mb-4" />
+              <Loader2 className="text-primary mx-auto mb-4 h-8 w-8 animate-spin" />
               <CardTitle>Loading...</CardTitle>
             </CardHeader>
           </Card>

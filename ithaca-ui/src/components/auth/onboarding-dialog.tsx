@@ -23,22 +23,25 @@ export function OnboardingDialog({
 }: OnboardingDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[420px]">
+      <DialogContent
+        className="sm:max-w-[420px]"
+        data-testid="onboarding-dialog"
+      >
         {/* Badge */}
-        <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-slate-800 dark:bg-slate-700 text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full shadow-lg border border-slate-700 dark:border-slate-600">
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full border border-slate-700 bg-slate-800 px-3 py-1 text-[10px] font-bold tracking-widest text-white uppercase shadow-lg dark:border-slate-600 dark:bg-slate-700">
           New User Guide
         </div>
 
         <DialogHeader>
-          <div className="flex items-center justify-between mb-4">
-            <div className="size-10 rounded-full bg-primary/10 flex items-center justify-center">
-              <Network className="h-5 w-5 text-primary" />
+          <div className="mb-4 flex items-center justify-between">
+            <div className="bg-primary/10 flex size-10 items-center justify-center rounded-full">
+              <Network className="text-primary h-5 w-5" />
             </div>
           </div>
           <DialogTitle className="text-xl font-bold">
             How to read the graph
           </DialogTitle>
-          <p className="text-sm text-muted-foreground pt-2">
+          <p className="text-muted-foreground pt-2 text-sm">
             Welcome to Ithaca. Here is a quick guide to understanding the visual
             grammar of our citation networks.
           </p>
@@ -47,31 +50,31 @@ export function OnboardingDialog({
         <div className="flex flex-col gap-6 pt-4">
           {/* Nodes Explanation */}
           <div className="flex items-start gap-4">
-            <div className="w-12 pt-1 flex justify-center">
-              <div className="size-8 rounded-full bg-primary/20 flex items-center justify-center">
-                <div className="size-4 rounded-full bg-primary" />
+            <div className="flex w-12 justify-center pt-1">
+              <div className="bg-primary/20 flex size-8 items-center justify-center rounded-full">
+                <div className="bg-primary size-4 rounded-full" />
               </div>
             </div>
             <div className="flex-1">
-              <h4 className="text-sm font-bold mb-1">Nodes (Papers)</h4>
-              <p className="text-xs text-muted-foreground mb-3">
+              <h4 className="mb-1 text-sm font-bold">Nodes (Papers)</h4>
+              <p className="text-muted-foreground mb-3 text-xs">
                 Size indicates citation count. Color indicates publication year.
               </p>
-              <div className="flex items-center gap-6 p-3 bg-muted/50 rounded-lg border">
+              <div className="bg-muted/50 flex items-center gap-6 rounded-lg border p-3">
                 <div className="flex flex-col items-center gap-2">
-                  <div className="flex items-end gap-2 h-8">
-                    <div className="size-3 rounded-full bg-primary/40" />
-                    <div className="size-6 rounded-full bg-primary/70" />
-                    <div className="size-8 rounded-full bg-primary shadow-sm" />
+                  <div className="flex h-8 items-end gap-2">
+                    <div className="bg-primary/40 size-3 rounded-full" />
+                    <div className="bg-primary/70 size-6 rounded-full" />
+                    <div className="bg-primary size-8 rounded-full shadow-sm" />
                   </div>
-                  <span className="text-[10px] font-medium text-muted-foreground uppercase">
+                  <span className="text-muted-foreground text-[10px] font-medium uppercase">
                     Citations
                   </span>
                 </div>
-                <div className="w-px h-10 bg-border" />
-                <div className="flex flex-col items-center gap-2 flex-1">
+                <div className="bg-border h-10 w-px" />
+                <div className="flex flex-1 flex-col items-center gap-2">
                   <div className="h-2 w-full rounded-full bg-gradient-to-r from-blue-200 via-blue-400 to-blue-800" />
-                  <div className="flex justify-between w-full text-[10px] font-medium text-muted-foreground uppercase">
+                  <div className="text-muted-foreground flex w-full justify-between text-[10px] font-medium uppercase">
                     <span>Old</span>
                     <span>New</span>
                   </div>
@@ -82,27 +85,29 @@ export function OnboardingDialog({
 
           {/* Edges Explanation */}
           <div className="flex items-start gap-4">
-            <div className="w-12 pt-1 flex justify-center">
-              <TrendingUp className="h-6 w-6 text-muted-foreground" />
+            <div className="flex w-12 justify-center pt-1">
+              <TrendingUp className="text-muted-foreground h-6 w-6" />
             </div>
             <div className="flex-1">
-              <h4 className="text-sm font-bold mb-1">Edges (Connections)</h4>
-              <p className="text-xs text-muted-foreground mb-3">
+              <h4 className="mb-1 text-sm font-bold">Edges (Connections)</h4>
+              <p className="text-muted-foreground mb-3 text-xs">
                 Lines represent the sentiment of the citation.
               </p>
-              <div className="flex flex-col gap-2 p-3 bg-muted/50 rounded-lg border">
+              <div className="bg-muted/50 flex flex-col gap-2 rounded-lg border p-3">
                 <div className="flex items-center gap-3">
-                  <div className="h-1 w-12 bg-supports rounded-full" />
+                  <div className="bg-supports h-1 w-12 rounded-full" />
                   <span className="text-xs font-semibold">Support</span>
-                  <div className="ml-auto size-4 rounded-full bg-supports/20 flex items-center justify-center">
-                    <div className="size-2 rounded-full bg-supports" />
+                  <div className="bg-supports/20 ml-auto flex size-4 items-center justify-center rounded-full">
+                    <div className="bg-supports size-2 rounded-full" />
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="h-1 w-12 bg-contradicts rounded-full" />
-                  <span className="text-xs font-semibold">Refute / Disagree</span>
-                  <div className="ml-auto size-4 rounded-full bg-contradicts/20 flex items-center justify-center">
-                    <X className="size-3 text-contradicts" />
+                  <div className="bg-contradicts h-1 w-12 rounded-full" />
+                  <span className="text-xs font-semibold">
+                    Refute / Disagree
+                  </span>
+                  <div className="bg-contradicts/20 ml-auto flex size-4 items-center justify-center rounded-full">
+                    <X className="text-contradicts size-3" />
                   </div>
                 </div>
               </div>
@@ -111,6 +116,7 @@ export function OnboardingDialog({
         </div>
 
         <Button
+          data-testid="onboarding-complete-button"
           onClick={onComplete}
           className="mt-6 h-11 font-bold tracking-wide"
         >

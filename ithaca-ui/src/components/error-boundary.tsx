@@ -35,14 +35,14 @@ export class AppErrorBoundary extends React.Component<
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex flex-col items-center justify-center min-h-[400px] p-8 text-center">
-          <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
-            <AlertCircle className="h-8 w-8 text-destructive" />
+        <div className="flex min-h-[400px] flex-col items-center justify-center p-8 text-center">
+          <div className="bg-destructive/10 mb-4 flex h-16 w-16 items-center justify-center rounded-full">
+            <AlertCircle className="text-destructive h-8 w-8" />
           </div>
-          <h2 className="text-lg font-semibold mb-1">
+          <h2 className="mb-1 text-lg font-semibold">
             {this.props.fallbackTitle ?? "Something went wrong"}
           </h2>
-          <p className="text-muted-foreground text-sm max-w-md mb-6">
+          <p className="text-muted-foreground mb-6 max-w-md text-sm">
             {this.props.fallbackMessage ??
               "An unexpected error occurred. Try refreshing or come back later."}
           </p>
@@ -52,7 +52,7 @@ export class AppErrorBoundary extends React.Component<
               size="sm"
               onClick={() => this.setState({ hasError: false, error: null })}
             >
-              <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+              <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
               Try Again
             </Button>
             <Button
@@ -64,7 +64,7 @@ export class AppErrorBoundary extends React.Component<
             </Button>
           </div>
           {process.env.NODE_ENV === "development" && this.state.error && (
-            <pre className="mt-6 p-4 bg-muted rounded-lg text-xs text-left max-w-lg overflow-auto max-h-40">
+            <pre className="bg-muted mt-6 max-h-40 max-w-lg overflow-auto rounded-lg p-4 text-left text-xs">
               {this.state.error.message}
             </pre>
           )}

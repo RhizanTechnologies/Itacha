@@ -5,6 +5,7 @@ import { Search, ArrowRight, FileText, Sparkles, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { graphAPI, type SearchResult } from "@/lib/api/graph-api";
+import { resolveExploreEntryTarget } from "@/lib/graph-snapshot";
 import type { RelationshipFocusType } from "@/components/canvas/relationship-focus-control";
 
 interface CanvasEmptyStateProps {
@@ -24,11 +25,10 @@ interface CanvasEmptyStateProps {
 
 // Curated topic suggestions shown before user types
 const SUGGESTED_TOPICS = [
+  "Does metformin reduce cancer risk?",
+  "How do transformers handle long context?",
   "CRISPR gene editing",
   "Large language models",
-  "Quantum computing",
-  "Climate change mitigation",
-  "Transformer architectures",
   "mRNA vaccines",
 ];
 
@@ -39,7 +39,7 @@ const SUGGESTED_TOPICS = [
 export function CanvasEmptyState({
   onSearchSelect,
   onSearchClick,
-  message = "Search for a research topic to visually explore its citation network, discover connections, and analyze trends.",
+  message = "Paste a DOI, ask a research question, or enter a topic. Ithaca builds the debate map — supports, contradictions, and extensions — without project setup.",
   showAnimation = true,
   relationshipFocus = "all",
   onRelationshipFocusChange,
@@ -54,8 +54,12 @@ export function CanvasEmptyState({
   // Close dropdown on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node) &&
-          inputRef.current && !inputRef.current.contains(e.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node) &&
+        inputRef.current &&
+        !inputRef.current.contains(e.target as Node)
+      ) {
         setIsFocused(false);
       }
     };
@@ -85,23 +89,32 @@ export function CanvasEmptyState({
     return () => clearTimeout(timeout);
   }, [query]);
 
-  const handleSelect = useCallback((id: string) => {
-    setQuery("");
-    setResults([]);
-    setIsFocused(false);
-    onSearchSelect?.(id);
-  }, [onSearchSelect]);
+  const handleSelect = useCallback(
+    (id: string) => {
+      setQuery("");
+      setResults([]);
+      setIsFocused(false);
+      onSearchSelect?.(id);
+    },
+    [onSearchSelect],
+  );
 
-  const handleTopicClick = useCallback((topic: string) => {
-    handleSelect(`topic-${topic}`);
-  }, [handleSelect]);
+  const handleTopicClick = useCallback(
+    (topic: string) => {
+      handleSelect(resolveExploreEntryTarget(topic));
+    },
+    [handleSelect],
+  );
 
-  const handleSubmit = useCallback((e: React.FormEvent) => {
-    e.preventDefault();
-    if (query.trim()) {
-      handleSelect(`topic-${query.trim()}`);
-    }
-  }, [query, handleSelect]);
+  const handleSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      if (query.trim()) {
+        handleSelect(resolveExploreEntryTarget(query));
+      }
+    },
+    [query, handleSelect],
+  );
 
   // Separate papers and topics
   const papers = results.filter((r) => r.type === "paper");
@@ -110,11 +123,11 @@ export function CanvasEmptyState({
   const showDropdown = isFocused && (results.length > 0 || isSearching);
 
   return (
-    <div className="absolute inset-0 flex items-center justify-center bg-background">
+    <div className="bg-background absolute inset-0 flex items-center justify-center">
       {/* Subtle dot grid */}
       {showAnimation && (
         <div className="absolute inset-0 overflow-hidden opacity-[0.04] dark:opacity-[0.06]">
-          <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+          <svg className="h-full w-full" xmlns="http://www.w3.org/2000/svg">
             <defs>
               <pattern
                 id="empty-grid"
@@ -132,52 +145,58 @@ export function CanvasEmptyState({
 
       {/* Main content */}
       <motion.div
-        className="relative z-10 flex flex-col items-center text-center w-full max-w-xl px-6"
+        className="relative z-10 flex w-full max-w-xl flex-col items-center px-6 text-center"
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
         {/* Icon */}
         <div className="relative mb-5">
-          <div className="bg-primary/8 p-5 rounded-2xl border border-primary/10">
-            <Search className="w-8 h-8 text-primary" />
+          <div className="bg-primary/8 border-primary/10 rounded-2xl border p-5">
+            <Search className="text-primary h-8 w-8" />
           </div>
         </div>
 
         {/* Title */}
-        <h2 className="text-xl font-semibold text-foreground mb-2">
-          Explore citation networks
+        <h2 className="text-foreground mb-2 text-xl font-semibold">
+          See the debate in minutes
         </h2>
 
         {/* Subtitle */}
-        <p className="text-sm text-muted-foreground mb-6 leading-relaxed max-w-md">{message}</p>
+        <p className="text-muted-foreground mb-6 max-w-md text-sm leading-relaxed">
+          {message}
+        </p>
 
         {/* Inline Search Input */}
-        <div className="w-full max-w-md relative">
+        <div className="relative w-full max-w-md">
           <form onSubmit={handleSubmit}>
-            <div className={`relative flex items-center bg-background border rounded-xl shadow-lg transition-all ${
-              isFocused ? "border-primary ring-2 ring-primary/20 shadow-xl" : "border-border hover:border-primary/40"
-            }`}>
-              <Search className="absolute left-4 h-4.5 w-4.5 text-muted-foreground pointer-events-none" />
+            <div
+              className={`bg-background relative flex items-center rounded-xl border shadow-lg transition-all ${
+                isFocused
+                  ? "border-primary ring-primary/20 shadow-xl ring-2"
+                  : "border-border hover:border-primary/40"
+              }`}
+            >
+              <Search className="text-muted-foreground pointer-events-none absolute left-4 h-4.5 w-4.5" />
               <input
                 ref={inputRef}
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onFocus={() => setIsFocused(true)}
-                placeholder="Search papers, topics, or authors..."
-                className="w-full py-3.5 pl-11 pr-12 bg-transparent text-sm placeholder:text-muted-foreground focus:outline-none rounded-xl"
+                placeholder="Ask a question, or paste a DOI / topic..."
+                className="placeholder:text-muted-foreground w-full rounded-xl bg-transparent py-3.5 pr-12 pl-11 text-sm focus:outline-none"
               />
               {query.trim() && (
                 <button
                   type="submit"
-                  className="absolute right-2.5 p-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 absolute right-2.5 rounded-lg p-1.5 transition-colors"
                 >
                   <ArrowRight className="h-4 w-4" />
                 </button>
               )}
               {isSearching && (
-                <Loader2 className="absolute right-4 h-4 w-4 text-muted-foreground animate-spin" />
+                <Loader2 className="text-muted-foreground absolute right-4 h-4 w-4 animate-spin" />
               )}
             </div>
           </form>
@@ -191,13 +210,13 @@ export function CanvasEmptyState({
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -4, scale: 0.98 }}
                 transition={{ duration: 0.15 }}
-                className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-xl shadow-2xl overflow-hidden z-50 max-h-[320px] overflow-y-auto"
+                className="bg-card border-border absolute top-full right-0 left-0 z-50 mt-2 max-h-[320px] overflow-hidden overflow-y-auto rounded-xl border shadow-2xl"
               >
                 {/* Papers */}
                 {papers.length > 0 && (
                   <div>
-                    <div className="px-4 py-2 bg-muted/30 border-b border-border/40">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    <div className="bg-muted/30 border-border/40 border-b px-4 py-2">
+                      <span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
                         Papers ({papers.length})
                       </span>
                     </div>
@@ -205,12 +224,16 @@ export function CanvasEmptyState({
                       <button
                         key={r.id}
                         onClick={() => handleSelect(r.id)}
-                        className="w-full flex items-start gap-3 px-4 py-2.5 hover:bg-muted/50 transition-colors text-left"
+                        className="hover:bg-muted/50 flex w-full items-start gap-3 px-4 py-2.5 text-left transition-colors"
                       >
-                        <FileText className="h-4 w-4 mt-0.5 text-muted-foreground/60 shrink-0" />
+                        <FileText className="text-muted-foreground/60 mt-0.5 h-4 w-4 shrink-0" />
                         <div className="min-w-0">
-                          <p className="text-sm font-medium truncate">{r.title}</p>
-                          <p className="text-xs text-muted-foreground">{r.authors} · {r.year}</p>
+                          <p className="truncate text-sm font-medium">
+                            {r.title}
+                          </p>
+                          <p className="text-muted-foreground text-xs">
+                            {r.authors} · {r.year}
+                          </p>
                         </div>
                       </button>
                     ))}
@@ -220,8 +243,8 @@ export function CanvasEmptyState({
                 {/* Topics */}
                 {topics.length > 0 && (
                   <div>
-                    <div className="px-4 py-2 bg-muted/30 border-b border-border/40 border-t border-t-border/20">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    <div className="bg-muted/30 border-border/40 border-t-border/20 border-t border-b px-4 py-2">
+                      <span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
                         Topics ({topics.length})
                       </span>
                     </div>
@@ -229,9 +252,9 @@ export function CanvasEmptyState({
                       <button
                         key={r.id}
                         onClick={() => handleSelect(r.id)}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-muted/50 transition-colors text-left"
+                        className="hover:bg-muted/50 flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors"
                       >
-                        <Sparkles className="h-4 w-4 text-blue-500/60 shrink-0" />
+                        <Sparkles className="h-4 w-4 shrink-0 text-blue-500/60" />
                         <span className="text-sm font-medium">{r.title}</span>
                       </button>
                     ))}
@@ -241,8 +264,10 @@ export function CanvasEmptyState({
                 {/* Searching indicator */}
                 {isSearching && results.length === 0 && (
                   <div className="px-4 py-6 text-center">
-                    <Loader2 className="h-5 w-5 mx-auto mb-2 text-muted-foreground animate-spin" />
-                    <p className="text-xs text-muted-foreground">Searching...</p>
+                    <Loader2 className="text-muted-foreground mx-auto mb-2 h-5 w-5 animate-spin" />
+                    <p className="text-muted-foreground text-xs">
+                      Searching...
+                    </p>
                   </div>
                 )}
               </motion.div>
@@ -251,20 +276,22 @@ export function CanvasEmptyState({
         </div>
 
         {/* Keyboard hint */}
-        <p className="mt-3 text-xs text-muted-foreground">
+        <p className="text-muted-foreground mt-3 text-xs">
           or press{" "}
-          <kbd className="px-1.5 py-0.5 rounded border border-border bg-muted text-[10px] font-mono">⌘K</kbd>
-          {" "}for advanced search
+          <kbd className="border-border bg-muted rounded border px-1.5 py-0.5 font-mono text-[10px]">
+            ⌘K
+          </kbd>{" "}
+          for advanced search
         </p>
 
         {/* Suggested topics */}
         <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-          <span className="text-xs text-muted-foreground mr-1">Try:</span>
+          <span className="text-muted-foreground mr-1 text-xs">Try:</span>
           {SUGGESTED_TOPICS.map((topic) => (
             <button
               key={topic}
               onClick={() => handleTopicClick(topic)}
-              className="px-3 py-1 rounded-full border border-border bg-card/50 text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-primary/5 transition-all"
+              className="border-border bg-card/50 text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-primary/5 rounded-full border px-3 py-1 text-xs transition-all"
             >
               {topic}
             </button>
@@ -287,12 +314,12 @@ export function EmptyStateCompact({
 }) {
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
-      <div className="bg-muted/50 p-4 rounded-full mb-4">
-        <Search className="w-6 h-6 text-muted-foreground" />
+      <div className="bg-muted/50 mb-4 rounded-full p-4">
+        <Search className="text-muted-foreground h-6 w-6" />
       </div>
-      <p className="text-sm font-medium text-foreground">{message}</p>
+      <p className="text-foreground text-sm font-medium">{message}</p>
       {suggestion && (
-        <p className="text-xs text-muted-foreground mt-1">{suggestion}</p>
+        <p className="text-muted-foreground mt-1 text-xs">{suggestion}</p>
       )}
     </div>
   );

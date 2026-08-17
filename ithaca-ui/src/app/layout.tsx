@@ -17,9 +17,7 @@ export const metadata: Metadata = {
   title: "Ithaca - Scientific Argument Graph Explorer",
   description: "Explore scientific debates through interactive argument graphs",
   icons: {
-    icon: [
-      { url: "/favicon.svg", type: "image/svg+xml" },
-    ],
+    icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
     apple: [
       { url: "/apple-touch-icon.svg", sizes: "180x180", type: "image/svg+xml" },
     ],
@@ -37,7 +35,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <a href="#content" className="skip-link">Skip to content</a>
+        <a href="#content" className="skip-link">
+          Skip to content
+        </a>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

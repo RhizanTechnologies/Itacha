@@ -5,12 +5,12 @@ import { BLOG_POSTS } from "@/content/blog-posts";
 export default function BlogIndexPage() {
   return (
     <div className="bg-background text-foreground min-h-screen">
-      <section className="border-b border-border bg-muted/20">
+      <section className="border-border bg-muted/20 border-b">
         <div className="container mx-auto px-4 py-16 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">
+          <h1 className="mb-4 text-4xl font-bold tracking-tight md:text-5xl">
             Blog
           </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-muted-foreground mx-auto max-w-2xl text-xl">
             Engineering deep dives and thoughts on the future of meta-science.
           </p>
         </div>
@@ -18,17 +18,17 @@ export default function BlogIndexPage() {
 
       <section className="container mx-auto px-4 py-16">
         {BLOG_POSTS.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
             {BLOG_POSTS.map((post) => (
               <Link
                 key={post.slug}
                 href={`/blog/${post.slug}`}
-                className="group flex flex-col bg-card border border-border rounded-xl overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
+                className="group bg-card border-border flex flex-col overflow-hidden rounded-xl border transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
               >
-                <div className="aspect-video bg-gradient-to-br from-primary/10 to-primary/5" />
+                <div className="from-primary/10 to-primary/5 aspect-video bg-gradient-to-br" />
 
-                <div className="flex flex-col flex-1 p-6">
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3">
+                <div className="flex flex-1 flex-col p-6">
+                  <div className="text-muted-foreground mb-3 flex items-center gap-3 text-xs">
                     <span className="text-primary font-medium">
                       {post.category}
                     </span>
@@ -36,20 +36,20 @@ export default function BlogIndexPage() {
                     <span>{post.date}</span>
                   </div>
 
-                  <h3 className="text-xl font-bold mb-3 group-hover:text-primary transition-colors">
+                  <h3 className="group-hover:text-primary mb-3 text-xl font-bold transition-colors">
                     {post.title}
                   </h3>
 
-                  <p className="text-muted-foreground text-sm line-clamp-3 mb-4 flex-1">
+                  <p className="text-muted-foreground mb-4 line-clamp-3 flex-1 text-sm">
                     {post.excerpt}
                   </p>
 
-                  <div className="flex items-center justify-between pt-4 border-t border-border mt-auto">
-                    <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                  <div className="border-border mt-auto flex items-center justify-between border-t pt-4">
+                    <div className="text-muted-foreground flex items-center gap-2 text-xs font-medium">
                       <User className="h-3 w-3" />
                       {post.author}
                     </div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-muted-foreground text-xs">
                       {post.readTime}
                     </div>
                   </div>
@@ -58,7 +58,7 @@ export default function BlogIndexPage() {
             ))}
           </div>
         ) : (
-          <div className="text-center py-20">
+          <div className="py-20 text-center">
             <p className="text-muted-foreground text-lg">
               No posts yet. Check back soon!
             </p>

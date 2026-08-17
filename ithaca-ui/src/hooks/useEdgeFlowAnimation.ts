@@ -1,9 +1,9 @@
 /**
  * useEdgeFlowAnimation Hook
- * 
+ *
  * Manages flowing edge animation for hovered/selected edges in the Sigma graph.
  * Uses requestAnimationFrame for smooth GPU-accelerated animation.
- * 
+ *
  * Features:
  * - Only animates edges when hovered (performance-efficient)
  * - Respects prefers-reduced-motion accessibility setting
@@ -56,7 +56,7 @@ export function useEdgeFlowAnimation(options: EdgeFlowAnimationOptions = {}) {
     }
 
     const graph = sigma.getGraph();
-    
+
     // Store base sizes when animation starts
     const baseSizes = new Map<string, number>();
     hoveredEdges.forEach((edgeId) => {
@@ -66,7 +66,7 @@ export function useEdgeFlowAnimation(options: EdgeFlowAnimationOptions = {}) {
         baseSizes.set(edgeId, attrs.size || GRAPH.DEFAULT_EDGE_SIZE);
       }
     });
-    
+
     // Animation loop
     const animate = () => {
       const currentTime = Date.now();
@@ -80,14 +80,15 @@ export function useEdgeFlowAnimation(options: EdgeFlowAnimationOptions = {}) {
 
           const attrs = graph.getEdgeAttributes(edgeId);
           const edgeType = attrs.type || "default";
-          
+
           // Calculate animation phase (0 to 1)
-          const speed = edgeType === "contradicts" 
-            ? GRAPH.EDGE_FLOW.SPEED_CONTRADICT
-            : GRAPH.EDGE_FLOW.SPEED_HOVER;
-          
-          const phase = (elapsed * 1000 / speed) % 1;
-          
+          const speed =
+            edgeType === "contradicts"
+              ? GRAPH.EDGE_FLOW.SPEED_CONTRADICT
+              : GRAPH.EDGE_FLOW.SPEED_HOVER;
+
+          const phase = ((elapsed * 1000) / speed) % 1;
+
           // Create pulsing effect by modulating size
           // For contradict edges: sharper pulses
           // For support edges: smooth sine wave
@@ -101,13 +102,10 @@ export function useEdgeFlowAnimation(options: EdgeFlowAnimationOptions = {}) {
           }
 
           // Apply intensity to base size (set by hover effect)
-          const baseSize = baseSizes.get(edgeId) || attrs.size || GRAPH.DEFAULT_EDGE_SIZE;
-          
-          graph.setEdgeAttribute(
-            edgeId,
-            "size",
-            baseSize * intensity
-          );
+          const baseSize =
+            baseSizes.get(edgeId) || attrs.size || GRAPH.DEFAULT_EDGE_SIZE;
+
+          graph.setEdgeAttribute(edgeId, "size", baseSize * intensity);
         } catch (error) {
           // Edge might have been removed, ignore
           console.debug("Edge animation error:", error);
@@ -121,7 +119,7 @@ export function useEdgeFlowAnimation(options: EdgeFlowAnimationOptions = {}) {
 
     // Reset start time when hovered edges change
     startTimeRef.current = Date.now();
-    
+
     // Start animation
     animationRef.current = requestAnimationFrame(animate);
 
@@ -131,7 +129,7 @@ export function useEdgeFlowAnimation(options: EdgeFlowAnimationOptions = {}) {
         cancelAnimationFrame(animationRef.current);
         animationRef.current = null;
       }
-      
+
       // Restore base sizes when animation stops
       baseSizes.forEach((size, edgeId) => {
         if (graph.hasEdge(edgeId)) {

@@ -55,6 +55,7 @@ docs/
 Contains comprehensive performance audit results and reference files showing all optimizations applied to improve animation and scroll performance.
 
 **[`performance-audit/README.md`](./performance-audit/README.md)** - Performance audit guide
+
 - Animation optimization techniques
 - CSS containment and GPU acceleration
 - Mobile performance improvements
@@ -64,6 +65,7 @@ Contains comprehensive performance audit results and reference files showing all
 ### 🏗️ Architecture & Organization
 
 **[`CLEANUP_SUMMARY.md`](./CLEANUP_SUMMARY.md)** - Codebase organization
+
 - Root directory cleanup
 - Documentation structure
 - Source code organization
@@ -73,6 +75,7 @@ Contains comprehensive performance audit results and reference files showing all
 ## Key Features Documented
 
 ### Authentication
+
 - ✅ OAuth (Google, ORCID)
 - ✅ Email + Password
 - ✅ Magic Link (planned)
@@ -81,6 +84,7 @@ Contains comprehensive performance audit results and reference files showing all
 - ✅ CSRF protection
 
 ### User Flow
+
 - ✅ Registration process
 - ✅ Sign-in with multiple providers
 - ✅ Onboarding tutorial
@@ -89,6 +93,7 @@ Contains comprehensive performance audit results and reference files showing all
 - ✅ Logout and session cleanup
 
 ### Security
+
 - ✅ Route protection (middleware)
 - ✅ Rate limiting (10 req/min)
 - ✅ OWASP security headers
@@ -97,21 +102,22 @@ Contains comprehensive performance audit results and reference files showing all
 
 ## Quick Navigation
 
-| Topic | File | Purpose |
-|-------|------|---------|
-| **User Registration** | [`USER_FLOW.md#1-registration`](./USER_FLOW.md#1-registration--sign-up-flow) | Complete sign-up flow |
-| **User Sign In** | [`USER_FLOW.md#2-sign-in`](./USER_FLOW.md#2-sign-in--login-flow) | Login process |
-| **Sessions** | [`USER_FLOW.md#3-session`](./USER_FLOW.md#3-session-management) | 7-day session lifecycle |
-| **Onboarding** | [`USER_FLOW.md#4-onboarding`](./USER_FLOW.md#4-onboarding) | Tutorial flow |
-| **Dashboard** | [`USER_FLOW.md#5-app-usage`](./USER_FLOW.md#5-app-usage--dashboard) | User dashboard |
-| **Logout** | [`USER_FLOW.md#6-logout`](./USER_FLOW.md#6-logout-flow) | Sign-out process |
-| **Route Protection** | [`USER_FLOW.md#7-route-protection`](./USER_FLOW.md#7-route-protection) | Middleware security |
-| **Auth Architecture** | [`USER_FLOW.md#architecture-reference`](./USER_FLOW.md#architecture-reference) | Tech stack & design |
-| **Flow Diagrams** | [`AUTH_STATE_DIAGRAMS.md`](./AUTH_STATE_DIAGRAMS.md) | Visual representations |
+| Topic                 | File                                                                           | Purpose                 |
+| --------------------- | ------------------------------------------------------------------------------ | ----------------------- |
+| **User Registration** | [`USER_FLOW.md#1-registration`](./USER_FLOW.md#1-registration--sign-up-flow)   | Complete sign-up flow   |
+| **User Sign In**      | [`USER_FLOW.md#2-sign-in`](./USER_FLOW.md#2-sign-in--login-flow)               | Login process           |
+| **Sessions**          | [`USER_FLOW.md#3-session`](./USER_FLOW.md#3-session-management)                | 7-day session lifecycle |
+| **Onboarding**        | [`USER_FLOW.md#4-onboarding`](./USER_FLOW.md#4-onboarding)                     | Tutorial flow           |
+| **Dashboard**         | [`USER_FLOW.md#5-app-usage`](./USER_FLOW.md#5-app-usage--dashboard)            | User dashboard          |
+| **Logout**            | [`USER_FLOW.md#6-logout`](./USER_FLOW.md#6-logout-flow)                        | Sign-out process        |
+| **Route Protection**  | [`USER_FLOW.md#7-route-protection`](./USER_FLOW.md#7-route-protection)         | Middleware security     |
+| **Auth Architecture** | [`USER_FLOW.md#architecture-reference`](./USER_FLOW.md#architecture-reference) | Tech stack & design     |
+| **Flow Diagrams**     | [`AUTH_STATE_DIAGRAMS.md`](./AUTH_STATE_DIAGRAMS.md)                           | Visual representations  |
 
 ## File Links
 
 ### Authentication Components
+
 - Sign-up: `src/app/(public)/signup/page.tsx` (339 lines)
 - Sign-in: `src/app/(public)/signin/page.tsx` (247 lines)
 - Dashboard: `src/app/(app)/dashboard/page.tsx` (425 lines)
@@ -119,6 +125,7 @@ Contains comprehensive performance audit results and reference files showing all
 - Onboarding: `src/components/auth/onboarding-dialog.tsx` (124 lines)
 
 ### Configuration Files
+
 - Auth config: `src/lib/auth.ts` (78 lines)
 - Middleware: `src/middleware.ts` (121 lines)
 - ORCID provider: `src/lib/auth-orcid.ts` (68 lines)
@@ -127,20 +134,24 @@ Contains comprehensive performance audit results and reference files showing all
 ## For Different Audiences
 
 ### 👤 End Users
+
 - Start with: [USER_FLOW.md - Quick Start](./USER_FLOW.md#quick-start)
 - Visual guide: [AUTH_STATE_DIAGRAMS.md - User Journey](./AUTH_STATE_DIAGRAMS.md#1-complete-user-journey-flowchart)
 
 ### 👨‍💻 Developers
+
 - Complete guide: [USER_FLOW.md](./USER_FLOW.md)
 - Developer guide: [USER_FLOW.md - Developer Guide](./USER_FLOW.md#developer-guide)
 - Architecture: [USER_FLOW.md - Architecture](./USER_FLOW.md#architecture-reference)
 
 ### 🔒 Security Reviewers
+
 - Security checks: [AUTH_STATE_DIAGRAMS.md - Security](./AUTH_STATE_DIAGRAMS.md#9-security-checkpoint-flow)
 - Route protection: [USER_FLOW.md - Route Protection](./USER_FLOW.md#7-route-protection)
 - Environment setup: [USER_FLOW.md - Environment](./USER_FLOW.md#environment-setup)
 
 ### ⚡ Performance Teams
+
 - Performance audit: [performance-audit/README.md](./performance-audit/README.md)
 - Optimizations: [performance-audit/](./performance-audit/)
 - Improvements: 45-50 FPS → 55-60 FPS ✅
