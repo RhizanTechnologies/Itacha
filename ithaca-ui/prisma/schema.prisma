@@ -16,6 +16,7 @@ enum OrganizationRole {
 
 enum OrganizationPlan {
   SOLO
+  SOLO_PRO
   LAB
   INSTITUTION
 }
@@ -55,6 +56,8 @@ model User {
   personalOrganization Organization? @relation("PersonalOrganization")
   backgroundJobs       BackgroundJob[]
   aiUsageRecords       AiUsageRecord[]
+  billingTransactions  BillingTransaction[]
+  zoteroSyncRecords    ZoteroSyncRecord[]
 
   @@map("user")
 }
@@ -65,6 +68,13 @@ model Organization {
   slug                 String           @unique
   personalOwnerId      String?          @unique
   plan                 OrganizationPlan @default(SOLO)
+  subscriptionStatus   String           @default("active")
+  subscriptionId       String?
+  billingCustomerId    String?
+  currency             String           @default("USD")
+  isSovereignExempt    Boolean          @default(false)
+  nbeFxRetentionAccount String?
+  currentPeriodEnd     DateTime?
   allowedEmailDomains  String[]         @default([])
   supportContactEmail  String?
   maxMembers           Int              @default(3)
@@ -91,6 +101,8 @@ model Organization {
   storedArtifacts StoredArtifact[]
   aiUsageRecords AiUsageRecord[]
   edgeComments   EdgeComment[]
+  billingTransactions BillingTransaction[]
+  zoteroSyncRecords    ZoteroSyncRecord[]
 
   @@map("organization")
 }
@@ -212,12 +224,17 @@ model CitationCache {
   provider          String // e.g., "gemini/gemini-2.0-flash" — tracks which model classified it
   contexts          String?  @db.Text // S2 citation context sentences (JSON array)
   s2Intents         String? // S2 intent labels (comma-separated: "Background,Methodology")
+  isCalibrated      Boolean  @default(false)
+  reviewerId        String?
+  calibrationFeedback String? @db.Text
   classifierVersion Int      @default(1) // Bump to invalidate stale cache entries
   createdAt         DateTime @default(now())
 
   @@unique([citingId, citedId])
   @@index([citingId])
   @@index([citedId])
+  @@index([isCalibrated])
+  @@index([provider])
   @@map("citation_cache")
 }
 
@@ -282,6 +299,10 @@ model PaperRecord {
   pdfUrl          String?
   pdfArtifactId   String?
   provenance      Json?
+  isSovereignIndex Boolean   @default(false)
+  institutionSlug  String?
+  repositoryHandle String?
+  advisorNames     String[]  @default([])
   importedAt      DateTime  @default(now())
   sourceUpdatedAt DateTime?
   createdAt       DateTime  @default(now())
@@ -295,6 +316,9 @@ model PaperRecord {
   @@index([userId])
   @@index([doi])
   @@index([openAlexId])
+  @@index([isSovereignIndex])
+  @@index([institutionSlug])
+  @@index([repositoryHandle])
   @@map("paper_record")
 }
 
@@ -423,3 +447,53 @@ model AiUsageRecord {
   @@index([userId, createdAt])
   @@map("ai_usage_record")
 }
+
+// =============================================================================
+// GLOBAL BILLING & FX RETENTION (NBE Proclamation 1396/2025)
+// =============================================================================
+
+model BillingTransaction {
+  id             String       @id @default(cuid())
+  organizationId String
+  userId         String?
+  amount         Float
+  currency       String       @default("USD")
+  provider       String       // "paddle" | "stripe" | "lemonsqueezy"
+  status         String       @default("completed") // "completed" | "refunded" | "failed"
+  invoiceUrl     String?
+  nbeFxCompliant Boolean      @default(true) // Startup Proclamation 1396/2025 FX retention
+  metadata       Json?
+  createdAt      DateTime     @default(now())
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([userId])
+  @@map("billing_transaction")
+}
+
+// =============================================================================
+// ZOTERO BIDIRECTIONAL SYNC
+// =============================================================================
+
+model ZoteroSyncRecord {
+  id                 String       @id @default(cuid())
+  organizationId     String
+  userId             String
+  libraryId          String
+  collectionId       String?
+  lastSyncAt         DateTime     @default(now())
+  syncedItemCount    Int          @default(0)
+  activeDisputeCount Int          @default(0)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([userId])
+  @@map("zotero_sync_record")
+}
+
