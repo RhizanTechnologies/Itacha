@@ -27,12 +27,12 @@ export function isInvitationUsable(options: {
   expiresAt: Date;
   now?: Date;
 }): boolean {
-  return !options.acceptedAt && !isInvitationExpired(options.expiresAt, options.now);
+  return (
+    !options.acceptedAt && !isInvitationExpired(options.expiresAt, options.now)
+  );
 }
 
-export function countOwners(
-  memberships: MembershipSnapshot[],
-): number {
+export function countOwners(memberships: MembershipSnapshot[]): number {
   return memberships.filter((membership) => membership.role === "OWNER").length;
 }
 
@@ -57,9 +57,7 @@ export function assertOwnerSafeguard(
   targetUserId: string,
   nextRole?: OrganizationRole,
 ): void {
-  if (
-    !canRemoveOrDemoteMember({ memberships, targetUserId, nextRole })
-  ) {
+  if (!canRemoveOrDemoteMember({ memberships, targetUserId, nextRole })) {
     throw new Error("Cannot remove or demote the last organization owner");
   }
 }

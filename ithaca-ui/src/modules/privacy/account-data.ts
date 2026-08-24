@@ -47,7 +47,12 @@ export async function exportUserData(userId: string): Promise<UserDataExport> {
         include: { organization: { select: { id: true, name: true } } },
       },
       projects: {
-        select: { id: true, title: true, description: true, organizationId: true },
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          organizationId: true,
+        },
       },
       collections: {
         select: { id: true, title: true, paperIds: true, organizationId: true },

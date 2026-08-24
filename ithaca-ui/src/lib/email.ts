@@ -9,10 +9,27 @@
  */
 
 import { Resend } from "resend";
+import nodemailer from "nodemailer";
 import { env } from "./env";
 
 // Initialize Resend with API key if available
 const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
+
+// Initialize SMTP transport if configured
+const smtpTransport = env.SMTP_HOST
+  ? nodemailer.createTransport({
+      host: env.SMTP_HOST,
+      port: Number(env.SMTP_PORT) || 587,
+      secure: Number(env.SMTP_PORT) === 465,
+      auth:
+        env.SMTP_USER && env.SMTP_PASSWORD
+          ? {
+              user: env.SMTP_USER,
+              pass: env.SMTP_PASSWORD,
+            }
+          : undefined,
+    })
+  : null;
 
 interface SendEmailParams {
   to: string;
@@ -22,48 +39,72 @@ interface SendEmailParams {
 }
 
 /**
- * Send an email using Resend
+ * Send an email using Resend (primary) or SMTP (fallback)
  */
 export async function sendEmail({ to, subject, html, text }: SendEmailParams) {
-  // If no Resend API key, fall back to console logging
-  if (!resend) {
-    console.log(
-      "\n📧 [EMAIL — console only, no RESEND_API_KEY] ================",
-    );
-    console.log(`To: ${to}`);
-    console.log(`Subject: ${subject}`);
-    console.log(`Body:\n${text || html}`);
-    console.log("==========================\n");
-    console.warn(
-      "⚠️  RESEND_API_KEY is missing. Set it in .env to send real emails.",
-    );
-    return { success: true };
-  }
-
-  // Always log in dev for debugging, but still send the email
-  if (env.NODE_ENV === "development") {
-    console.log(`📧 [EMAIL] Sending to ${to}: "${subject}" via Resend`);
-  }
-
-  try {
-    const { data, error } = await resend.emails.send({
-      from: env.EMAIL_FROM || "Ithaca <onboarding@resend.dev>",
-      to,
-      subject,
-      html,
-      text,
-    });
-
-    if (error) {
-      console.error("Failed to send email:", error);
-      return { success: false, error };
+  // 1. Try Resend if configured
+  if (resend) {
+    if (env.NODE_ENV === "development") {
+      console.log(`📧 [EMAIL] Sending to ${to}: "${subject}" via Resend`);
     }
 
-    return { success: true, data };
-  } catch (error) {
-    console.error("Exception sending email:", error);
-    return { success: false, error };
+    try {
+      const { data, error } = await resend.emails.send({
+        from: env.EMAIL_FROM || "Ithaca <onboarding@resend.dev>",
+        to,
+        subject,
+        html,
+        text,
+      });
+
+      if (error) {
+        console.error("Failed to send email via Resend:", error);
+        return { success: false, error };
+      }
+
+      return { success: true, data };
+    } catch (error) {
+      console.error("Exception sending email via Resend:", error);
+      return { success: false, error };
+    }
   }
+
+  // 2. Try SMTP if configured
+  if (smtpTransport) {
+    if (env.NODE_ENV === "development") {
+      console.log(
+        `📧 [EMAIL] Sending to ${to}: "${subject}" via SMTP (${env.SMTP_HOST})`,
+      );
+    }
+
+    try {
+      const info = await smtpTransport.sendMail({
+        from: env.EMAIL_FROM || `Ithaca <no-reply@${env.SMTP_HOST}>`,
+        to,
+        subject,
+        html,
+        text,
+      });
+
+      return { success: true, data: info };
+    } catch (error) {
+      console.error("Exception sending email via SMTP:", error);
+      return { success: false, error };
+    }
+  }
+
+  // 3. Fall back to console logging in development/test
+  console.log(
+    "\n📧 [EMAIL — console only, no RESEND_API_KEY or SMTP_HOST] ================",
+  );
+  console.log(`To: ${to}`);
+  console.log(`Subject: ${subject}`);
+  console.log(`Body:\n${text || html}`);
+  console.log("==========================\n");
+  console.warn(
+    "⚠️  Neither RESEND_API_KEY nor SMTP_HOST is configured. Email was logged to console.",
+  );
+  return { success: true };
 }
 
 /**

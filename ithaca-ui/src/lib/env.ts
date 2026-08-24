@@ -38,6 +38,7 @@ const envSchema = z.object({
   SMTP_PASSWORD: z.string().optional(),
   EMAIL_FROM: z.string().email().optional(),
   RESEND_API_KEY: z.string().optional(),
+  REQUIRE_EMAIL_VERIFICATION: z.enum(["true", "false"]).optional(),
 
   // Managed platform infrastructure
   KV_REST_API_URL: z.string().url().optional(),
@@ -56,7 +57,20 @@ const envSchema = z.object({
     .default("development"),
 });
 
-export const env = envSchema.parse(process.env);
+function cleanEnv(raw: NodeJS.ProcessEnv) {
+  const cleaned: Record<string, string | undefined> = {};
+  for (const [key, val] of Object.entries(raw)) {
+    if (typeof val === "string") {
+      // Strip surrounding single or double quotes if passed by Docker env-file
+      cleaned[key] = val.trim().replace(/^["'](.*)["']$/, "$1");
+    } else {
+      cleaned[key] = val;
+    }
+  }
+  return cleaned;
+}
+
+export const env = envSchema.parse(cleanEnv(process.env));
 
 // Type-safe environment variables
 export type Env = z.infer<typeof envSchema>;

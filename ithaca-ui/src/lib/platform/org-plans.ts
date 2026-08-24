@@ -1,5 +1,6 @@
 export const ORGANIZATION_PLANS = {
   SOLO: "SOLO",
+  SOLO_PRO: "SOLO_PRO",
   LAB: "LAB",
   INSTITUTION: "INSTITUTION",
 } as const;
@@ -39,6 +40,22 @@ export const PLAN_ENTITLEMENTS: Record<OrganizationPlanId, PlanEntitlements> = {
     domainAllowlist: false,
     priceLabel: "Free",
   },
+  SOLO_PRO: {
+    id: "SOLO_PRO",
+    label: "Solo Pro",
+    description:
+      "Power researchers needing unlimited synthesis, deeper citation graphs, and Zotero conflict monitoring.",
+    maxMembers: 5,
+    maxProjects: 25,
+    maxCollections: 100,
+    maxSavedGraphs: 100,
+    maxPaperRecords: 15_000,
+    maxAiRequests: 10_000,
+    maxApiRequests: 5_000,
+    collaborativeWorkspaces: false,
+    domainAllowlist: false,
+    priceLabel: "$15/mo",
+  },
   LAB: {
     id: "LAB",
     label: "Lab",
@@ -72,11 +89,15 @@ export const PLAN_ENTITLEMENTS: Record<OrganizationPlanId, PlanEntitlements> = {
   },
 };
 
-export function isOrganizationPlanId(value: string): value is OrganizationPlanId {
+export function isOrganizationPlanId(
+  value: string,
+): value is OrganizationPlanId {
   return Object.prototype.hasOwnProperty.call(ORGANIZATION_PLANS, value);
 }
 
-export function getPlanEntitlements(plan: OrganizationPlanId): PlanEntitlements {
+export function getPlanEntitlements(
+  plan: OrganizationPlanId,
+): PlanEntitlements {
   return PLAN_ENTITLEMENTS[plan] ?? PLAN_ENTITLEMENTS.SOLO;
 }
 
@@ -125,4 +146,78 @@ export function isEmailAllowedForOrganization(
       .filter((item): item is string => Boolean(item)),
   );
   return allowed.has(domain);
+}
+
+/**
+ * Global accredited academic domain suffixes and top-level domains.
+ */
+export const GLOBAL_ACADEMIC_DOMAINS = [
+  "edu",
+  "ac.uk",
+  "edu.au",
+  "edu.et",
+  "edu.ng",
+  "edu.za",
+  "ac.in",
+  "edu.cn",
+  "edu.sg",
+  "edu.br",
+];
+
+/**
+ * Checks whether an email address belongs to an accredited university or registered partner institution.
+ */
+export function isAcademicPartnerEmail(
+  email: string,
+  additionalPartnerDomains: string[] = [],
+): boolean {
+  const domain = normalizeEmailDomain(email);
+  if (!domain) return false;
+
+  // Check additional registered partner domains
+  const normalizedPartners = additionalPartnerDomains
+    .map((d) => normalizeEmailDomain(d))
+    .filter((d): d is string => Boolean(d));
+
+  if (
+    normalizedPartners.some((p) => domain === p || domain.endsWith(`.${p}`))
+  ) {
+    return true;
+  }
+
+  // Check standard global academic domain suffixes
+  return GLOBAL_ACADEMIC_DOMAINS.some(
+    (suffix) => domain === suffix || domain.endsWith(`.${suffix}`),
+  );
+}
+
+/**
+ * Checks whether an email address belongs to an accredited Ethiopian higher education
+ * institution (.edu.et), e.g. @aau.edu.et, @ju.edu.et, @hu.edu.et, @astu.edu.et.
+ * Under Ethiopia's Startup Proclamation 1396/2025, these sovereign researchers
+ * receive 100% free Institutional Tier access.
+ */
+export function isEthiopianAcademicEmail(email: string): boolean {
+  const domain = normalizeEmailDomain(email);
+  if (!domain) return false;
+  return domain === "edu.et" || domain.endsWith(".edu.et");
+}
+
+/**
+ * Resolves the default plan and sovereign exemption status for a user based on their email.
+ */
+export function resolveSovereignPlan(email: string): {
+  isSovereignExempt: boolean;
+  plan: OrganizationPlanId;
+} {
+  if (isEthiopianAcademicEmail(email)) {
+    return {
+      isSovereignExempt: true,
+      plan: "INSTITUTION",
+    };
+  }
+  return {
+    isSovereignExempt: false,
+    plan: "SOLO",
+  };
 }

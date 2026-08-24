@@ -2,10 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { apiError, type ApiRequestContext } from "@/lib/api/api-contracts";
-import {
-  checkDistributedLimit,
-  getRedis,
-} from "@/lib/platform/redis";
+import { checkDistributedLimit, getRedis } from "@/lib/platform/redis";
 
 const WINDOW_MS = 60_000; // 1-minute sliding window
 

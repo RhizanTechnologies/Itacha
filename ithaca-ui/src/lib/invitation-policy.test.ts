@@ -48,9 +48,9 @@ describe("invitation policy", () => {
         nextRole: "ADMIN",
       }),
     ).toBe(false);
-    expect(() =>
-      assertOwnerSafeguard(memberships, "owner-1", "ADMIN"),
-    ).toThrow(/last organization owner/i);
+    expect(() => assertOwnerSafeguard(memberships, "owner-1", "ADMIN")).toThrow(
+      /last organization owner/i,
+    );
   });
 
   it("limits assignable invitation roles by actor role", () => {

@@ -2,7 +2,9 @@ import type { FeatureFlag } from "@/lib/platform/feature-flags";
 import { isFeatureEnabled } from "@/lib/platform/feature-flags";
 import { prisma } from "@/lib/prisma";
 
-function parseRolloutFlags(value: unknown): Partial<Record<FeatureFlag, boolean>> {
+function parseRolloutFlags(
+  value: unknown,
+): Partial<Record<FeatureFlag, boolean>> {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return {};
   }

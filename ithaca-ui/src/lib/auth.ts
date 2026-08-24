@@ -1,5 +1,6 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
+import { genericOAuth } from "better-auth/plugins";
 import { prisma } from "./prisma";
 import { env } from "./env";
 import { sendPasswordResetEmail, sendVerificationEmail } from "./email";
@@ -14,15 +15,40 @@ interface ResetPasswordUser {
 
 const redis = getRedis();
 
+const shouldRequireVerification =
+  env.REQUIRE_EMAIL_VERIFICATION !== undefined
+    ? env.REQUIRE_EMAIL_VERIFICATION === "true"
+    : env.NODE_ENV === "production";
+
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
 
+  // Plugins
+  plugins: [
+    ...(env.ORCID_CLIENT_ID && env.ORCID_CLIENT_SECRET
+      ? [
+          genericOAuth({
+            config: [
+              {
+                providerId: "orcid",
+                clientId: env.ORCID_CLIENT_ID,
+                clientSecret: env.ORCID_CLIENT_SECRET,
+                authorizationUrl: "https://orcid.org/oauth/authorize",
+                tokenUrl: "https://orcid.org/oauth/token",
+                scopes: ["/authenticate"],
+              },
+            ],
+          }),
+        ]
+      : []),
+  ],
+
   // Email & Password Authentication
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: true,
+    requireEmailVerification: shouldRequireVerification,
     minPasswordLength: 8,
     maxPasswordLength: 128,
     sendResetPassword: async ({
@@ -39,7 +65,7 @@ export const auth = betterAuth({
   // Email Verification — top-level config required by Better Auth
   // This powers both the auto-send on signup AND the /api/auth/send-verification-email endpoint
   emailVerification: {
-    sendOnSignUp: true,
+    sendOnSignUp: shouldRequireVerification,
     sendVerificationEmail: async ({
       user,
       url,
@@ -77,15 +103,19 @@ export const auth = betterAuth({
     crossSubDomainCookies: {
       enabled: false,
     },
-    useSecureCookies: env.NODE_ENV === "production",
+    useSecureCookies:
+      env.NODE_ENV === "production" &&
+      process.env.NEXT_PUBLIC_E2E !== "1" &&
+      env.BETTER_AUTH_URL.startsWith("https://"),
     generateId: () => crypto.randomUUID(),
   },
 
-  // Rate Limiting — disabled during Playwright e2e (serial sign-ins in setup)
+  // Rate Limiting — relaxed for automated testing and serial sign-ins
   rateLimit: {
-    enabled: process.env.NEXT_PUBLIC_E2E !== "1",
+    enabled:
+      process.env.NEXT_PUBLIC_E2E !== "1" && process.env.NODE_ENV !== "test",
     window: 60, // 1 minute window
-    max: 10, // 10 requests per window
+    max: 100, // 100 requests per window
     storage: redis ? "secondary-storage" : "memory",
   },
 
@@ -113,8 +143,30 @@ export const auth = betterAuth({
     cookieName: "ithaca.csrf-token",
   },
 
-  // Trusted Origins
-  trustedOrigins: [env.NEXT_PUBLIC_APP_URL],
+  // Trusted Origins — allow local dev ports (3000, 3001, etc.) and wildcards
+  trustedOrigins: Array.from(
+    new Set([
+      env.NEXT_PUBLIC_APP_URL,
+      env.BETTER_AUTH_URL,
+      "http://localhost:*",
+      "https://localhost:*",
+      "http://127.0.0.1:*",
+      "https://127.0.0.1:*",
+      "http://0.0.0.0:*",
+      "http://localhost:3000",
+      "http://localhost:3001",
+      "http://localhost:3002",
+      "http://localhost:3003",
+      "http://localhost:3004",
+      "http://localhost:3005",
+      "http://127.0.0.1:3000",
+      "http://127.0.0.1:3001",
+      "http://127.0.0.1:3002",
+      "http://127.0.0.1:3003",
+      "http://127.0.0.1:3004",
+      "http://127.0.0.1:3005",
+    ]),
+  ),
 
   // Base URL
   baseURL: env.BETTER_AUTH_URL,

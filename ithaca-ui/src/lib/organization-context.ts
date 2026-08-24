@@ -12,7 +12,10 @@ import {
   type OrganizationPermission,
   type OrganizationRole,
 } from "@/lib/tenancy-policy";
-import { planQuotaFields, type OrganizationPlanId } from "@/lib/platform/org-plans";
+import {
+  planQuotaFields,
+  type OrganizationPlanId,
+} from "@/lib/platform/org-plans";
 
 export interface OrganizationContext {
   userId: string;

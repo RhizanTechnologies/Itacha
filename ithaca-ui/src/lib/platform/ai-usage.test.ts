@@ -1,8 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import {
-  assertAiBudgetAvailable,
-  getOrganizationAiUsage,
-} from "./ai-usage";
+import { assertAiBudgetAvailable, getOrganizationAiUsage } from "./ai-usage";
 
 const aggregateMock = vi.fn();
 const createMock = vi.fn();
