@@ -11,6 +11,7 @@
 
 import { getLLMRouter, type LLMMessage } from "./llm-router";
 import { prisma } from "@/lib/prisma";
+import { classifyCitationLocally } from "./local-classifier";
 
 // =============================================================================
 // TYPES
@@ -43,9 +44,12 @@ export interface ClassificationResult {
     | "llm+titles"
     | "heuristic"
     | "user-correction"
+    | "ithaca-local-moat"
     | "default";
   /** S2 citation context sentences used as input (if any) */
   contexts?: string[];
+  /** Version of the classifier that generated this result */
+  classifierVersion?: number;
 }
 
 // =============================================================================
@@ -160,9 +164,9 @@ function sanitizeJSON(raw: string): string {
 
 /**
  * Current classifier version — bump when prompt or gate logic changes to invalidate stale cache.
- * v7: Two-step claim extraction prompts, Gate 3 → cites, heuristic fallback wired.
+ * v8: Ithaca Local Intent Engine (Sovereign Moat) with negation guards and vectorized similarity.
  */
-const CLASSIFIER_VERSION = 7;
+export const CLASSIFIER_VERSION = 8;
 export const USER_CORRECTION_VERSION = 999;
 
 function isCacheEntryUsable(cached: {
@@ -189,6 +193,17 @@ export async function classifyCitation(
   const cached = await getCachedClassification(input.citingId, input.citedId);
   if (cached && isCacheEntryUsable(cached)) {
     return { ...cached, cached: true, contexts: input.citationContexts };
+  }
+
+  // 2. Sovereign Local Mode: direct in-process local execution (Zero FX burn)
+  if (process.env.CLASSIFIER_MODE === "local") {
+    const localResult = classifyCitationLocally(input);
+    await cacheClassification(
+      localResult,
+      input.citationContexts,
+      input.s2Intents,
+    );
+    return localResult;
   }
 
   // Determine what evidence we have
@@ -398,27 +413,18 @@ ${input.citationContexts.map((ctx, i) => `${i + 1}. "${ctx}"`).join("\n")}`;
 
     return classification;
   } catch (error) {
-    // LLM unavailable — fall back to local keyword heuristics rather than a bare default.
-    // heuristicClassify uses weighted keyword signals with negation detection.
+    // LLM unavailable — fall back to high-precision local sovereign engine with zero FX burn
     console.error(
-      `[Citation Classifier] LLM failed for ${input.citingId}→${input.citedId}, using heuristic:`,
+      `[Citation Classifier] LLM failed for ${input.citingId}→${input.citedId}, using sovereign local moat:`,
       error instanceof Error ? error.message : error,
     );
-    const fallback = heuristicClassify(input);
-    // Promote to a full ClassificationResult (heuristicClassify returns without citingId/citedId/cached)
-    const fullFallback: ClassificationResult = {
-      ...fallback,
-      citingId: input.citingId,
-      citedId: input.citedId,
-      cached: false,
-      contexts: input.citationContexts,
-    };
+    const localFallback = classifyCitationLocally(input);
     await cacheClassification(
-      fullFallback,
+      localFallback,
       input.citationContexts,
       input.s2Intents,
     );
-    return fullFallback;
+    return localFallback;
   }
 }
 
@@ -567,7 +573,9 @@ function isNegated(text: string, matchIndex: number): boolean {
  * 5. Phrase-based matching — "support" alone won't match; "supports the" will.
  * 6. Defaults to "extends" with low confidence when no signals found (unknown).
  */
-function heuristicClassify(input: ClassificationInput): ClassificationResult {
+export function heuristicClassify(
+  input: ClassificationInput,
+): ClassificationResult {
   // Build text from citing paper ONLY — cited paper text is excluded
   // to prevent directionality errors
   const citingText = [input.citingTitle, input.citingAbstract]
@@ -708,6 +716,166 @@ export async function classifyBatch(
   }
 
   return results;
+}
+
+/**
+ * Retrieve multiple cached classifications in a single query.
+ * Filters out stale cache entries from prior classifier versions.
+ */
+export async function getCachedClassifications(
+  pairs: { citingId: string; citedId: string }[],
+): Promise<Map<string, ClassificationResult>> {
+  const result = new Map<string, ClassificationResult>();
+  if (pairs.length === 0) return result;
+
+  try {
+    const cachedEntries = await prisma.citationCache.findMany({
+      where: {
+        OR: pairs.map((p) => ({
+          citingId: p.citingId,
+          citedId: p.citedId,
+        })),
+      },
+    });
+
+    for (const cached of cachedEntries) {
+      const isUsable =
+        cached.provider === "user-correction" ||
+        cached.classifierVersion === CLASSIFIER_VERSION;
+
+      if (!isUsable) continue;
+
+      const key = `${cached.citingId}->${cached.citedId}`;
+      result.set(key, {
+        citingId: cached.citingId,
+        citedId: cached.citedId,
+        edgeType: cached.edgeType as ClassificationResult["edgeType"],
+        confidence: cached.confidence,
+        snippet: cached.snippet,
+        provider: cached.provider,
+        cached: true,
+        signalSource: (cached.provider === "user-correction"
+          ? "user-correction"
+          : "default") as ClassificationResult["signalSource"],
+        contexts: cached.contexts
+          ? (JSON.parse(cached.contexts) as string[])
+          : undefined,
+        classifierVersion: cached.classifierVersion ?? 1,
+      });
+    }
+  } catch (err) {
+    console.warn("[getCachedClassifications] DB cache query failed:", err);
+  }
+
+  return result;
+}
+
+/**
+ * Stream citation classifications in chunks.
+ * Immediate flush for cached entries, then micro-batches for uncached pairs.
+ */
+export async function classifyBatchStream(
+  inputs: ClassificationInput[],
+  onChunk: (results: ClassificationResult[]) => Promise<void> | void,
+  concurrency = 3,
+  signal?: AbortSignal,
+): Promise<{
+  total: number;
+  cached: number;
+  classified: number;
+  failed: number;
+}> {
+  // 1. Bulk cache lookup
+  const cachedMap = await getCachedClassifications(
+    inputs.map((i) => ({ citingId: i.citingId, citedId: i.citedId })),
+  );
+
+  const uncachedInputs: ClassificationInput[] = [];
+  const initialChunk: ClassificationResult[] = [];
+
+  for (const input of inputs) {
+    const key = `${input.citingId}->${input.citedId}`;
+    const cached = cachedMap.get(key);
+    if (cached) {
+      initialChunk.push({
+        ...cached,
+        cached: true,
+        contexts: input.citationContexts ?? cached.contexts,
+      });
+    } else {
+      uncachedInputs.push(input);
+    }
+  }
+
+  let cachedCount = initialChunk.length;
+  let classifiedCount = 0;
+  let failedCount = 0;
+
+  if (initialChunk.length > 0) {
+    await onChunk(initialChunk);
+  }
+
+  if (signal?.aborted) {
+    return {
+      total: inputs.length,
+      cached: cachedCount,
+      classified: classifiedCount,
+      failed: failedCount,
+    };
+  }
+
+  // 2. Process uncached in micro-batches
+  const queue = [...uncachedInputs];
+  while (queue.length > 0) {
+    if (signal?.aborted) break;
+
+    const chunk = queue.splice(0, concurrency);
+    const chunkResults = await Promise.allSettled(
+      chunk.map((input) => classifyCitation(input)),
+    );
+
+    const emitted: ClassificationResult[] = [];
+    for (let i = 0; i < chunkResults.length; i++) {
+      const res = chunkResults[i];
+      if (res.status === "fulfilled") {
+        emitted.push(res.value);
+        if (res.value.cached) {
+          cachedCount++;
+        } else if (res.value.provider === "fallback") {
+          failedCount++;
+        } else {
+          classifiedCount++;
+        }
+      } else {
+        failedCount++;
+        emitted.push({
+          citingId: chunk[i].citingId,
+          citedId: chunk[i].citedId,
+          edgeType: "cites",
+          confidence: 0.5,
+          snippet: "Citation relationship — classification error.",
+          provider: "fallback",
+          signalSource: "default" as const,
+          cached: false,
+        });
+      }
+    }
+
+    if (emitted.length > 0) {
+      await onChunk(emitted);
+    }
+
+    if (queue.length > 0 && !signal?.aborted) {
+      await new Promise((resolve) => setTimeout(resolve, 150));
+    }
+  }
+
+  return {
+    total: inputs.length,
+    cached: cachedCount,
+    classified: classifiedCount,
+    failed: failedCount,
+  };
 }
 
 // =============================================================================

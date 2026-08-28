@@ -5,6 +5,13 @@
  * and a router that falls back between them when rate limits are hit.
  */
 
+import {
+  analyzeStance,
+  cleanCitationSentence,
+  LOCAL_PROVIDER_NAME,
+  LOCAL_MODEL_NAME,
+} from "./local-classifier";
+
 // =============================================================================
 // TYPES
 // =============================================================================
@@ -250,14 +257,74 @@ class GroqProvider implements ILLMProvider {
 }
 
 // =============================================================================
+// LOCAL SOVEREIGN MOAT PROVIDER (Zero FX, 100% Offline, sub-15ms)
+// =============================================================================
+
+export class LocalMoatProvider implements ILLMProvider {
+  readonly name = LOCAL_PROVIDER_NAME;
+  readonly model = LOCAL_MODEL_NAME;
+
+  isAvailable(): boolean {
+    return true; // Always available locally on CPU
+  }
+
+  async chat(messages: LLMMessage[], jsonMode = false): Promise<LLMResponse> {
+    const userMessage = messages.find((m) => m.role === "user")?.content || "";
+
+    // Extract citation context if present
+    let claim = "";
+    const contextMatch = userMessage.match(
+      /CITATION CONTEXT SENTENCES[^\n]*\n([\s\S]*?)(?:\n\n|\n[A-Z]|$)/i,
+    );
+    if (contextMatch) {
+      claim = cleanCitationSentence(contextMatch[1]);
+    } else {
+      const abstractMatch = userMessage.match(/Abstract:\s*([^\n]+)/i);
+      if (abstractMatch) {
+        claim = cleanCitationSentence(abstractMatch[1]);
+      }
+    }
+
+    const citingTitleMatch = userMessage.match(/CITING PAPER:\s*"([^"]+)"/i);
+    const citingTitle = citingTitleMatch ? citingTitleMatch[1] : "";
+
+    const intents: string[] = [];
+    if (userMessage.includes("ResultComparison"))
+      intents.push("ResultComparison");
+    if (userMessage.includes("Methodology")) intents.push("Methodology");
+    if (userMessage.includes("Background")) intents.push("Background");
+
+    const analysis = analyzeStance(claim, citingTitle, userMessage, intents);
+
+    if (jsonMode) {
+      return {
+        content: JSON.stringify({
+          edgeType: analysis.stance,
+          confidence: analysis.confidence,
+          snippet: analysis.snippet,
+        }),
+        model: this.model,
+        provider: this.name,
+      };
+    }
+
+    return {
+      content: analysis.snippet,
+      model: this.model,
+      provider: this.name,
+    };
+  }
+}
+
+// =============================================================================
 // LLM ROUTER (Tries providers in order, falls back on rate limit)
 // =============================================================================
 
-class LLMRouter {
+export class LLMRouter {
   private providers: ILLMProvider[] = [];
 
   constructor(providers: ILLMProvider[]) {
-    // Filter out providers without API keys
+    // Filter out providers that are unavailable
     this.providers = providers.filter((p) => p.isAvailable());
   }
 
@@ -292,6 +359,11 @@ class LLMRouter {
     throw new Error(`All LLM providers exhausted:\n${errors.join("\n")}`);
   }
 
+  /** Check if at least one provider is configured and available */
+  isAvailable(): boolean {
+    return this.providers.some((p) => p.isAvailable());
+  }
+
   /** Get status of all providers */
   getStatus(): { name: string; model: string; available: boolean }[] {
     return this.providers.map((p) => ({
@@ -312,26 +384,39 @@ export function getLLMRouter(): LLMRouter {
   if (!_router) {
     const providers: ILLMProvider[] = [];
 
-    // Primary: Gemini (most generous free tier)
+    const preferLocal =
+      process.env.CLASSIFIER_MODE === "local" ||
+      process.env.AI_PROVIDER_PREFERENCE === "local";
+
+    const localProvider = new LocalMoatProvider();
+
+    if (preferLocal) {
+      providers.push(localProvider);
+    }
+
+    // Primary external: Gemini (most generous free tier)
     const geminiKey = process.env.GEMINI_API_KEY;
     if (geminiKey) {
       providers.push(new GeminiProvider(geminiKey));
     }
 
-    // Fallback: Groq
+    // Fallback external: Groq
     const groqKey = process.env.GROQ_API_KEY;
     if (groqKey) {
       providers.push(new GroqProvider(groqKey));
     }
 
-    if (providers.length === 0) {
-      console.warn(
-        "[LLM Router] No API keys configured. Set GEMINI_API_KEY or GROQ_API_KEY in .env",
-      );
+    // If local was not prioritized first, append it as guaranteed sovereign fallback
+    if (!preferLocal) {
+      providers.push(localProvider);
     }
 
     _router = new LLMRouter(providers);
   }
 
   return _router;
+}
+
+export function resetLLMRouterForTesting(): void {
+  _router = null;
 }

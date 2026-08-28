@@ -102,7 +102,9 @@ export async function POST(request: NextRequest) {
             ...(citation.citationContexts ?? []),
           ].join("\n");
           if (containsPromptInjectionRisk(untrustedText)) {
-            throw new Error("Unsupported instruction patterns in citation content");
+            throw new Error(
+              "Unsupported instruction patterns in citation content",
+            );
           }
         }
 

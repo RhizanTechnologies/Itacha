@@ -81,7 +81,7 @@ export function calculateClassificationMetrics(
 }
 
 const PROMPT_INJECTION_PATTERNS = [
-  /ignore (all|any|the|previous) instructions/i,
+  /ignore (all\s+|any\s+|the\s+)?(previous\s+)?instructions/i,
   /system prompt/i,
   /developer message/i,
   /reveal (your|the) (secret|key|instructions)/i,

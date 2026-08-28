@@ -47,9 +47,7 @@ const templates = {
         "Prospective sampling confirms the mechanism proposed in the foundational study.",
       citedAbstract:
         "Mechanistic study proposing a causal pathway for synaptic plasticity changes.",
-      contexts: [
-        "We confirm the synaptic mechanism described by Patel et al.",
-      ],
+      contexts: ["We confirm the synaptic mechanism described by Patel et al."],
       s2Intents: ["ResultComparison"],
     },
     {
@@ -157,8 +155,7 @@ const templates = {
       title: "Theoretical refutation",
       citingAbstract:
         "Formal analysis shows the cited proof relies on an invalid assumption.",
-      citedAbstract:
-        "Proof of convergence for an optimization procedure.",
+      citedAbstract: "Proof of convergence for an optimization procedure.",
       contexts: [
         "We show the convergence proof of Taylor et al. relies on an assumption that fails in practical settings.",
       ],
@@ -192,8 +189,7 @@ const templates = {
       title: "New domain application",
       citingAbstract:
         "We adapt the cited framework to pediatric imaging for the first time.",
-      citedAbstract:
-        "Framework for segmentation in adult chest radiographs.",
+      citedAbstract: "Framework for segmentation in adult chest radiographs.",
       contexts: [
         "We extend the segmentation framework of Clark et al. to pediatric imaging.",
       ],
@@ -203,8 +199,7 @@ const templates = {
       title: "Cross-species generalization",
       citingAbstract:
         "The cited model is transferred to a marine organism with novel adaptations.",
-      citedAbstract:
-        "Gene regulatory model established in mouse models.",
+      citedAbstract: "Gene regulatory model established in mouse models.",
       contexts: [
         "We generalize the regulatory model from Harris et al. to a marine organism.",
       ],
@@ -247,8 +242,7 @@ const templates = {
       title: "Policy extension",
       citingAbstract:
         "The cited econometric design is applied to a new policy regime.",
-      citedAbstract:
-        "Econometric evaluation of a labor market intervention.",
+      citedAbstract: "Econometric evaluation of a labor market intervention.",
       contexts: [
         "We apply the evaluation design of Wright et al. to a new policy regime.",
       ],
@@ -282,8 +276,7 @@ const templates = {
       title: "Background reference",
       citingAbstract:
         "We review prior work on protein folding before presenting our method.",
-      citedAbstract:
-        "Historical overview of protein folding pathways.",
+      citedAbstract: "Historical overview of protein folding pathways.",
       contexts: [
         "Protein folding has been studied extensively (Adams et al.).",
       ],
@@ -293,8 +286,7 @@ const templates = {
       title: "Method reuse only",
       citingAbstract:
         "We preprocess data using the standard pipeline from prior work.",
-      citedAbstract:
-        "Pipeline for normalizing RNA-seq count matrices.",
+      citedAbstract: "Pipeline for normalizing RNA-seq count matrices.",
       contexts: [
         "Reads were processed with the pipeline described by Baker et al.",
       ],
@@ -304,8 +296,7 @@ const templates = {
       title: "Related work mention",
       citingAbstract:
         "Several models address graph clustering with different assumptions.",
-      citedAbstract:
-        "Graph clustering algorithm for social networks.",
+      citedAbstract: "Graph clustering algorithm for social networks.",
       contexts: [
         "Graph clustering methods include the approach of Carter et al.",
       ],
@@ -315,55 +306,38 @@ const templates = {
       title: "Definitions only",
       citingAbstract:
         "We adopt the standard epidemiological definitions used in the literature.",
-      citedAbstract:
-        "Reference definitions for outbreak surveillance metrics.",
-      contexts: [
-        "We follow the case definitions of Evans et al.",
-      ],
+      citedAbstract: "Reference definitions for outbreak surveillance metrics.",
+      contexts: ["We follow the case definitions of Evans et al."],
       s2Intents: ["Background"],
     },
     {
       title: "Dataset attribution",
-      citingAbstract:
-        "Experiments use a public benchmark introduced earlier.",
-      citedAbstract:
-        "Benchmark dataset for document classification.",
-      contexts: [
-        "Experiments use the benchmark released by Foster et al.",
-      ],
+      citingAbstract: "Experiments use a public benchmark introduced earlier.",
+      citedAbstract: "Benchmark dataset for document classification.",
+      contexts: ["Experiments use the benchmark released by Foster et al."],
       s2Intents: ["Background"],
     },
     {
       title: "Historical context",
-      citingAbstract:
-        "The debate has a long history in cognitive science.",
-      citedAbstract:
-        "Early cognitive science review of memory systems.",
-      contexts: [
-        "The debate dates back to classic work such as Green et al.",
-      ],
+      citingAbstract: "The debate has a long history in cognitive science.",
+      citedAbstract: "Early cognitive science review of memory systems.",
+      contexts: ["The debate dates back to classic work such as Green et al."],
       s2Intents: ["Background"],
     },
     {
       title: "Tool citation",
       citingAbstract:
         "Statistical tests were run in standard open-source software.",
-      citedAbstract:
-        "Software package for generalized linear modeling.",
-      contexts: [
-        "Analysis used the software described by Hall et al.",
-      ],
+      citedAbstract: "Software package for generalized linear modeling.",
+      contexts: ["Analysis used the software described by Hall et al."],
       s2Intents: ["Methodology"],
     },
     {
       title: "Parallel independent work",
       citingAbstract:
         "Our approach is unrelated to concurrent work on the same topic.",
-      citedAbstract:
-        "Concurrent study on transformer interpretability.",
-      contexts: [
-        "Concurrent interpretability work includes Young et al.",
-      ],
+      citedAbstract: "Concurrent study on transformer interpretability.",
+      contexts: ["Concurrent interpretability work includes Young et al."],
       s2Intents: ["Background"],
     },
   ],

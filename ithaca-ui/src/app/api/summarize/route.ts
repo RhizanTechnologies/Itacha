@@ -30,10 +30,7 @@ import { AuthorizationError } from "@/lib/tenancy-policy";
 
 const requestSchema = z.object({
   title: z.string().min(1).max(500),
-  abstract: z
-    .string()
-    .min(10)
-    .max(PLATFORM_LIMITS.ai.maxEvidenceCharacters),
+  abstract: z.string().min(10).max(PLATFORM_LIMITS.ai.maxEvidenceCharacters),
   year: z.number().optional(),
 });
 
@@ -81,7 +78,9 @@ export async function POST(request: NextRequest) {
 
         const { title, abstract, year } = parsed.data;
         if (containsPromptInjectionRisk(`${title}\n${abstract}`)) {
-          throw new Error("Paper content contains unsupported instruction patterns");
+          throw new Error(
+            "Paper content contains unsupported instruction patterns",
+          );
         }
 
         if (orgContext) {

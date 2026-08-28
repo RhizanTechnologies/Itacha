@@ -19,6 +19,7 @@ import type {
   GraphStats,
   SearchResult,
   TopicCluster,
+  StreamClassifyOptions,
 } from "./graph-api";
 import type { OpenAlexWork } from "./openalex-types";
 import { extractOpenAlexId } from "./openalex-types";
@@ -324,11 +325,16 @@ export class OpenAlexProvider implements IGraphProvider {
   private nodeCache: Map<string, PaperNode> = new Map();
   private edgeCache: EdgeData[] = [];
   private classifyEdgesEnabled: boolean;
+  private progressiveHydrationEnabled: boolean;
 
-  constructor(options?: { classifyEdges?: boolean }) {
+  constructor(options?: {
+    classifyEdges?: boolean;
+    progressiveHydration?: boolean;
+  }) {
     // Always enabled — classification happens server-side via /api/classify route.
     // The check for API keys is done server-side in the route handler.
     this.classifyEdgesEnabled = options?.classifyEdges ?? true;
+    this.progressiveHydrationEnabled = options?.progressiveHydration ?? true;
   }
 
   // ---------------------------------------------------------------------------
@@ -430,9 +436,13 @@ export class OpenAlexProvider implements IGraphProvider {
       }
     }
 
-    // 5. Classify edges (or use defaults if no LLM keys configured)
+    // 5. Classify edges (or use defaults if progressive hydration is enabled)
     let edges: EdgeData[];
-    if (this.classifyEdgesEnabled && edgePairs.length > 0) {
+    if (
+      !this.progressiveHydrationEnabled &&
+      this.classifyEdgesEnabled &&
+      edgePairs.length > 0
+    ) {
       try {
         edges = await classifyEdges(edgePairs);
       } catch (error) {
@@ -536,7 +546,11 @@ export class OpenAlexProvider implements IGraphProvider {
 
     // Classify edges
     let edges: EdgeData[];
-    if (this.classifyEdgesEnabled && edgePairs.length > 0) {
+    if (
+      !this.progressiveHydrationEnabled &&
+      this.classifyEdgesEnabled &&
+      edgePairs.length > 0
+    ) {
       try {
         edges = await classifyEdges(edgePairs);
       } catch {
@@ -666,7 +680,11 @@ export class OpenAlexProvider implements IGraphProvider {
 
     // Classify edges
     let edges: EdgeData[];
-    if (this.classifyEdgesEnabled && edgePairs.length > 0) {
+    if (
+      !this.progressiveHydrationEnabled &&
+      this.classifyEdgesEnabled &&
+      edgePairs.length > 0
+    ) {
       try {
         edges = await classifyEdges(edgePairs);
       } catch {
@@ -873,6 +891,174 @@ export class OpenAlexProvider implements IGraphProvider {
     }
 
     return evidence;
+  }
+
+  // ---------------------------------------------------------------------------
+  // streamClassify — Progressive streaming classification via SSE
+  // ---------------------------------------------------------------------------
+
+  async streamClassify(
+    nodes: PaperNode[],
+    edges: EdgeData[],
+    options: StreamClassifyOptions,
+  ): Promise<void> {
+    const { onChunk, onDone, onError, signal } = options;
+    if (edges.length === 0) {
+      onDone?.({ total: 0, cached: 0, classified: 0, failed: 0 });
+      return;
+    }
+
+    const nodeMap = new Map<string, PaperNode>();
+    for (const node of nodes) {
+      nodeMap.set(node.id, node);
+      this.nodeCache.set(node.id, node);
+    }
+
+    const pairs = edges
+      .map((e) => {
+        const sourceNode =
+          nodeMap.get(e.source) || this.nodeCache.get(e.source);
+        const targetNode =
+          nodeMap.get(e.target) || this.nodeCache.get(e.target);
+        if (!sourceNode || !targetNode) return null;
+        return { sourceNode, targetNode };
+      })
+      .filter(
+        (p): p is { sourceNode: PaperNode; targetNode: PaperNode } =>
+          p !== null,
+      );
+
+    if (pairs.length === 0) {
+      onDone?.({ total: 0, cached: 0, classified: 0, failed: 0 });
+      return;
+    }
+
+    // Fetch Semantic Scholar citation contexts for all edges with DOIs
+    const s2Pairs = pairs
+      .filter((e) => e.sourceNode.doi && e.targetNode.doi)
+      .map((e) => ({
+        citingDoi: e.sourceNode.doi!,
+        citedDoi: e.targetNode.doi!,
+        citingId: e.sourceNode.id,
+        citedId: e.targetNode.id,
+      }));
+
+    let contextMap = new Map<
+      string,
+      { contexts: string[]; intents: string[] }
+    >();
+    if (s2Pairs.length > 0) {
+      try {
+        contextMap = await batchGetCitationContexts(s2Pairs);
+      } catch (err) {
+        console.warn(
+          "[streamClassify] S2 context fetch failed, proceeding without:",
+          err,
+        );
+      }
+    }
+
+    const inputs: ClassificationInput[] = pairs.map(
+      ({ sourceNode, targetNode }) => {
+        const key = `${sourceNode.id}→${targetNode.id}`;
+        const s2Context = contextMap.get(key);
+        return {
+          citingId: sourceNode.id,
+          citedId: targetNode.id,
+          citingTitle: sourceNode.title,
+          citingAbstract: sourceNode.abstract ?? "",
+          citedTitle: targetNode.title,
+          citedAbstract: targetNode.abstract ?? "",
+          citationContexts: s2Context?.contexts,
+          s2Intents: s2Context?.intents,
+        };
+      },
+    );
+
+    try {
+      const response = await fetch("/api/classify/stream", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ citations: inputs }),
+        signal,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Streaming API returned ${response.status}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error("No readable stream in response body");
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        let currentEvent = "";
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
+
+          if (trimmed.startsWith("event: ")) {
+            currentEvent = trimmed.slice(7).trim();
+          } else if (trimmed.startsWith("data: ")) {
+            const rawData = trimmed.slice(6).trim();
+            if (!rawData) continue;
+
+            try {
+              const data = JSON.parse(rawData);
+              if (currentEvent === "chunk" || Array.isArray(data)) {
+                const chunkResults = (
+                  Array.isArray(data) ? data : []
+                ) as ClassificationResult[];
+                const mappedEdges: EdgeData[] = chunkResults.map((c) => {
+                  const key = `${c.citingId}→${c.citedId}`;
+                  const s2Context = contextMap.get(key);
+                  const contexts = c.contexts ?? s2Context?.contexts;
+
+                  return {
+                    id: `${c.citingId}-${c.citedId}`,
+                    source: c.citingId,
+                    target: c.citedId,
+                    edgeType: c.edgeType,
+                    confidence: Math.round(c.confidence * 100),
+                    size: 1 + c.confidence,
+                    color: EDGE_COLORS[c.edgeType] ?? EDGE_COLORS.unknown,
+                    snippet: c.snippet,
+                    signalSource: c.signalSource ?? "default",
+                    contexts,
+                    provider: c.provider,
+                  };
+                });
+
+                if (mappedEdges.length > 0) {
+                  onChunk(mappedEdges);
+                }
+              } else if (currentEvent === "done") {
+                onDone?.(data.stats);
+              } else if (currentEvent === "error") {
+                onError?.(new Error(data.message || "Classification error"));
+              }
+            } catch (jsonErr) {
+              console.warn("[streamClassify] JSON parse error:", jsonErr);
+            }
+          }
+        }
+      }
+    } catch (err) {
+      if (signal?.aborted) return;
+      console.warn("[streamClassify] Error during streaming:", err);
+      onError?.(err instanceof Error ? err : new Error(String(err)));
+    }
   }
 
   // ---------------------------------------------------------------------------

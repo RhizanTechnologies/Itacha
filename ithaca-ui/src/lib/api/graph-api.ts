@@ -46,6 +46,7 @@ export type SignalSource =
   | "llm+titles"
   | "heuristic"
   | "user-correction"
+  | "ithaca-local-moat"
   | "default";
 
 export interface EdgeData {
@@ -118,6 +119,18 @@ export interface TopicCluster {
 // INTERFACE (The Contract)
 // =============================================================================
 
+export interface StreamClassifyOptions {
+  onChunk: (chunk: EdgeData[]) => void;
+  onDone?: (stats: {
+    total: number;
+    cached: number;
+    classified: number;
+    failed: number;
+  }) => void;
+  onError?: (err: Error) => void;
+  signal?: AbortSignal;
+}
+
 export interface IGraphProvider {
   fetchGraph(
     nodeCount?: number,
@@ -147,6 +160,11 @@ export interface IGraphProvider {
     nodeId: string,
   ): Promise<{ nodes: PaperNode[]; edges: EdgeData[] }>;
   getStats(): GraphStats;
+  streamClassify(
+    nodes: PaperNode[],
+    edges: EdgeData[],
+    options: StreamClassifyOptions,
+  ): Promise<void>;
 }
 
 // =============================================================================
@@ -172,6 +190,11 @@ export const graphAPI = {
   ) => provider.expandNode(id, dir, type),
   expandByTopic: (id: string) => provider.expandByTopic(id),
   getStats: (): GraphStats => provider.getStats(),
+  streamClassify: (
+    nodes: PaperNode[],
+    edges: EdgeData[],
+    options: StreamClassifyOptions,
+  ) => provider.streamClassify(nodes, edges, options),
 
   applyFilters(graph: Graph, filters: FilterState) {
     const hiddenNodes = new Set<string>();

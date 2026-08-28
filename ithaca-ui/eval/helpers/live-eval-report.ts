@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { ClassificationMetrics } from "../src/modules/ai/provenance";
+import type { ClassificationMetrics } from "../../src/modules/ai/provenance";
 
 export interface LiveEvalReport {
   kind: "ithaca-classifier-live-eval";

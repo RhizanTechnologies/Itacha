@@ -12,9 +12,7 @@
       "citationContexts": [
         "Our results replicate Smith et al. and confirm their finding that the therapy lowers event rates."
       ],
-      "s2Intents": [
-        "ResultComparison"
-      ]
+      "s2Intents": ["ResultComparison"]
     }
   },
   {
@@ -30,9 +28,7 @@
       "citationContexts": [
         "These findings validate the biomarker panel introduced by Chen et al."
       ],
-      "s2Intents": [
-        "ResultComparison"
-      ]
+      "s2Intents": ["ResultComparison"]
     }
   },
   {
@@ -48,9 +44,7 @@
       "citationContexts": [
         "Consistent with Lee et al., our meta-analysis supports a mortality benefit."
       ],
-      "s2Intents": [
-        "ResultComparison"
-      ]
+      "s2Intents": ["ResultComparison"]
     }
   },
   {
@@ -66,9 +60,7 @@
       "citationContexts": [
         "We confirm the synaptic mechanism described by Patel et al."
       ],
-      "s2Intents": [
-        "ResultComparison"
-      ]
+      "s2Intents": ["ResultComparison"]
     }
   },
   {
@@ -84,9 +76,7 @@
       "citationContexts": [
         "Our dose-response curve agrees with the pattern reported by Nguyen et al."
       ],
-      "s2Intents": [
-        "ResultComparison"
-      ]
+      "s2Intents": ["ResultComparison"]
     }
   },
   {
@@ -102,9 +92,7 @@
       "citationContexts": [
         "Hospital admissions data corroborate the outpatient benefit found by Garcia et al."
       ],
-      "s2Intents": [
-        "ResultComparison"
-      ]
+      "s2Intents": ["ResultComparison"]
     }
   },
   {
@@ -120,9 +108,7 @@
       "citationContexts": [
         "Field observations support the sensitivity estimate from Williams et al."
       ],
-      "s2Intents": [
-        "ResultComparison"
-      ]
+      "s2Intents": ["ResultComparison"]
     }
   },
   {
@@ -138,9 +124,7 @@
       "citationContexts": [
         "We reproduce the accuracy improvements reported by Kim et al."
       ],
-      "s2Intents": [
-        "ResultComparison"
-      ]
+      "s2Intents": ["ResultComparison"]
     }
   },
   {
@@ -156,9 +140,7 @@
       "citationContexts": [
         "Unlike Johnson et al., we find no evidence for a treatment effect in our preregistered replication."
       ],
-      "s2Intents": [
-        "ResultComparison"
-      ]
+      "s2Intents": ["ResultComparison"]
     }
   },
   {
@@ -174,9 +156,7 @@
       "citationContexts": [
         "Our knockout results contradict the claim that protein X is necessary for the phenotype."
       ],
-      "s2Intents": [
-        "ResultComparison"
-      ]
+      "s2Intents": ["ResultComparison"]
     }
   },
   {
@@ -192,9 +172,7 @@
       "citationContexts": [
         "In contrast to Martinez et al., our trial found no improvement on the primary endpoint."
       ],
-      "s2Intents": [
-        "ResultComparison"
-      ]
+      "s2Intents": ["ResultComparison"]
     }
   },
   {
@@ -210,9 +188,7 @@
       "citationContexts": [
         "Reanalysis shows the association reported by Brown et al. disappears after adjusting for confounders."
       ],
-      "s2Intents": [
-        "ResultComparison"
-      ]
+      "s2Intents": ["ResultComparison"]
     }
   },
   {
@@ -228,9 +204,7 @@
       "citationContexts": [
         "We directly measure the opposite modulation, refuting the positive effect reported by Davis et al."
       ],
-      "s2Intents": [
-        "ResultComparison"
-      ]
+      "s2Intents": ["ResultComparison"]
     }
   },
   {
@@ -246,9 +220,7 @@
       "citationContexts": [
         "We show the convergence proof of Taylor et al. relies on an assumption that fails in practical settings."
       ],
-      "s2Intents": [
-        "ResultComparison"
-      ]
+      "s2Intents": ["ResultComparison"]
     }
   },
   {
@@ -264,9 +236,7 @@
       "citationContexts": [
         "Applying Wilson et al. to genomics datasets, we find no predictive improvement."
       ],
-      "s2Intents": [
-        "ResultComparison"
-      ]
+      "s2Intents": ["ResultComparison"]
     }
   },
   {
@@ -282,9 +252,7 @@
       "citationContexts": [
         "Post-market data contradict the safety conclusion reached by Anderson et al."
       ],
-      "s2Intents": [
-        "ResultComparison"
-      ]
+      "s2Intents": ["ResultComparison"]
     }
   },
   {
@@ -300,10 +268,7 @@
       "citationContexts": [
         "We extend the segmentation framework of Clark et al. to pediatric imaging."
       ],
-      "s2Intents": [
-        "ResultComparison",
-        "Methodology"
-      ]
+      "s2Intents": ["ResultComparison", "Methodology"]
     }
   },
   {
@@ -319,9 +284,7 @@
       "citationContexts": [
         "We generalize the regulatory model from Harris et al. to a marine organism."
       ],
-      "s2Intents": [
-        "ResultComparison"
-      ]
+      "s2Intents": ["ResultComparison"]
     }
   },
   {
@@ -337,10 +300,7 @@
       "citationContexts": [
         "We scale the prototype system of Lopez et al. to city-wide deployment."
       ],
-      "s2Intents": [
-        "Methodology",
-        "ResultComparison"
-      ]
+      "s2Intents": ["Methodology", "ResultComparison"]
     }
   },
   {
@@ -356,9 +316,7 @@
       "citationContexts": [
         "We extend the short-term predictor of Moore et al. to decade-long trajectories."
       ],
-      "s2Intents": [
-        "ResultComparison"
-      ]
+      "s2Intents": ["ResultComparison"]
     }
   },
   {
@@ -374,10 +332,7 @@
       "citationContexts": [
         "We extend the text representation of Allen et al. to multimodal clinical records."
       ],
-      "s2Intents": [
-        "Methodology",
-        "ResultComparison"
-      ]
+      "s2Intents": ["Methodology", "ResultComparison"]
     }
   },
   {
@@ -393,9 +348,7 @@
       "citationContexts": [
         "We apply the evaluation design of Wright et al. to a new policy regime."
       ],
-      "s2Intents": [
-        "ResultComparison"
-      ]
+      "s2Intents": ["ResultComparison"]
     }
   },
   {
@@ -411,9 +364,7 @@
       "citationContexts": [
         "We extend the optimizer of Zhang et al. to constrained non-convex problems."
       ],
-      "s2Intents": [
-        "Methodology"
-      ]
+      "s2Intents": ["Methodology"]
     }
   },
   {
@@ -429,9 +380,7 @@
       "citationContexts": [
         "We extend the digital adherence intervention of Thomas et al. to rural clinics."
       ],
-      "s2Intents": [
-        "ResultComparison"
-      ]
+      "s2Intents": ["ResultComparison"]
     }
   },
   {
@@ -447,9 +396,7 @@
       "citationContexts": [
         "Protein folding has been studied extensively (Adams et al.)."
       ],
-      "s2Intents": [
-        "Background"
-      ]
+      "s2Intents": ["Background"]
     }
   },
   {
@@ -465,9 +412,7 @@
       "citationContexts": [
         "Reads were processed with the pipeline described by Baker et al."
       ],
-      "s2Intents": [
-        "Methodology"
-      ]
+      "s2Intents": ["Methodology"]
     }
   },
   {
@@ -483,9 +428,7 @@
       "citationContexts": [
         "Graph clustering methods include the approach of Carter et al."
       ],
-      "s2Intents": [
-        "Background"
-      ]
+      "s2Intents": ["Background"]
     }
   },
   {
@@ -498,12 +441,8 @@
       "citingAbstract": "We adopt the standard epidemiological definitions used in the literature.",
       "citedTitle": "Eval cited paper 028: Definitions only",
       "citedAbstract": "Reference definitions for outbreak surveillance metrics.",
-      "citationContexts": [
-        "We follow the case definitions of Evans et al."
-      ],
-      "s2Intents": [
-        "Background"
-      ]
+      "citationContexts": ["We follow the case definitions of Evans et al."],
+      "s2Intents": ["Background"]
     }
   },
   {
@@ -519,9 +458,7 @@
       "citationContexts": [
         "Experiments use the benchmark released by Foster et al."
       ],
-      "s2Intents": [
-        "Background"
-      ]
+      "s2Intents": ["Background"]
     }
   },
   {
@@ -537,9 +474,7 @@
       "citationContexts": [
         "The debate dates back to classic work such as Green et al."
       ],
-      "s2Intents": [
-        "Background"
-      ]
+      "s2Intents": ["Background"]
     }
   },
   {
@@ -555,9 +490,7 @@
       "citationContexts": [
         "Analysis used the software described by Hall et al."
       ],
-      "s2Intents": [
-        "Methodology"
-      ]
+      "s2Intents": ["Methodology"]
     }
   },
   {
@@ -573,9 +506,7 @@
       "citationContexts": [
         "Concurrent interpretability work includes Young et al."
       ],
-      "s2Intents": [
-        "Background"
-      ]
+      "s2Intents": ["Background"]
     }
   }
 ]
