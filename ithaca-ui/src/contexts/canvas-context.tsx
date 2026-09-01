@@ -88,6 +88,10 @@ export function useCanvasActions() {
       setKeyboardHelpOpen: useCanvasStore.getState().setKeyboardHelpOpen,
       setPathCompareOpen: useCanvasStore.getState().setPathCompareOpen,
       setListPanelOpen: useCanvasStore.getState().setListPanelOpen,
+      setDebateMatrixOpen: useCanvasStore.getState().setDebateMatrixOpen,
+      setLiteratureReviewOpen:
+        useCanvasStore.getState().setLiteratureReviewOpen,
+      setQueryBuilderOpen: useCanvasStore.getState().setQueryBuilderOpen,
       toggleFilters: useCanvasStore.getState().toggleFilters,
       toggleChat: useCanvasStore.getState().toggleChat,
       toggleSelectionMode: useCanvasStore.getState().toggleSelectionMode,
@@ -95,8 +99,10 @@ export function useCanvasActions() {
       closeAllPanels: useCanvasStore.getState().closeAllPanels,
       showToastMessage: useCanvasStore.getState().showToastMessage,
 
-      // Loading
+      // Loading & Hydration
       setLoading: useCanvasStore.getState().setLoading,
+      setHydrationState: useCanvasStore.getState().setHydrationState,
+      resetHydrationState: useCanvasStore.getState().resetHydrationState,
 
       // Graph Data
       setGraphStats: useCanvasStore.getState().setGraphStats,
@@ -140,6 +146,18 @@ export function useCanvasActions() {
       setPhysicsEnabled: useCanvasStore.getState().setPhysicsEnabled,
       setTutorialActive: useCanvasStore.getState().setTutorialActive,
       setLayoutMode: useCanvasStore.getState().setLayoutMode,
+
+      // Topology Intelligence & Battlefield
+      toggleBattlefieldMode: useCanvasStore.getState().toggleBattlefieldMode,
+      setBattlefieldMode: useCanvasStore.getState().setBattlefieldMode,
+      setClusterViewMode: useCanvasStore.getState().setClusterViewMode,
+      toggleSchoolExpansion: useCanvasStore.getState().toggleSchoolExpansion,
+      setSchoolsOfThought: useCanvasStore.getState().setSchoolsOfThought,
+
+      // Sovereign Indexing
+      setSovereignFilterActive:
+        useCanvasStore.getState().setSovereignFilterActive,
+      toggleSovereignFilter: useCanvasStore.getState().toggleSovereignFilter,
     };
   }, []);
 }

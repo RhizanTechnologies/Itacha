@@ -6,6 +6,7 @@ import type {
 } from "@/components/inspector/paper-inspector";
 import type { EdgeEvidence } from "@/components/canvas/edge-evidence-popover";
 import type { SemanticPath, PathMode } from "@/lib/graph-algorithms";
+import type { SchoolOfThought } from "@/lib/graph-clustering";
 import { FILTERS } from "@/lib/constants";
 import { DEFAULT_FILTERS } from "@/components/filters/global-filters";
 
@@ -37,6 +38,13 @@ interface EdgeEvidencePosition {
 type RelationshipFocus =
   "all" | "supports" | "contradicts" | "extends" | "cites";
 
+export interface HydrationState {
+  isHydrating: boolean;
+  totalEdges: number;
+  hydratedEdges: number;
+  cachedCount: number;
+}
+
 // =============================================================================
 // STATE
 // =============================================================================
@@ -53,9 +61,14 @@ interface CanvasStoreState {
   pathCompareOpen: boolean;
   chatOpen: boolean;
   listPanelOpen: boolean;
+  debateMatrixOpen: boolean;
+  literatureReviewOpen: boolean;
+  queryBuilderOpen: boolean;
+  sovereignFilterActive: boolean;
 
-  // Loading
+  // Loading & Hydration
   isLoading: boolean;
+  hydrationState: HydrationState;
 
   // Graph Data
   graphStats: GraphStats;
@@ -95,6 +108,12 @@ interface CanvasStoreState {
   physicsEnabled: boolean;
   tutorialActive: boolean;
   layoutMode: "force" | "temporal";
+
+  // Topology Intelligence & Battlefield
+  battlefieldMode: boolean;
+  clusterViewMode: "papers" | "schools";
+  expandedSchools: Set<string>;
+  schoolsOfThought: SchoolOfThought[];
 }
 
 // =============================================================================
@@ -112,6 +131,9 @@ interface CanvasStoreActions {
   setKeyboardHelpOpen: (open: boolean) => void;
   setPathCompareOpen: (open: boolean) => void;
   setListPanelOpen: (open: boolean) => void;
+  setDebateMatrixOpen: (open: boolean) => void;
+  setLiteratureReviewOpen: (open: boolean) => void;
+  setQueryBuilderOpen: (open: boolean) => void;
   toggleFilters: () => void;
   toggleChat: () => void;
   toggleSelectionMode: () => void;
@@ -119,8 +141,10 @@ interface CanvasStoreActions {
   closeAllPanels: () => void;
   showToastMessage: (message: string) => void;
 
-  // Loading
+  // Loading & Hydration
   setLoading: (loading: boolean) => void;
+  setHydrationState: (state: Partial<HydrationState>) => void;
+  resetHydrationState: () => void;
 
   // Graph Data
   setGraphStats: (stats: GraphStats) => void;
@@ -170,6 +194,17 @@ interface CanvasStoreActions {
   setTutorialActive: (active: boolean) => void;
   setLayoutMode: (mode: "force" | "temporal") => void;
 
+  // Topology Intelligence & Battlefield
+  toggleBattlefieldMode: () => void;
+  setBattlefieldMode: (enabled: boolean) => void;
+  setClusterViewMode: (mode: "papers" | "schools") => void;
+  toggleSchoolExpansion: (schoolId: string) => void;
+  setSchoolsOfThought: (schools: SchoolOfThought[]) => void;
+
+  // Sovereign Indexing
+  setSovereignFilterActive: (active: boolean) => void;
+  toggleSovereignFilter: () => void;
+
   // Lifecycle
   reset: () => void;
 }
@@ -189,8 +224,18 @@ const initialState: CanvasStoreState = {
   pathCompareOpen: false,
   chatOpen: false,
   listPanelOpen: false,
+  debateMatrixOpen: false,
+  literatureReviewOpen: false,
+  queryBuilderOpen: false,
+  sovereignFilterActive: false,
 
   isLoading: false,
+  hydrationState: {
+    isHydrating: false,
+    totalEdges: 0,
+    hydratedEdges: 0,
+    cachedCount: 0,
+  },
 
   graphStats: { nodeCount: 0, edgeCount: 0 },
   dataRanges: {
@@ -227,6 +272,11 @@ const initialState: CanvasStoreState = {
   physicsEnabled: true,
   tutorialActive: false,
   layoutMode: "force",
+
+  battlefieldMode: false,
+  clusterViewMode: "papers",
+  expandedSchools: new Set(),
+  schoolsOfThought: [],
 };
 
 // =============================================================================
@@ -247,6 +297,9 @@ export const useCanvasStore = create<CanvasStoreState & CanvasStoreActions>()(
     setKeyboardHelpOpen: (open) => set({ keyboardHelpOpen: open }),
     setPathCompareOpen: (open) => set({ pathCompareOpen: open }),
     setListPanelOpen: (open) => set({ listPanelOpen: open }),
+    setDebateMatrixOpen: (open) => set({ debateMatrixOpen: open }),
+    setLiteratureReviewOpen: (open) => set({ literatureReviewOpen: open }),
+    setQueryBuilderOpen: (open) => set({ queryBuilderOpen: open }),
     toggleFilters: () => set((s) => ({ filtersOpen: !s.filtersOpen })),
     toggleChat: () => set((s) => ({ chatOpen: !s.chatOpen })),
     toggleSelectionMode: () =>
@@ -260,6 +313,10 @@ export const useCanvasStore = create<CanvasStoreState & CanvasStoreActions>()(
         saveDialogOpen: false,
         chatOpen: false,
         pathCompareOpen: false,
+        listPanelOpen: false,
+        debateMatrixOpen: false,
+        literatureReviewOpen: false,
+        queryBuilderOpen: false,
         edgeEvidence: null,
         edgeEvidencePos: null,
         focusModeNode: null,
@@ -271,8 +328,21 @@ export const useCanvasStore = create<CanvasStoreState & CanvasStoreActions>()(
     showToastMessage: (message) =>
       set({ toastMessage: message, showToast: true }),
 
-    // Loading
+    // Loading & Hydration
     setLoading: (loading) => set({ isLoading: loading }),
+    setHydrationState: (state) =>
+      set((s) => ({
+        hydrationState: { ...s.hydrationState, ...state },
+      })),
+    resetHydrationState: () =>
+      set({
+        hydrationState: {
+          isHydrating: false,
+          totalEdges: 0,
+          hydratedEdges: 0,
+          cachedCount: 0,
+        },
+      }),
 
     // Graph Data
     setGraphStats: (stats) => set({ graphStats: stats }),
@@ -347,6 +417,28 @@ export const useCanvasStore = create<CanvasStoreState & CanvasStoreActions>()(
         layoutMode: mode,
         physicsEnabled: mode === "force",
       }),
+
+    // Topology Intelligence & Battlefield
+    toggleBattlefieldMode: () =>
+      set((s) => ({ battlefieldMode: !s.battlefieldMode })),
+    setBattlefieldMode: (enabled) => set({ battlefieldMode: enabled }),
+    setClusterViewMode: (mode) => set({ clusterViewMode: mode }),
+    toggleSchoolExpansion: (schoolId) => {
+      const next = new Set(get().expandedSchools);
+      if (next.has(schoolId)) {
+        next.delete(schoolId);
+      } else {
+        next.add(schoolId);
+      }
+      set({ expandedSchools: next });
+    },
+    setSchoolsOfThought: (schools) => set({ schoolsOfThought: schools }),
+
+    // Sovereign Indexing
+    setSovereignFilterActive: (active) =>
+      set({ sovereignFilterActive: active }),
+    toggleSovereignFilter: () =>
+      set((s) => ({ sovereignFilterActive: !s.sovereignFilterActive })),
 
     // Lifecycle
     reset: () => set(initialState),
