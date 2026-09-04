@@ -80,10 +80,128 @@ export function importPapers(
 
 function parseInput(format: PaperImportFormat, input: string): ParseResult {
   if (format === "doi") return parseDoiList(input);
-  if (format === "bibtex" || format === "zotero")
+  if (format === "zotero") {
+    const trimmed = input.trim();
+    if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
+      return parseZoteroJsonInput(trimmed);
+    }
     return parseBibtexInput(input);
+  }
+  if (format === "bibtex") return parseBibtexInput(input);
   if (format === "ris") return parseRis(input);
   return parseCsv(input);
+}
+
+function parseZoteroJsonInput(input: string): ParseResult {
+  const errors: PaperImportError[] = [];
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(input);
+  } catch {
+    return {
+      rows: [],
+      errors: [
+        {
+          row: 0,
+          code: "MALFORMED_BIBTEX",
+          message: "Failed to parse Zotero JSON input: invalid JSON format.",
+        },
+      ],
+      totalRows: 0,
+    };
+  }
+
+  const items = Array.isArray(parsed) ? parsed : [parsed];
+  const rows: RawPaper[] = [];
+
+  items.forEach((item, index) => {
+    const row = index + 1;
+    if (!item || typeof item !== "object") {
+      errors.push({
+        row,
+        code: "MALFORMED_BIBTEX",
+        message: "Invalid Zotero item entry",
+      });
+      return;
+    }
+
+    const record = item as Record<string, unknown>;
+    const data =
+      record.data && typeof record.data === "object"
+        ? (record.data as Record<string, unknown>)
+        : record;
+
+    const rawDoi = data.DOI ?? data.doi ?? record.DOI ?? record.doi;
+    const rawOpenAlex =
+      data.openAlex ?? data.openAlexId ?? record.openAlex ?? record.openAlexId;
+    const rawTitle = data.title ?? record.title;
+
+    // Authors
+    let authors: string[] | undefined;
+    if (Array.isArray(data.creators)) {
+      authors = (data.creators as Array<Record<string, unknown>>)
+        .map((c) => {
+          if (c.name && typeof c.name === "string") return c.name;
+          const first = typeof c.firstName === "string" ? c.firstName : "";
+          const last = typeof c.lastName === "string" ? c.lastName : "";
+          return [first, last].filter(Boolean).join(" ");
+        })
+        .filter(Boolean);
+    } else if (Array.isArray(data.author)) {
+      authors = (data.author as Array<Record<string, unknown>>)
+        .map((c) => {
+          if (c.name && typeof c.name === "string") return c.name;
+          const given = typeof c.given === "string" ? c.given : "";
+          const family = typeof c.family === "string" ? c.family : "";
+          return [given, family].filter(Boolean).join(" ");
+        })
+        .filter(Boolean);
+    }
+
+    // Year
+    let year: string | undefined;
+    if (data.date && typeof data.date === "string") {
+      const match = data.date.match(/\b(19\d\d|20\d\d)\b/);
+      if (match) year = match[1];
+    } else if (
+      data.issued &&
+      typeof data.issued === "object" &&
+      Array.isArray((data.issued as Record<string, unknown>)["date-parts"])
+    ) {
+      const parts = (data.issued as { "date-parts"?: unknown[][] })[
+        "date-parts"
+      ];
+      if (parts?.[0]?.[0]) {
+        year = String(parts[0][0]);
+      }
+    }
+
+    const venue =
+      data.publicationTitle ??
+      data["container-title"] ??
+      data.journal ??
+      data.venue;
+    const abstract = data.abstractNote ?? data.abstract;
+
+    rows.push({
+      row,
+      doi: typeof rawDoi === "string" ? rawDoi : undefined,
+      openAlex: typeof rawOpenAlex === "string" ? rawOpenAlex : undefined,
+      title: typeof rawTitle === "string" ? rawTitle : undefined,
+      authors: authors && authors.length > 0 ? authors : undefined,
+      year,
+      venue: typeof venue === "string" ? venue : undefined,
+      abstract: typeof abstract === "string" ? abstract : undefined,
+      sourceUpdatedAt:
+        typeof data.dateModified === "string"
+          ? data.dateModified
+          : typeof record.dateModified === "string"
+            ? record.dateModified
+            : undefined,
+    });
+  });
+
+  return { rows, errors, totalRows: rows.length };
 }
 
 function parseDoiList(input: string): ParseResult {

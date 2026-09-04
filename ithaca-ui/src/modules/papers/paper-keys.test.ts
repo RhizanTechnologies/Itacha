@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import { buildPaperDedupeKey, resolvePaperExploreTarget } from "./paper-keys";
 import type { ImportedPaper } from "./types";
 
-const samplePaper = (overrides: Partial<ImportedPaper> = {}): ImportedPaper => ({
+const samplePaper = (
+  overrides: Partial<ImportedPaper> = {},
+): ImportedPaper => ({
   identifiers: {},
   authors: [],
   provenance: [{ format: "doi", row: 1, source: "test" }],
@@ -13,19 +15,13 @@ const samplePaper = (overrides: Partial<ImportedPaper> = {}): ImportedPaper => (
 describe("buildPaperDedupeKey", () => {
   it("prefers doi then openalex then title/year", () => {
     expect(
-      buildPaperDedupeKey(
-        samplePaper({ identifiers: { doi: "10.1000/abc" } }),
-      ),
+      buildPaperDedupeKey(samplePaper({ identifiers: { doi: "10.1000/abc" } })),
     ).toBe("doi:10.1000/abc");
     expect(
-      buildPaperDedupeKey(
-        samplePaper({ identifiers: { openAlex: "W123" } }),
-      ),
+      buildPaperDedupeKey(samplePaper({ identifiers: { openAlex: "W123" } })),
     ).toBe("openalex:W123");
     expect(
-      buildPaperDedupeKey(
-        samplePaper({ title: "Graph Theory", year: 2020 }),
-      ),
+      buildPaperDedupeKey(samplePaper({ title: "Graph Theory", year: 2020 })),
     ).toBe("title:graph theory|year:2020");
   });
 });
@@ -39,9 +35,9 @@ describe("resolvePaperExploreTarget", () => {
         doi: "10.1/abc",
       }),
     ).toBe("W999");
-    expect(
-      resolvePaperExploreTarget({ id: "rec_1", doi: "10.1/abc" }),
-    ).toBe("10.1/abc");
+    expect(resolvePaperExploreTarget({ id: "rec_1", doi: "10.1/abc" })).toBe(
+      "10.1/abc",
+    );
     expect(resolvePaperExploreTarget({ id: "rec_1" })).toBeNull();
   });
 });

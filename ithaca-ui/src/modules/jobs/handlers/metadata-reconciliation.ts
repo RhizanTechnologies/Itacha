@@ -50,7 +50,10 @@ function reconstructAbstract(
     }
   }
   positions.sort((a, b) => a[0] - b[0]);
-  const text = positions.map(([, word]) => word).join(" ").trim();
+  const text = positions
+    .map(([, word]) => word)
+    .join(" ")
+    .trim();
   return text || undefined;
 }
 
@@ -99,8 +102,12 @@ export async function processMetadataReconciliationJob(input: {
           title: record.title ?? work.title ?? work.display_name,
           year: record.year ?? work.publication_year,
           venue:
-            record.venue ?? work.primary_location?.source?.display_name ?? undefined,
-          abstract: record.abstract ?? reconstructAbstract(work.abstract_inverted_index),
+            record.venue ??
+            work.primary_location?.source?.display_name ??
+            undefined,
+          abstract:
+            record.abstract ??
+            reconstructAbstract(work.abstract_inverted_index),
         },
       });
       updated += 1;
@@ -112,10 +119,7 @@ export async function processMetadataReconciliationJob(input: {
   }
 
   if (failures.length > 0 && updated === 0) {
-    await markBackgroundJobFailed(
-      input.jobId,
-      failures.slice(0, 3).join("; "),
-    );
+    await markBackgroundJobFailed(input.jobId, failures.slice(0, 3).join("; "));
     return { updated, skipped, failures };
   }
 

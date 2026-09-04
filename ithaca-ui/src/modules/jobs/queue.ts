@@ -1,5 +1,6 @@
 import { Client, Receiver } from "@upstash/qstash";
 import type { JobType } from "./job-policy";
+import { processJobLocally } from "./local-runner";
 
 export interface JobEnvelope<TPayload extends Record<string, unknown>> {
   id: string;
@@ -27,7 +28,18 @@ export async function enqueueJob<TPayload extends Record<string, unknown>>(
 ): Promise<{ messageId: string }> {
   const qstash = getClient();
   if (!qstash) {
-    throw new Error("Durable jobs are not configured");
+    const localId = `local_${job.id}`;
+    const delayMs = (options.delaySeconds || 0) * 1000;
+    if (delayMs > 0) {
+      setTimeout(() => {
+        void processJobLocally(job);
+      }, delayMs);
+    } else {
+      queueMicrotask(() => {
+        void processJobLocally(job);
+      });
+    }
+    return { messageId: localId };
   }
 
   const destination = new URL(

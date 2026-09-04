@@ -6,10 +6,10 @@ export function isDurableJobsConfigured(
 ): boolean {
   return Boolean(
     environment.QSTASH_TOKEN &&
-      environment.QSTASH_CURRENT_SIGNING_KEY &&
-      environment.QSTASH_NEXT_SIGNING_KEY &&
-      environment.NEXT_PUBLIC_APP_URL &&
-      environment.BLOB_READ_WRITE_TOKEN,
+    environment.QSTASH_CURRENT_SIGNING_KEY &&
+    environment.QSTASH_NEXT_SIGNING_KEY &&
+    environment.NEXT_PUBLIC_APP_URL &&
+    environment.BLOB_READ_WRITE_TOKEN,
   );
 }
 

@@ -11,6 +11,7 @@ import { getOrganizationContext } from "@/lib/organization-context";
 import { processCollectionDigestJob } from "@/modules/jobs/handlers/collection-digest";
 import { processGraphExportJob } from "@/modules/jobs/handlers/graph-export";
 import { processMetadataReconciliationJob } from "@/modules/jobs/handlers/metadata-reconciliation";
+import { processNadreHarvestJob } from "@/modules/jobs/handlers/nadre-harvest";
 import { markBackgroundJobFailed } from "@/modules/jobs/job-service";
 import { JOB_TYPES } from "@/modules/jobs/job-policy";
 import { verifyJobSignature } from "@/modules/jobs/queue";
@@ -50,10 +51,24 @@ const digestJobSchema = baseJobSchema.extend({
   }),
 });
 
+const nadreHarvestJobSchema = baseJobSchema.extend({
+  type: z.literal(JOB_TYPES.nadreHarvest),
+  payload: z.object({
+    jobId: z.string().min(1),
+    repositorySlug: z.string().min(1),
+    from: z.string().optional(),
+    until: z.string().optional(),
+    set: z.string().optional(),
+    resumptionToken: z.string().optional(),
+    maxRecords: z.number().optional(),
+  }),
+});
+
 const jobSchema = z.discriminatedUnion("type", [
   exportJobSchema,
   metadataJobSchema,
   digestJobSchema,
+  nadreHarvestJobSchema,
 ]);
 
 export async function POST(request: NextRequest) {
@@ -122,6 +137,34 @@ export async function POST(request: NextRequest) {
         userId: job.requestedByUserId,
         organizationId: job.organizationId,
         attributes: { type: job.type, updated: result.updated },
+      });
+
+      return apiSuccess({ processed: true, ...result }, context);
+    }
+
+    if (job.type === JOB_TYPES.nadreHarvest) {
+      const result = await processNadreHarvestJob({
+        jobId: job.payload.jobId,
+        organizationId: job.organizationId,
+        requestedByUserId: job.requestedByUserId,
+        repositorySlug: job.payload.repositorySlug,
+        from: job.payload.from,
+        until: job.payload.until,
+        set: job.payload.set,
+        resumptionToken: job.payload.resumptionToken,
+        maxRecords: job.payload.maxRecords,
+      });
+
+      logEvent("info", "job.completed", {
+        requestId: context.requestId,
+        jobId: job.id,
+        userId: job.requestedByUserId,
+        organizationId: job.organizationId,
+        attributes: {
+          type: job.type,
+          repositorySlug: result.repositorySlug,
+          totalHarvested: result.totalHarvested,
+        },
       });
 
       return apiSuccess({ processed: true, ...result }, context);

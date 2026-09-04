@@ -6,6 +6,7 @@ export const JOB_TYPES = {
   graphExport: "graph_export",
   notification: "notification",
   savedSearchAlert: "saved_search_alert",
+  nadreHarvest: "nadre_harvest",
 } as const;
 
 export type JobType = (typeof JOB_TYPES)[keyof typeof JOB_TYPES];

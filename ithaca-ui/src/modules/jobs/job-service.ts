@@ -54,7 +54,10 @@ export async function markBackgroundJobCompleted(
   });
 }
 
-export async function markBackgroundJobFailed(jobId: string, errorMessage: string) {
+export async function markBackgroundJobFailed(
+  jobId: string,
+  errorMessage: string,
+) {
   return prisma.backgroundJob.update({
     where: { id: jobId },
     data: {
@@ -86,7 +89,9 @@ export async function getBackgroundJobForOrganization(
   });
 }
 
-export async function findBackgroundJobByIdempotencyKey(idempotencyKey: string) {
+export async function findBackgroundJobByIdempotencyKey(
+  idempotencyKey: string,
+) {
   return prisma.backgroundJob.findUnique({
     where: { idempotencyKey },
     include: { artifact: true },
