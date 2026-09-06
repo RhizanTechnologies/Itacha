@@ -1,0 +1,45 @@
+{
+  "manifest_version": 3,
+  "name": "Ithaca: Academic Debate & Citation Graph",
+  "version": "1.0.0",
+  "description": "Live argumentation stances (Supports, Contradicts, Extends) and citation debate matrices directly on arXiv, PubMed, Nature, and Google Scholar.",
+  "permissions": ["activeTab", "storage"],
+  "host_permissions": [
+    "https://arxiv.org/*",
+    "https://pubmed.ncbi.nlm.nih.gov/*",
+    "https://*.nature.com/*",
+    "https://scholar.google.com/*",
+    "http://localhost:3000/*",
+    "https://ithaca.rhizan.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://arxiv.org/abs/*",
+        "https://pubmed.ncbi.nlm.nih.gov/*",
+        "https://*.nature.com/articles/*",
+        "https://scholar.google.com/scholar*"
+      ],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Ithaca Academic Stance Inspector",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  }
+}

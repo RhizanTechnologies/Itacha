@@ -1,0 +1,120 @@
+/* Ithaca Browser Extension Styles */
+#ithaca-debate-pill-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 2147483647; /* Top layer */
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
+  font-size: 13px;
+  transition:
+    transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.2s ease;
+}
+
+#ithaca-debate-pill-container:hover {
+  transform: translateY(-2px);
+}
+
+.ithaca-badge-link {
+  text-decoration: none !important;
+  color: inherit !important;
+}
+
+.ithaca-badge-inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  background: rgba(15, 23, 42, 0.94);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 9999px;
+  box-shadow:
+    0 10px 25px -5px rgba(0, 0, 0, 0.35),
+    0 8px 10px -6px rgba(0, 0, 0, 0.2);
+  color: #f8fafc;
+}
+
+.ithaca-brand-logo {
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: -0.01em;
+  color: #38bdf8;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ithaca-sovereign-tag {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.ithaca-stance-pill-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ithaca-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.ithaca-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.ithaca-pill-support {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+.dot-green {
+  background: #22c55e;
+}
+
+.ithaca-pill-contradict {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+.dot-red {
+  background: #ef4444;
+}
+
+.ithaca-pill-extend {
+  background: rgba(168, 85, 247, 0.15);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+}
+.dot-purple {
+  background: #a855f7;
+}
+
+.ithaca-badge-cta {
+  font-size: 11px;
+  font-weight: 500;
+  color: #94a3b8;
+  padding-left: 4px;
+  border-left: 1px solid rgba(255, 255, 255, 0.15);
+  transition: color 0.15s ease;
+}
+
+.ithaca-badge-inner:hover .ithaca-badge-cta {
+  color: #38bdf8;
+}

@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Ithaca Academic Inspector</title>
+    <style>
+      body {
+        width: 320px;
+        margin: 0;
+        padding: 16px;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: #090d16;
+        color: #f1f5f9;
+      }
+      .header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid #1e293b;
+        padding-bottom: 10px;
+        margin-bottom: 12px;
+      }
+      .logo {
+        font-weight: 700;
+        font-size: 14px;
+        color: #38bdf8;
+      }
+      .status {
+        font-size: 12px;
+        color: #94a3b8;
+        margin-bottom: 12px;
+        line-height: 1.4;
+      }
+      .paper-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: #f8fafc;
+        margin-bottom: 12px;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      .metric-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+      .metric-card {
+        background: #0f172a;
+        border: 1px solid #1e293b;
+        border-radius: 8px;
+        padding: 8px;
+        text-align: center;
+      }
+      .metric-card .num {
+        font-size: 16px;
+        font-weight: 700;
+      }
+      .metric-card .lbl {
+        font-size: 10px;
+        color: #94a3b8;
+        margin-top: 2px;
+      }
+      .text-green {
+        color: #4ade80;
+      }
+      .text-red {
+        color: #f87171;
+      }
+      .text-purple {
+        color: #c084fc;
+      }
+      .btn-launch {
+        display: block;
+        width: 100%;
+        text-align: center;
+        box-sizing: border-box;
+        background: #2563eb;
+        color: #ffffff;
+        padding: 8px 12px;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 12px;
+        transition: background 0.15s ease;
+      }
+      .btn-launch:hover {
+        background: #1d4ed8;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <div class="logo">🏛️ Ithaca Inspector</div>
+      <span
+        id="badge-sovereign"
+        style="display: none"
+        class="text-green"
+        style="font-size: 11px"
+        >🇪🇹 Sovereign</span
+      >
+    </div>
+    <div id="paper-title" class="paper-title">Scanning active tab...</div>
+    <div class="metric-grid">
+      <div class="metric-card">
+        <div id="count-support" class="num text-green">0</div>
+        <div class="lbl">Supports</div>
+      </div>
+      <div class="metric-card">
+        <div id="count-contradict" class="num text-red">0</div>
+        <div class="lbl">Contradicts</div>
+      </div>
+      <div class="metric-card">
+        <div id="count-extend" class="num text-purple">0</div>
+        <div class="lbl">Extends</div>
+      </div>
+    </div>
+    <a
+      id="btn-explore"
+      href="http://localhost:3000/explore"
+      target="_blank"
+      class="btn-launch"
+    >
+      Open Full Debate Matrix &rarr;
+    </a>
+    <script src="popup.js"></script>
+  </body>
+</html>
