@@ -30,8 +30,12 @@ import { ExploreUrlHydrator } from "@/components/canvas/explore-url-hydrator";
 import { E2eEdgeOpener } from "@/components/canvas/e2e-edge-opener";
 import { PaperInspector } from "@/components/inspector/paper-inspector";
 import { PaperListPanel } from "@/components/canvas/paper-list-panel";
-import { List } from "lucide-react";
+import { List, Swords, Orbit, Table, Sparkles, Filter } from "lucide-react";
 import { GlobalFilters } from "@/components/filters/global-filters";
+import { DebateMatrixDialog } from "@/components/canvas/debate-matrix-dialog";
+import { LiteratureReviewDialog } from "@/components/canvas/literature-review-dialog";
+import { QueryBuilderDialog } from "@/components/query/query-builder-dialog";
+import type { QueryCondition } from "@/components/query/query-builder";
 import { CommandBar } from "@/components/command/command-bar";
 import {
   ShareExportDialog,
@@ -41,6 +45,9 @@ import { SaveGraphDialog } from "@/components/canvas/save-graph-dialog";
 import { NodeDragControl } from "@/components/canvas/node-drag-control";
 import { PaperCountControl } from "@/components/canvas/paper-count-control";
 import { RelationshipFocusControl } from "@/components/canvas/relationship-focus-control";
+import { BattlefieldToggle } from "@/components/canvas/battlefield-toggle";
+import { SchoolsViewControl } from "@/components/canvas/schools-view-control";
+import { InstitutionalArchiveToggle } from "@/components/canvas/institutional-archive-toggle";
 import {
   NewArgumentToast,
   createThemeAwareHoverDrawer,
@@ -48,6 +55,7 @@ import {
 import { GraphLoader } from "@/components/canvas/graph-loader";
 import { ZoomIndicator } from "@/components/canvas/zoom-indicator";
 import { EdgeEvidencePopover } from "@/components/canvas/edge-evidence-popover";
+import { HydrationStatusPill } from "@/components/canvas/hydration-status-pill";
 import {
   CanvasChatPanel,
   ChatToggleButton,
@@ -172,6 +180,11 @@ export function ExploreCanvas() {
       tutorial.start();
     }
   }, [tutorial]);
+
+  // Dispute count across the graph
+  const disputeCount = useMemo(() => {
+    return state.schoolsOfThought.reduce((acc, s) => acc + s.disputeCount, 0);
+  }, [state.schoolsOfThought]);
 
   // Memoize the theme-aware hover drawer
   const themeAwareHoverDrawer = useMemo(
@@ -305,6 +318,64 @@ export function ExploreCanvas() {
       }
     },
     [state.visiblePapers, actions, refs],
+  );
+
+  const handleApplyQueryConditions = useCallback(
+    (conditions: QueryCondition[]) => {
+      const graph = refs.graphRef.current;
+      if (!graph || conditions.length === 0) return;
+
+      const matchingNodeIds: string[] = [];
+      graph.forEachNode((nodeId, attrs) => {
+        let matchesAll = true;
+        for (const cond of conditions) {
+          const attrVal = attrs[cond.field];
+          if (cond.field === "year" || cond.field === "citations") {
+            const numVal = Number(attrVal) || 0;
+            if (cond.comparator === "gt") {
+              if (!(numVal > Number(cond.value))) matchesAll = false;
+            } else if (cond.comparator === "lt") {
+              if (!(numVal < Number(cond.value))) matchesAll = false;
+            } else if (cond.comparator === "gte") {
+              if (!(numVal >= Number(cond.value))) matchesAll = false;
+            } else if (cond.comparator === "lte") {
+              if (!(numVal <= Number(cond.value))) matchesAll = false;
+            } else if (cond.comparator === "equals") {
+              if (!(numVal === Number(cond.value))) matchesAll = false;
+            } else if (
+              cond.comparator === "between" &&
+              Array.isArray(cond.value)
+            ) {
+              if (!(numVal >= cond.value[0] && numVal <= cond.value[1]))
+                matchesAll = false;
+            }
+          } else {
+            const strVal = String(attrVal || "").toLowerCase();
+            const target = String(cond.value).toLowerCase();
+            if (cond.comparator === "contains") {
+              if (!strVal.includes(target)) matchesAll = false;
+            } else if (cond.comparator === "equals") {
+              if (strVal !== target) matchesAll = false;
+            }
+          }
+          if (!matchesAll) break;
+        }
+        if (matchesAll) matchingNodeIds.push(nodeId);
+      });
+
+      if (matchingNodeIds.length > 0) {
+        actions.setSelectedNodes(matchingNodeIds);
+        refs.graphApiRef.current?.focusNodes(matchingNodeIds);
+        actions.showToastMessage(
+          `Query matched ${matchingNodeIds.length} paper${matchingNodeIds.length === 1 ? "" : "s"} on canvas.`,
+        );
+      } else {
+        actions.showToastMessage(
+          "No papers on canvas matched the query conditions.",
+        );
+      }
+    },
+    [refs, actions],
   );
 
   return (
@@ -460,6 +531,12 @@ export function ExploreCanvas() {
                 maxCitations={state.dataRanges.maxCitations}
                 minYear={state.dataRanges.minYear}
                 maxYear={state.dataRanges.maxYear}
+                onOpenQueryBuilder={() => actions.setQueryBuilderOpen(true)}
+              />
+              <SchoolsViewControl schoolCount={state.schoolsOfThought.length} />
+              <InstitutionalArchiveToggle
+                active={state.sovereignFilterActive}
+                onToggle={() => actions.toggleSovereignFilter()}
               />
               <PaperCountControl
                 count={state.paperCount}
@@ -493,28 +570,125 @@ export function ExploreCanvas() {
                   selectedNodes={state.selectedNodes}
                   nodeLabels={state.nodeLabels}
                 />
+                <Button
+                  variant={state.debateMatrixOpen ? "default" : "outline"}
+                  size="icon"
+                  className="pointer-events-auto z-30 h-9 w-9 rounded-full shadow-md transition-colors hover:border-indigo-500 hover:text-indigo-600"
+                  onClick={() => actions.setDebateMatrixOpen(true)}
+                  title="Open Debate Matrix (Dialectic Refutations & Confirmations)"
+                >
+                  <Table className="h-4 w-4 text-indigo-500" />
+                </Button>
+                <Button
+                  variant={state.literatureReviewOpen ? "default" : "outline"}
+                  size="icon"
+                  className="pointer-events-auto z-30 h-9 w-9 rounded-full shadow-md transition-colors hover:border-violet-500 hover:text-violet-600"
+                  onClick={() => actions.setLiteratureReviewOpen(true)}
+                  title="Synthesize Literature Review (Foundations, Clashes & Horizons)"
+                >
+                  <Sparkles className="h-4 w-4 text-violet-500" />
+                </Button>
+                <Button
+                  variant={state.queryBuilderOpen ? "default" : "outline"}
+                  size="icon"
+                  className="pointer-events-auto z-30 h-9 w-9 rounded-full shadow-md transition-colors hover:border-emerald-500 hover:text-emerald-600"
+                  onClick={() => actions.setQueryBuilderOpen(true)}
+                  title="Open Advanced Relational Query Builder"
+                >
+                  <Filter className="h-4 w-4 text-emerald-500" />
+                </Button>
               </div>
             </TopRightZone>
           )}
 
-          {state.focusModeNode && (
-            <TopCenterZone className="animate-in slide-in-from-top-2 fade-in duration-300">
-              <div className="bg-primary/90 text-primary-foreground border-primary-foreground/20 flex items-center gap-3 rounded-full border px-4 py-2 shadow-lg backdrop-blur-md">
-                <div className="flex flex-col items-center leading-none">
-                  <span className="text-[10px] font-medium tracking-widest uppercase opacity-80">
-                    Focus Mode
-                  </span>
+          <TopCenterZone className="flex flex-col items-center gap-2">
+            {state.focusModeNode && (
+              <div className="animate-in slide-in-from-top-2 fade-in duration-300">
+                <div className="bg-primary/90 text-primary-foreground border-primary-foreground/20 flex items-center gap-3 rounded-full border px-4 py-2 shadow-lg backdrop-blur-md">
+                  <div className="flex flex-col items-center leading-none">
+                    <span className="text-[10px] font-medium tracking-widest uppercase opacity-80">
+                      Focus Mode
+                    </span>
+                  </div>
+                  <div className="bg-primary-foreground/30 h-4 w-px" />
+                  <button
+                    onClick={() => actions.setFocusModeNode(null)}
+                    className="rounded px-2 py-1 text-xs font-bold transition-colors hover:bg-white/20"
+                  >
+                    Exit Focus
+                  </button>
                 </div>
-                <div className="bg-primary-foreground/30 h-4 w-px" />
-                <button
-                  onClick={() => actions.setFocusModeNode(null)}
-                  className="rounded px-2 py-1 text-xs font-bold transition-colors hover:bg-white/20"
-                >
-                  Exit Focus
-                </button>
               </div>
-            </TopCenterZone>
-          )}
+            )}
+            {state.battlefieldMode && (
+              <div className="animate-in slide-in-from-top-2 fade-in duration-300">
+                <div className="flex items-center gap-2.5 rounded-full border border-red-400/30 bg-red-600/90 px-4 py-1.5 text-white shadow-lg backdrop-blur-md">
+                  <Swords className="h-3.5 w-3.5 animate-pulse" />
+                  <span className="text-xs font-bold tracking-wide uppercase">
+                    Battlefield Mode
+                  </span>
+                  <span className="text-[11px] opacity-85">
+                    {disputeCount > 0
+                      ? `${disputeCount} controversies active`
+                      : "Refutations highlighted"}
+                  </span>
+                  <div className="mx-0.5 h-3.5 w-px bg-white/20" />
+                  <button
+                    onClick={() => actions.setDebateMatrixOpen(true)}
+                    className="flex items-center gap-1 rounded bg-white/15 px-2 py-0.5 text-[11px] font-bold transition-colors hover:bg-white/25"
+                    title="View Debate Matrix"
+                  >
+                    <Table className="h-3 w-3" />
+                    Matrix
+                  </button>
+                  <div className="mx-0.5 h-3.5 w-px bg-white/20" />
+                  <button
+                    onClick={() => actions.setBattlefieldMode(false)}
+                    className="rounded px-1.5 py-0.5 text-[11px] font-bold transition-colors hover:bg-white/20"
+                  >
+                    Exit
+                  </button>
+                </div>
+              </div>
+            )}
+            {state.sovereignFilterActive && (
+              <div className="animate-in slide-in-from-top-2 fade-in duration-300">
+                <div className="flex items-center gap-2.5 rounded-full border border-emerald-400/30 bg-emerald-700/90 px-4 py-1.5 text-white shadow-lg backdrop-blur-md">
+                  <span className="text-sm leading-none">🏛️</span>
+                  <span className="text-xs font-bold tracking-wide uppercase">
+                    Open Archives Active
+                  </span>
+                  <span className="text-[11px] opacity-85">
+                    Highlighting verified institutional repository & university
+                    literature
+                  </span>
+                  <div className="mx-0.5 h-3.5 w-px bg-white/20" />
+                  <button
+                    onClick={() => actions.setSovereignFilterActive(false)}
+                    className="rounded px-1.5 py-0.5 text-[11px] font-bold transition-colors hover:bg-white/20"
+                  >
+                    Exit
+                  </button>
+                </div>
+              </div>
+            )}
+            {state.graphStats.nodeCount > 40 &&
+              state.clusterViewMode === "papers" && (
+                <div className="animate-in fade-in duration-300">
+                  <button
+                    onClick={() => actions.setClusterViewMode("schools")}
+                    className="flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-950/80 px-3 py-1 text-xs text-indigo-200 shadow-md backdrop-blur-md transition-colors hover:bg-indigo-900/90"
+                  >
+                    <Orbit className="h-3.5 w-3.5" />
+                    <span>
+                      Dense network ({state.graphStats.nodeCount} papers) —
+                      Switch to Schools of Thought?
+                    </span>
+                  </button>
+                </div>
+              )}
+            <HydrationStatusPill />
+          </TopCenterZone>
 
           {/* Bottom-left: footer (desktop/tablet only) */}
           {!isMobile && (
@@ -537,6 +711,7 @@ export function ExploreCanvas() {
             <RelationshipFocusControl
               value={state.relationshipFocus}
               onChange={(focus) => actions.setRelationshipFocus(focus)}
+              extra={<BattlefieldToggle disputeCount={disputeCount} />}
             />
             <SelectionPanel
               selectedNodes={state.selectedNodes}
@@ -732,6 +907,34 @@ export function ExploreCanvas() {
         <KeyboardShortcutsHelp
           open={state.keyboardHelpOpen}
           onOpenChange={actions.setKeyboardHelpOpen}
+        />
+
+        <DebateMatrixDialog
+          open={state.debateMatrixOpen}
+          onOpenChange={actions.setDebateMatrixOpen}
+          graph={refs.graphRef.current}
+          topic={state.searchTarget || undefined}
+          onOpenSynthesizer={() => {
+            actions.setDebateMatrixOpen(false);
+            actions.setLiteratureReviewOpen(true);
+          }}
+        />
+
+        <LiteratureReviewDialog
+          open={state.literatureReviewOpen}
+          onOpenChange={actions.setLiteratureReviewOpen}
+          graph={refs.graphRef.current}
+          topic={state.searchTarget || undefined}
+          onOpenDebateMatrix={() => {
+            actions.setLiteratureReviewOpen(false);
+            actions.setDebateMatrixOpen(true);
+          }}
+        />
+
+        <QueryBuilderDialog
+          open={state.queryBuilderOpen}
+          onOpenChange={actions.setQueryBuilderOpen}
+          onApplyConditions={handleApplyQueryConditions}
         />
 
         <TutorialOverlay

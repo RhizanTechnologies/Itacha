@@ -16,9 +16,7 @@ import {
 } from "@/app/(app)/admin/actions";
 
 export function OrganizationSwitcher() {
-  const [organizations, setOrganizations] = useState<OrganizationSummary[]>(
-    [],
-  );
+  const [organizations, setOrganizations] = useState<OrganizationSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
 

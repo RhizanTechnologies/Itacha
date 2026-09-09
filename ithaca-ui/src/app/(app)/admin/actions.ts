@@ -285,9 +285,7 @@ export async function setOrganizationPlan(
     where: { id: context.organizationId },
     data: {
       ...quotas,
-      ...(entitlements.domainAllowlist
-        ? {}
-        : { allowedEmailDomains: [] }),
+      ...(entitlements.domainAllowlist ? {} : { allowedEmailDomains: [] }),
     },
   });
 

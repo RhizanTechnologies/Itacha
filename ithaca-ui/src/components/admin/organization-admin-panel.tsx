@@ -183,8 +183,8 @@ export function OrganizationAdminPanel() {
                 </p>
                 <p className="text-muted-foreground text-xs">
                   Collaborative workspaces:{" "}
-                  {plan.collaborativeWorkspaces ? "enabled" : "not included"}
-                  . SSO / SAML is upcoming for institution pilots.
+                  {plan.collaborativeWorkspaces ? "enabled" : "not included"}.
+                  SSO / SAML is upcoming for institution pilots.
                 </p>
               </div>
               {plan.canManagePlan && (
@@ -203,9 +203,11 @@ export function OrganizationAdminPanel() {
                         <SelectItem key={planId} value={planId}>
                           {planId === "SOLO"
                             ? "Solo"
-                            : planId === "LAB"
-                              ? "Lab"
-                              : "Institution"}
+                            : planId === "SOLO_PRO"
+                              ? "Solo Pro"
+                              : planId === "LAB"
+                                ? "Lab"
+                                : "Institution"}
                         </SelectItem>
                       ))}
                     </SelectContent>

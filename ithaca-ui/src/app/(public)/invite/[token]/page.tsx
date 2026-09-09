@@ -71,8 +71,12 @@ export default function AcceptInvitationPage({
             <Building2 className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-muted-foreground text-sm">Organization invitation</p>
-            <h1 className="text-2xl font-bold">{invitation.organizationName}</h1>
+            <p className="text-muted-foreground text-sm">
+              Organization invitation
+            </p>
+            <h1 className="text-2xl font-bold">
+              {invitation.organizationName}
+            </h1>
           </div>
         </div>
 
@@ -91,20 +95,22 @@ export default function AcceptInvitationPage({
           </div>
         </div>
 
-        {error && (
-          <p className="text-destructive mt-4 text-sm">{error}</p>
-        )}
+        {error && <p className="text-destructive mt-4 text-sm">{error}</p>}
 
         <div className="mt-8 flex flex-col gap-3">
           {!session?.user ? (
             <>
               <Button asChild>
-                <Link href={`/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`}>
+                <Link
+                  href={`/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`}
+                >
                   Sign in to accept
                 </Link>
               </Button>
               <Button variant="outline" asChild>
-                <Link href={`/signup?callbackUrl=${encodeURIComponent(callbackUrl)}`}>
+                <Link
+                  href={`/signup?callbackUrl=${encodeURIComponent(callbackUrl)}`}
+                >
                   Create an account
                 </Link>
               </Button>

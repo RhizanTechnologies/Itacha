@@ -44,7 +44,9 @@ export default async function OrganizationAdminPage() {
   return (
     <main className="mx-auto w-full max-w-6xl space-y-8 p-6">
       <div>
-        <p className="text-muted-foreground text-sm">Organization administration</p>
+        <p className="text-muted-foreground text-sm">
+          Organization administration
+        </p>
         <h1 className="text-2xl font-semibold">{context.organization.name}</h1>
       </div>
 

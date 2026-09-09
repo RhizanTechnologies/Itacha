@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useAnimationPause } from "@/hooks/useAnimationPause";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import Image from "next/image";
 import { SignInDialog } from "@/components/auth/sign-in-dialog";
 import { OnboardingDialog } from "@/components/auth/onboarding-dialog";
 import {
@@ -567,6 +568,62 @@ export default function Home() {
               </StaggerItem>
             ))}
           </Stagger>
+        </div>
+      </section>
+
+      {/* ===== FOUNDER TRUST / BUILT BY RHIZAN ===== */}
+      <section className="border-border/60 bg-muted/20 border-t py-16">
+        <div className="container mx-auto px-4">
+          <div className="border-border bg-card/60 mx-auto max-w-4xl rounded-2xl border p-8 shadow-sm backdrop-blur">
+            <div className="flex flex-col items-center justify-between gap-6 md:flex-row">
+              <div className="flex items-center gap-5">
+                <div className="flex -space-x-3 overflow-hidden">
+                  <div className="border-background relative h-14 w-14 overflow-hidden rounded-full border-2 shadow-sm">
+                    <Image
+                      src="/founders/abdulaziz_circle.png"
+                      alt="Abdulaziz Isa — Technical & AI Lead"
+                      fill
+                      className="object-cover"
+                      sizes="56px"
+                    />
+                  </div>
+                  <div className="border-background relative h-14 w-14 overflow-hidden rounded-full border-2 shadow-sm">
+                    <Image
+                      src="/founders/nebiyu_circle.png"
+                      alt="Nebiyu Musbah — Business & Growth Lead"
+                      fill
+                      className="object-cover"
+                      sizes="56px"
+                    />
+                  </div>
+                  <div className="border-background relative h-14 w-14 overflow-hidden rounded-full border-2 shadow-sm">
+                    <Image
+                      src="/founders/sadam_circle.png"
+                      alt="Sadam Hussen — Operations & Finance Lead"
+                      fill
+                      className="object-cover"
+                      sizes="56px"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold">
+                    Engineered by Rhizan Tech
+                  </h3>
+                  <p className="text-muted-foreground text-sm">
+                    Epistemic Graph Intelligence • Built for researchers &
+                    laboratories worldwide
+                  </p>
+                </div>
+              </div>
+              <Link href="/about">
+                <Button variant="outline" size="sm" className="gap-2">
+                  Meet the Founders
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </Link>
+            </div>
+          </div>
         </div>
       </section>
 

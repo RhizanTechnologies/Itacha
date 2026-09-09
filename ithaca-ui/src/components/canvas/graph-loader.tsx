@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, useRef, memo } from "react";
+import { useEffect, useState, useRef, useCallback, memo } from "react";
 import { useLoadGraph, useSigma, useRegisterEvents } from "@react-sigma/core";
 import Graph from "graphology";
 import * as graphApiModule from "@/lib/api/graph-api";
 import type { PaperNode, EdgeData } from "@/lib/api/graph-api";
+import { useCanvasStore } from "@/stores/canvas-store";
 import { useEdgeFlowAnimation } from "@/hooks/useEdgeFlowAnimation";
 import { useGraphSession } from "@/hooks/use-graph-session";
 import { generateBibTeX } from "@/lib/formats/bibtex";
@@ -26,6 +27,13 @@ import type {
 import type { EdgeEvidence } from "@/components/canvas/edge-evidence-popover";
 import { SIGNAL_SOURCE_LABELS } from "@/components/canvas/edge-evidence-popover";
 import type { PathMode } from "@/lib/graph-algorithms";
+import {
+  clusterIntoSchoolsOfThought,
+  buildMetanodeGraph,
+  unpackSchoolInPlace,
+  type SchoolOfThought,
+  type MetaEdge,
+} from "@/lib/graph-clustering";
 
 // =============================================================================
 // GRAPH LOADER COMPONENT
@@ -111,6 +119,15 @@ export const GraphLoader = memo(function GraphLoader({
   const [hoveredEdges, setHoveredEdges] = useState<Set<string>>(new Set());
   const graphRef = useRef<Graph | null>(null);
 
+  // Topology Intelligence & Battlefield State
+  const battlefieldMode = useCanvasStore((s) => s.battlefieldMode);
+  const clusterViewMode = useCanvasStore((s) => s.clusterViewMode);
+  const sovereignFilterActive = useCanvasStore((s) => s.sovereignFilterActive);
+  const rawNodesRef = useRef<PaperNode[]>([]);
+  const rawEdgesRef = useRef<EdgeData[]>([]);
+  const schoolsRef = useRef<SchoolOfThought[]>([]);
+  const metaEdgesRef = useRef<MetaEdge[]>([]);
+
   // Load graph data from API
   const {
     saveGraph,
@@ -122,6 +139,132 @@ export const GraphLoader = memo(function GraphLoader({
   const prevRefreshRef = useRef(refreshTrigger);
   const relationshipFocusRef = useRef(relationshipFocus);
   relationshipFocusRef.current = relationshipFocus;
+
+  // Ref to track and abort background streaming classification
+  const hydrationAbortRef = useRef<AbortController | null>(null);
+
+  // Progressive Stance Classification via SSE
+  const startHydration = useCallback(
+    (nodes: PaperNode[], edges: EdgeData[]) => {
+      if (hydrationAbortRef.current) {
+        hydrationAbortRef.current.abort();
+      }
+
+      const unclassified = edges.filter(
+        (e) => e.edgeType === "cites" || e.signalSource === "default",
+      );
+
+      if (unclassified.length === 0) return;
+
+      const controller = new AbortController();
+      hydrationAbortRef.current = controller;
+
+      useCanvasStore.getState().setHydrationState({
+        isHydrating: true,
+        totalEdges: unclassified.length,
+        hydratedEdges: 0,
+        cachedCount: 0,
+      });
+
+      graphAPI.streamClassify(nodes, unclassified, {
+        signal: controller.signal,
+        onChunk: (chunk) => {
+          const graph = sigma.getGraph();
+          let newlyHydrated = 0;
+
+          chunk.forEach((edge) => {
+            let edgeKey: string | null = null;
+            if (graph.hasEdge(edge.id)) {
+              edgeKey = edge.id;
+            } else if (graph.hasEdge(edge.source, edge.target)) {
+              edgeKey = graph.edge(edge.source, edge.target) ?? null;
+            } else if (graph.hasEdge(`${edge.source}->${edge.target}`)) {
+              edgeKey = `${edge.source}->${edge.target}`;
+            }
+
+            if (edgeKey && graph.hasEdge(edgeKey)) {
+              graph.setEdgeAttribute(edgeKey, "edgeType", edge.edgeType);
+              graph.setEdgeAttribute(edgeKey, "color", edge.color);
+              graph.setEdgeAttribute(edgeKey, "originalColor", edge.color);
+              graph.setEdgeAttribute(edgeKey, "confidence", edge.confidence);
+              graph.setEdgeAttribute(edgeKey, "size", edge.size);
+              graph.setEdgeAttribute(edgeKey, "originalSize", edge.size);
+              if (edge.snippet)
+                graph.setEdgeAttribute(edgeKey, "snippet", edge.snippet);
+              if (edge.signalSource)
+                graph.setEdgeAttribute(
+                  edgeKey,
+                  "signalSource",
+                  edge.signalSource,
+                );
+              if (edge.contexts)
+                graph.setEdgeAttribute(edgeKey, "contexts", edge.contexts);
+              if (edge.provider)
+                graph.setEdgeAttribute(edgeKey, "provider", edge.provider);
+
+              // Update node controversy metrics live
+              if (
+                edge.edgeType === "contradicts" &&
+                graph.hasNode(edge.target)
+              ) {
+                const currentScore =
+                  (graph.getNodeAttribute(
+                    edge.target,
+                    "controversyScore",
+                  ) as number) || 0;
+                const newScore = currentScore + 1;
+                graph.setNodeAttribute(
+                  edge.target,
+                  "controversyScore",
+                  newScore,
+                );
+                if (newScore >= CONTROVERSY.THRESHOLD) {
+                  graph.setNodeAttribute(edge.target, "highlighted", true);
+                  graph.setNodeAttribute(
+                    edge.target,
+                    "color",
+                    COLORS.CONTRADICTS,
+                  );
+                }
+              }
+            }
+            newlyHydrated++;
+          });
+
+          sigma.refresh();
+
+          const prev = useCanvasStore.getState().hydrationState;
+          useCanvasStore.getState().setHydrationState({
+            hydratedEdges: Math.min(
+              prev.totalEdges,
+              prev.hydratedEdges + newlyHydrated,
+            ),
+          });
+        },
+        onDone: (stats) => {
+          useCanvasStore.getState().setHydrationState({
+            isHydrating: false,
+            cachedCount: stats?.cached ?? 0,
+          });
+          setTimeout(() => {
+            useCanvasStore.getState().resetHydrationState();
+          }, 3500);
+        },
+        onError: (err) => {
+          console.warn("[GraphLoader] Hydration stream error:", err);
+          useCanvasStore.getState().setHydrationState({ isHydrating: false });
+        },
+      });
+    },
+    [sigma],
+  );
+
+  useEffect(() => {
+    return () => {
+      hydrationAbortRef.current?.abort();
+      useCanvasStore.getState().resetHydrationState();
+    };
+  }, []);
 
   // Load graph data from API or Session
   useEffect(() => {
@@ -273,6 +416,34 @@ export const GraphLoader = memo(function GraphLoader({
         }
       });
 
+      rawNodesRef.current = nodes;
+      rawEdgesRef.current = edges;
+
+      // Compute Schools of Thought & MetaEdges
+      const hierarchy = clusterIntoSchoolsOfThought(nodes, edges);
+      schoolsRef.current = hierarchy.schools;
+      metaEdgesRef.current = hierarchy.metaEdges;
+      useCanvasStore.getState().setSchoolsOfThought(hierarchy.schools);
+
+      if (clusterViewMode === "schools") {
+        const metanodeGraph = buildMetanodeGraph(
+          hierarchy.schools,
+          hierarchy.metaEdges,
+        );
+        graphRef.current = metanodeGraph;
+        loadGraph(metanodeGraph);
+
+        if (onRegisterSigmaGraph) {
+          onRegisterSigmaGraph(sigma, sigma.getGraph());
+        }
+
+        onStatsChange({
+          nodeCount: metanodeGraph.order,
+          edgeCount: metanodeGraph.size,
+        });
+        return;
+      }
+
       graphRef.current = graph;
       loadGraph(graph);
 
@@ -289,6 +460,10 @@ export const GraphLoader = memo(function GraphLoader({
         nodeCount: graph.order,
         edgeCount: graph.size,
       });
+
+      if (!loadedFromSession) {
+        startHydration(nodes, edges);
+      }
     }
 
     loadGraphData();
@@ -301,7 +476,87 @@ export const GraphLoader = memo(function GraphLoader({
     focusNode,
     sigma,
     onRegisterSigmaGraph,
+    startHydration,
   ]);
+
+  // Switch between Paper Constellation and Schools of Thought
+  const prevClusterModeRef = useRef(clusterViewMode);
+  useEffect(() => {
+    if (prevClusterModeRef.current === clusterViewMode) return;
+    prevClusterModeRef.current = clusterViewMode;
+
+    if (rawNodesRef.current.length === 0) return;
+
+    if (clusterViewMode === "schools") {
+      const hierarchy = clusterIntoSchoolsOfThought(
+        rawNodesRef.current,
+        rawEdgesRef.current,
+      );
+      schoolsRef.current = hierarchy.schools;
+      metaEdgesRef.current = hierarchy.metaEdges;
+      useCanvasStore.getState().setSchoolsOfThought(hierarchy.schools);
+
+      const metanodeGraph = buildMetanodeGraph(
+        hierarchy.schools,
+        hierarchy.metaEdges,
+      );
+      graphRef.current = metanodeGraph;
+      loadGraph(metanodeGraph);
+      sigma.refresh();
+      onStatsChange({
+        nodeCount: metanodeGraph.order,
+        edgeCount: metanodeGraph.size,
+      });
+    } else {
+      // Re-populate with individual papers
+      const graph = new Graph({ multi: false, type: "directed" });
+      const controversyScores = new Map<string, number>();
+
+      rawEdgesRef.current.forEach((edge) => {
+        if (edge.edgeType === "contradicts") {
+          const targetId = String(edge.target);
+          controversyScores.set(
+            targetId,
+            (controversyScores.get(targetId) || 0) + 1,
+          );
+        }
+      });
+
+      rawNodesRef.current.forEach((node) => {
+        const score = controversyScores.get(node.id) || 0;
+        const isControversial = score >= CONTROVERSY.THRESHOLD;
+        graph.addNode(node.id, {
+          ...node,
+          originalSize: node.size,
+          hidden: false,
+          controversyScore: score,
+          highlighted: isControversial,
+          color: isControversial
+            ? COLORS.CONTRADICTS
+            : node.color || COLORS.CLUSTERS[node.cluster],
+        });
+      });
+
+      rawEdgesRef.current.forEach((edge) => {
+        if (!graph.hasEdge(edge.id)) {
+          graph.mergeEdgeWithKey(edge.id, edge.source, edge.target, {
+            ...edge,
+            originalColor: edge.color,
+            originalSize: edge.size || GRAPH.DEFAULT_EDGE_SIZE,
+            hidden: false,
+          });
+        }
+      });
+
+      graphRef.current = graph;
+      loadGraph(graph);
+      sigma.refresh();
+      onStatsChange({
+        nodeCount: graph.order,
+        edgeCount: graph.size,
+      });
+    }
+  }, [clusterViewMode, loadGraph, onStatsChange, sigma]);
 
   // Apply filters when they change — coalesced via rAF to prevent jank
   const filterRafRef = useRef<number | null>(null);
@@ -366,6 +621,14 @@ export const GraphLoader = memo(function GraphLoader({
           };
         }
 
+        // Metanodes retain their distinctive macro-bubble appearance
+        if (attrs.isMetanode) {
+          return {
+            ...attrs,
+            hidden: false,
+          };
+        }
+
         const isSolid = solidNodes?.has(node);
         const isGhost = !isSolid && attrs.status === "ghost";
         const isSelected = selectedSet.has(node);
@@ -377,6 +640,37 @@ export const GraphLoader = memo(function GraphLoader({
           color = "#10b981"; // emerald-500 (source)
         } else if (isSelected) {
           color = "#3b82f6"; // blue-500 (target)
+        } else if (battlefieldMode) {
+          // Battlefield High-Contrast Mode: Highlight disputes & confirmations
+          const hasControversy = (attrs.controversyScore || 0) > 0;
+          const hasSupports = (attrs.supports || 0) > 0;
+          if (hasControversy) {
+            color = COLORS.CONTRADICTS; // 🔴 Bold Red
+          } else if (hasSupports) {
+            color = COLORS.SUPPORTS; // 🟢 Bold Green
+          } else {
+            // Non-contested node: fade to ~15% opacity
+            const raw =
+              attrs.originalColor ||
+              COLORS.CLUSTERS[attrs.cluster] ||
+              "#94a3b8";
+            const hex = raw.startsWith("#") ? raw.slice(0, 7) : "#94a3b8";
+            color = `${hex}26`;
+          }
+        } else if (sovereignFilterActive) {
+          const isSovereign = Boolean(
+            attrs.isSovereignIndex || attrs.institutionSlug,
+          );
+          if (isSovereign) {
+            color = "#059669"; // Emerald green for sovereign papers
+          } else {
+            const raw =
+              attrs.originalColor ||
+              COLORS.CLUSTERS[attrs.cluster] ||
+              "#94a3b8";
+            const hex = raw.startsWith("#") ? raw.slice(0, 7) : "#94a3b8";
+            color = `${hex}26`;
+          }
         } else if (attrs.controversyScore > 0) {
           color = COLORS.CONTRADICTS;
         } else if (isGhost) {
@@ -397,6 +691,27 @@ export const GraphLoader = memo(function GraphLoader({
           attrs.originalSize || attrs.size || GRAPH.DEFAULT_NODE_SIZE;
         // Slightly enlarge selected nodes for emphasis
         let size = isSelected ? Math.max(baseSize * 1.3, 14) : baseSize;
+
+        if (battlefieldMode && !isSelected) {
+          const hasControversy = (attrs.controversyScore || 0) > 0;
+          const hasSupports = (attrs.supports || 0) > 0;
+          if (hasControversy) {
+            size = Math.max(baseSize * 1.4, 15);
+          } else if (hasSupports) {
+            size = Math.max(baseSize * 1.2, 12);
+          } else {
+            size = Math.max(baseSize * 0.75, 4);
+          }
+        } else if (sovereignFilterActive && !isSelected) {
+          const isSovereign = Boolean(
+            attrs.isSovereignIndex || attrs.institutionSlug,
+          );
+          if (isSovereign) {
+            size = Math.max(baseSize * 1.35, 14);
+          } else {
+            size = Math.max(baseSize * 0.75, 4);
+          }
+        }
 
         // Orphan nodes (topic search, no edges): smaller + semi-transparent
         const isOrphan = (attrs as any).isOrphan === true;
@@ -419,7 +734,7 @@ export const GraphLoader = memo(function GraphLoader({
       });
 
       // Batch edge updates
-      graph.updateEachEdgeAttributes((_edge, attrs) => {
+      graph.updateEachEdgeAttributes((_edge, attrs, source, target) => {
         const edgeKey = _edge;
         const isHidden = effectiveHiddenEdges.has(edgeKey);
 
@@ -445,7 +760,39 @@ export const GraphLoader = memo(function GraphLoader({
         const isUnknown = edgeType === "unknown";
         const isCites = edgeType === "cites" || isUnknown;
 
-        if (!isPathActive) {
+        if (battlefieldMode && !isPathActive) {
+          if (edgeType === "contradicts") {
+            edgeColor = COLORS.CONTRADICTS; // 🔴 #ef4444
+            edgeSize = Math.max(edgeSize * 3, 3.5);
+          } else if (edgeType === "supports") {
+            edgeColor = COLORS.SUPPORTS; // 🟢 #10b981
+            edgeSize = Math.max(edgeSize * 2.2, 2.5);
+          } else {
+            // Dim neutral cites edges to 5% opacity and hairline width
+            edgeColor = "rgba(160, 160, 160, 0.05)";
+            edgeSize = 0.2;
+          }
+        } else if (sovereignFilterActive && !isPathActive) {
+          const sourceAttrs = graph.hasNode(source)
+            ? graph.getNodeAttributes(source)
+            : {};
+          const targetAttrs = graph.hasNode(target)
+            ? graph.getNodeAttributes(target)
+            : {};
+          const isConnectedToSovereign = Boolean(
+            sourceAttrs.isSovereignIndex ||
+            sourceAttrs.institutionSlug ||
+            targetAttrs.isSovereignIndex ||
+            targetAttrs.institutionSlug,
+          );
+          if (isConnectedToSovereign) {
+            edgeColor = "#059669"; // Highlight connections to sovereign Ethiopian literature
+            edgeSize = Math.max(edgeSize * 1.5, 1.8);
+          } else {
+            edgeColor = "rgba(160, 160, 160, 0.05)";
+            edgeSize = 0.2;
+          }
+        } else if (!isPathActive) {
           if (isCites) {
             // "cites" edges: subtle neutral line — visible but doesn't compete with classified edges
             const alpha = Math.round(0.45 * 255)
@@ -544,6 +891,8 @@ export const GraphLoader = memo(function GraphLoader({
     solidNodes,
     selectedNodes,
     highlightedPath,
+    battlefieldMode,
+    sovereignFilterActive,
   ]);
 
   // Register Interaction API
@@ -838,20 +1187,56 @@ export const GraphLoader = memo(function GraphLoader({
             // simple layout/zoom
             // sigma.getCamera().animatedReset();
           }
+
+          // Trigger progressive hydration for added graph elements
+          startHydration(nodes, edges);
         }
       },
     };
 
     onRegisterInteractionApi(api);
-  }, [sigma, onRegisterInteractionApi, onStatsChange]);
+  }, [sigma, onRegisterInteractionApi, onStatsChange, startHydration]);
 
   // Set up event handlers
   useEffect(() => {
     registerEvents({
       enterNode: (event) => onHoverNode(event.node),
       leaveNode: () => onHoverNode(null),
+      doubleClickNode: (event) => {
+        const graph = sigma.getGraph();
+        if (!graph.hasNode(event.node)) return;
+        const attrs = graph.getNodeAttributes(event.node);
+
+        if (attrs.isMetanode && rawNodesRef.current.length > 0) {
+          unpackSchoolInPlace(
+            graph,
+            event.node,
+            rawNodesRef.current,
+            rawEdgesRef.current,
+            schoolsRef.current,
+          );
+          useCanvasStore.getState().toggleSchoolExpansion(event.node);
+          useCanvasStore
+            .getState()
+            .showToastMessage(
+              `Unpacked "${attrs.label}" (${attrs.paperCount} papers deployed).`,
+            );
+          sigma.refresh();
+          onStatsChange({ nodeCount: graph.order, edgeCount: graph.size });
+        }
+      },
       clickNode: async (event) => {
         const attrs = sigma.getGraph().getNodeAttributes(event.node);
+
+        // If clicking a metanode bubble in Schools view
+        if (attrs.isMetanode) {
+          useCanvasStore
+            .getState()
+            .showToastMessage(
+              `🏫 ${attrs.label} • Double-click to unpack ${attrs.paperCount} member papers in-place.`,
+            );
+          return;
+        }
 
         // If in selection mode, add node to selection
         if (selectionMode && onNodeSelect) {

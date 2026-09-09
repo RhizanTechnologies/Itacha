@@ -127,8 +127,12 @@ export const SIGNAL_SOURCE_LABELS: Record<
     color: "text-orange-600 dark:text-orange-400",
   },
   "user-correction": {
-    label: "User corrected",
-    color: "text-purple-600 dark:text-purple-400",
+    label: "👨‍🔬 Verified Community Calibration",
+    color: "text-purple-600 dark:text-purple-400 font-semibold",
+  },
+  "ithaca-local-moat": {
+    label: "⚡ Sovereign AI Moat (Local Engine, 0 FX)",
+    color: "text-emerald-600 dark:text-emerald-400 font-semibold",
   },
   default: { label: "Unclassified", color: "text-muted-foreground" },
 };
@@ -478,7 +482,11 @@ export function EdgeEvidencePopover({
                 <div className="mb-2 flex items-center gap-2">
                   <Icon className={`h-4 w-4 ${config.color}`} />
                   <span className={`text-sm font-semibold ${config.color}`}>
-                    AI judgment: {config.label}
+                    {evidence.signalSource === "user-correction"
+                      ? `👨‍🔬 Verified: ${config.label}`
+                      : evidence.signalSource === "ithaca-local-moat"
+                        ? `⚡ Sovereign AI: ${config.label}`
+                        : `AI judgment: ${config.label}`}
                   </span>
                   <span
                     className={`ml-auto font-mono text-xs font-bold ${config.color}`}
@@ -493,12 +501,19 @@ export function EdgeEvidencePopover({
                   />
                 </div>
                 {evidence.signalSource && (
-                  <p
-                    className={`text-[10px] font-medium ${SIGNAL_SOURCE_LABELS[evidence.signalSource]?.color ?? "text-muted-foreground"}`}
-                  >
-                    {SIGNAL_SOURCE_LABELS[evidence.signalSource]?.label ??
-                      "Unknown source"}
-                  </p>
+                  <div className="flex items-center justify-between gap-1">
+                    <p
+                      className={`text-[10px] font-medium ${SIGNAL_SOURCE_LABELS[evidence.signalSource]?.color ?? "text-muted-foreground"}`}
+                    >
+                      {SIGNAL_SOURCE_LABELS[evidence.signalSource]?.label ??
+                        "Unknown source"}
+                    </p>
+                    {evidence.signalSource === "user-correction" && (
+                      <span className="rounded bg-purple-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-purple-700 dark:text-purple-300">
+                        Peer Reviewed
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
 

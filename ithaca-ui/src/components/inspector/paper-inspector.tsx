@@ -24,11 +24,12 @@ import {
   TrendingUp,
   TrendingDown,
   Sparkles,
-  Upload,
   Copy,
   Check,
   LinkIcon,
 } from "lucide-react";
+
+import { SovereignBadge } from "@/components/canvas/sovereign-badge";
 
 // Paper data interface
 export interface PaperData {
@@ -47,6 +48,11 @@ export interface PaperData {
   abstract?: string;
   aiSummary?: string;
   status?: "solid" | "ghost";
+  isSovereignIndex?: boolean;
+  institutionSlug?: string;
+  institutionName?: string;
+  repositoryHandle?: string;
+  advisors?: string[];
 }
 
 // Evidence item interface
@@ -189,6 +195,18 @@ export const PaperInspector = memo(function PaperInspector({
               {displayAuthors}
             </p>
 
+            {/* Sovereign Index origin badge */}
+            {(paper.isSovereignIndex || paper.institutionSlug) && (
+              <div className="mt-2.5">
+                <SovereignBadge
+                  institutionSlug={paper.institutionSlug}
+                  handleUri={paper.repositoryHandle}
+                  advisors={paper.advisors}
+                  size="md"
+                />
+              </div>
+            )}
+
             {/* Metadata row */}
             <div className="text-muted-foreground mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs">
               <span className="text-foreground/80 font-medium">
@@ -286,11 +304,11 @@ export const PaperInspector = memo(function PaperInspector({
                 Cite
               </TabsTrigger>
               <TabsTrigger
-                value="context"
+                value="fulltext"
                 className="data-[state=active]:border-primary gap-1.5 rounded-none border-b-2 border-transparent px-4 py-2.5 text-xs font-medium data-[state=active]:bg-transparent data-[state=active]:shadow-none"
               >
-                <Upload className="h-3.5 w-3.5" />
-                Context
+                <FileText className="h-3.5 w-3.5" />
+                Full Text
               </TabsTrigger>
             </TabsList>
           </div>
@@ -415,42 +433,72 @@ export const PaperInspector = memo(function PaperInspector({
             </div>
           </TabsContent>
 
-          {/* Context/Upload Tab */}
-          <TabsContent value="context" className="mt-0 space-y-6 p-6">
-            <div className="border-border bg-card/50 hover:bg-card/80 group cursor-pointer rounded-xl border-2 border-dashed p-6 text-center transition-all">
-              <div className="bg-primary/10 group-hover:bg-primary/20 mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full transition-colors">
-                <Upload className="text-primary h-6 w-6" />
-              </div>
-              <h3 className="mb-2 text-lg font-semibold">Upload PDF Context</h3>
-              <p className="text-muted-foreground mx-auto mb-4 max-w-xs text-sm">
-                Drag and drop the full text PDF to enable deep AI analysis and
-                extraction.
-              </p>
-              <Button>Select File</Button>
-            </div>
-
-            <div className="bg-muted/30 rounded-xl p-4">
-              <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold">
-                <Sparkles className="h-3.5 w-3.5 text-sky-500" />
-                Analysis Capabilities (Locked)
-              </h4>
-              <ul className="space-y-2.5">
-                {[
-                  "Full-text extraction",
-                  "Methodology analysis",
-                  "Figure interpretation",
-                  "Citation graph expansion",
-                ].map((feature, i) => (
-                  <li
-                    key={i}
-                    className="text-muted-foreground flex items-center gap-2 text-sm"
+          {/* Full Text Tab */}
+          <TabsContent value="fulltext" className="mt-0 space-y-4 p-6">
+            {paper.openAccessUrl ? (
+              <div className="space-y-4">
+                <div className="border-border bg-card/50 flex flex-col items-center justify-between gap-4 rounded-xl border p-6 text-center sm:flex-row sm:text-left">
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-center gap-2 sm:justify-start">
+                      <FileText className="text-primary h-5 w-5" />
+                      <h3 className="font-semibold">
+                        Open Access PDF Available
+                      </h3>
+                    </div>
+                    <p className="text-muted-foreground text-xs">
+                      Direct full text is verified and freely accessible.
+                    </p>
+                  </div>
+                  <Button
+                    className="shrink-0 gap-2"
+                    onClick={() => window.open(paper.openAccessUrl, "_blank")}
                   >
-                    <div className="bg-border h-1.5 w-1.5 rounded-full" />
-                    {feature}
-                  </li>
-                ))}
-              </ul>
-            </div>
+                    <ExternalLink className="h-4 w-4" />
+                    Open PDF Document
+                  </Button>
+                </div>
+
+                {paper.repositoryHandle && (
+                  <div className="bg-muted/30 border-border flex items-center justify-between rounded-lg border p-4 text-xs">
+                    <span className="text-muted-foreground font-medium">
+                      Institutional Repository Handle
+                    </span>
+                    <a
+                      href={paper.repositoryHandle}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary font-mono hover:underline"
+                    >
+                      {paper.repositoryHandle}
+                    </a>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="border-border bg-card/30 rounded-xl border p-8 text-center">
+                <BookOpen className="text-muted-foreground/40 mx-auto mb-3 h-10 w-10" />
+                <h3 className="mb-1 text-sm font-semibold">
+                  No Direct Open Access PDF URL
+                </h3>
+                <p className="text-muted-foreground mx-auto mb-4 max-w-sm text-xs">
+                  This work may be paywalled or accessible through your library
+                  subscription via its DOI.
+                </p>
+                {paper.doi && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 text-xs"
+                    onClick={() =>
+                      window.open(`https://doi.org/${paper.doi}`, "_blank")
+                    }
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    Check DOI on Publisher Site
+                  </Button>
+                )}
+              </div>
+            )}
           </TabsContent>
         </Tabs>
 
@@ -647,8 +695,10 @@ function EvidenceRow({ item }: { item: EvidenceItem }) {
                       : item.signalSource === "heuristic"
                         ? "Heuristic"
                         : item.signalSource === "user-correction"
-                          ? "User corrected"
-                          : "Default"}
+                          ? "👨‍🔬 Community Calibrated"
+                          : item.signalSource === "ithaca-local-moat"
+                            ? "⚡ Sovereign AI (0 FX)"
+                            : "Default"}
               </span>
             )}
             {item.source && (

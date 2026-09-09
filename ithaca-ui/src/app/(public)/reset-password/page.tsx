@@ -3,20 +3,10 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import {
-  AlertCircle,
-  Eye,
-  EyeOff,
-  Loader2,
-  Lock,
-  Mail,
-} from "lucide-react";
+import { AlertCircle, Eye, EyeOff, Loader2, Lock, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  requestPasswordReset,
-  resetPassword,
-} from "@/lib/auth-client";
+import { requestPasswordReset, resetPassword } from "@/lib/auth-client";
 
 function ResetPasswordContent() {
   const router = useRouter();
@@ -134,7 +124,10 @@ function ResetPasswordContent() {
 
         <div className="bg-card border-border rounded-xl border p-6 shadow-lg">
           {token ? (
-            <form onSubmit={handleResetPassword} className="flex flex-col gap-4">
+            <form
+              onSubmit={handleResetPassword}
+              className="flex flex-col gap-4"
+            >
               <div className="flex flex-col gap-2">
                 <label className="text-muted-foreground text-xs font-semibold uppercase">
                   New password

@@ -1,14 +1,7 @@
 "use client";
 
 import { Suspense, useState, useEffect } from "react";
-import {
-  Globe,
-  Loader2,
-  Eye,
-  EyeOff,
-  Lock,
-  AlertCircle,
-} from "lucide-react";
+import { Globe, Loader2, Eye, EyeOff, Lock, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth-client";
@@ -57,15 +50,22 @@ function SignInContent() {
     );
   }
 
-  const handleEmailSignIn = async (event: React.FormEvent) => {
-    event.preventDefault();
+  const handleEmailSignIn = async (
+    event?: React.FormEvent,
+    overrideEmail?: string,
+    overridePass?: string,
+  ) => {
+    if (event) event.preventDefault();
     setIsLoading(true);
     setError(null);
 
+    const targetEmail = (overrideEmail ?? email).trim();
+    const targetPassword = (overridePass ?? password).trim();
+
     try {
       const { error: signInError } = await authClient.signIn.email({
-        email,
-        password,
+        email: targetEmail,
+        password: targetPassword,
         callbackURL: callbackUrl,
       });
 
@@ -219,6 +219,62 @@ function SignInContent() {
               </Button>
             </form>
           )}
+
+          {/* Quick Demo Access Buttons */}
+          <div className="border-border mt-6 border-t pt-4">
+            <div className="mb-2.5 flex items-center justify-between">
+              <span className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
+                ⚡ Demo Quick Sign-In
+              </span>
+              <span className="text-muted-foreground text-[11px]">
+                Click to auto-fill & login
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                disabled={isLoading}
+                onClick={() => {
+                  setEmail("pilot-owner@ithaca.test");
+                  setPassword("PilotPass123!");
+                  handleEmailSignIn(
+                    undefined,
+                    "pilot-owner@ithaca.test",
+                    "PilotPass123!",
+                  );
+                }}
+                className="border-border/80 bg-muted/40 hover:bg-muted hover:border-primary/50 flex cursor-pointer flex-col items-start rounded-lg border p-2.5 text-left transition disabled:opacity-50"
+              >
+                <span className="text-foreground text-xs font-semibold">
+                  👑 Pilot Owner
+                </span>
+                <span className="text-muted-foreground text-[10px]">
+                  PI / Full Lab Admin
+                </span>
+              </button>
+              <button
+                type="button"
+                disabled={isLoading}
+                onClick={() => {
+                  setEmail("pilot-viewer@ithaca.test");
+                  setPassword("PilotPass123!");
+                  handleEmailSignIn(
+                    undefined,
+                    "pilot-viewer@ithaca.test",
+                    "PilotPass123!",
+                  );
+                }}
+                className="border-border/80 bg-muted/40 hover:bg-muted hover:border-primary/50 flex cursor-pointer flex-col items-start rounded-lg border p-2.5 text-left transition disabled:opacity-50"
+              >
+                <span className="text-foreground text-xs font-semibold">
+                  👁️ Pilot Viewer
+                </span>
+                <span className="text-muted-foreground text-[10px]">
+                  Read-Only Researcher
+                </span>
+              </button>
+            </div>
+          </div>
         </div>
 
         <div className="mt-6 text-center">

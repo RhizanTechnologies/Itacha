@@ -214,7 +214,16 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
           </div>
 
           <div className="border-border text-muted-foreground mt-8 border-t pt-8 text-center text-sm">
-            <p>© {new Date().getFullYear()} Ithaca. All rights reserved.</p>
+            <p>
+              © {new Date().getFullYear()} Ithaca • Engineered by{" "}
+              <Link
+                href="/about"
+                className="hover:text-foreground underline underline-offset-4"
+              >
+                Rhizan Tech
+              </Link>
+              . All rights reserved.
+            </p>
           </div>
         </div>
       </footer>

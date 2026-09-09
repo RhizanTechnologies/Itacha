@@ -65,7 +65,10 @@ export async function submitDurableGraphExport(input: {
   }
 
   const byteLimit = enforceMaximum(
-    Buffer.byteLength(input.content, input.encoding === "base64" ? "base64" : "utf8"),
+    Buffer.byteLength(
+      input.content,
+      input.encoding === "base64" ? "base64" : "utf8",
+    ),
     PLATFORM_LIMITS.imports.maxBytes,
     "Export payload",
   );

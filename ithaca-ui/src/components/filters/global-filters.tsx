@@ -41,6 +41,8 @@ interface GlobalFiltersProps {
   minYear?: number;
   /** Optional: max year from actual data */
   maxYear?: number;
+  /** Optional: callback to open advanced query builder modal */
+  onOpenQueryBuilder?: () => void;
 }
 
 // Default filters using constants
@@ -64,6 +66,7 @@ export function GlobalFilters({
   maxCitations = FILTERS.DEFAULT_MAX_CITATIONS,
   minYear = FILTERS.MIN_YEAR,
   maxYear = FILTERS.MAX_YEAR,
+  onOpenQueryBuilder,
 }: GlobalFiltersProps) {
   // Local slider state for instant visual feedback without re-rendering the graph
   const [localCitationRange, setLocalCitationRange] = useState(
@@ -299,18 +302,29 @@ export function GlobalFilters({
       </div>
 
       {/* Footer */}
-      {activeFilterCount > 0 && (
-        <div className="border-border bg-muted/20 border-t p-3">
+      <div className="border-border bg-muted/10 flex flex-col gap-1.5 border-t p-2.5">
+        {onOpenQueryBuilder && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onOpenQueryBuilder}
+            className="w-full justify-center gap-1.5 text-xs"
+          >
+            <SlidersHorizontal className="text-primary h-3.5 w-3.5" />
+            Advanced Relational Rules...
+          </Button>
+        )}
+        {activeFilterCount > 0 && (
           <Button
             variant="ghost"
             size="sm"
             onClick={resetFilters}
-            className="w-full text-xs"
+            className="text-muted-foreground hover:text-foreground w-full text-xs"
           >
             Reset all filters
           </Button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
