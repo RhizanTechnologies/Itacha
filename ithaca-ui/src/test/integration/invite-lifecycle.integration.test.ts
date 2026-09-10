@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import "@/test/integration/mock-auth";
 import {
   canRunIntegrationTests,
@@ -17,9 +17,7 @@ import {
   setMockSession,
 } from "./mock-auth";
 
-const emailSpy = vi.hoisted(() =>
-  vi.fn().mockResolvedValue({ success: true }),
-);
+const emailSpy = vi.hoisted(() => vi.fn().mockResolvedValue({ success: true }));
 
 vi.mock("@/lib/email", () => ({
   sendOrganizationInvitationEmail: emailSpy,
@@ -44,7 +42,11 @@ describe.runIf(run)("invite lifecycle", () => {
   it("creates an invitation email with accept URL and accepts for matching email", async () => {
     const owner = await createTestUser({ email: "owner@lab.edu" });
     const org = await createTestOrganization({ name: "Pilot Lab" });
-    await createTestMembership({ user: owner, organization: org, role: "OWNER" });
+    await createTestMembership({
+      user: owner,
+      organization: org,
+      role: "OWNER",
+    });
 
     setMockSession(owner);
     setMockOrganizationCookie(org.id);
@@ -90,7 +92,11 @@ describe.runIf(run)("invite lifecycle", () => {
   it("rejects acceptance when session email does not match invitation", async () => {
     const owner = await createTestUser({ email: "owner@lab.edu" });
     const org = await createTestOrganization();
-    await createTestMembership({ user: owner, organization: org, role: "OWNER" });
+    await createTestMembership({
+      user: owner,
+      organization: org,
+      role: "OWNER",
+    });
 
     setMockSession(owner);
     setMockOrganizationCookie(org.id);
@@ -118,14 +124,17 @@ describe.runIf(run)("invite lifecycle", () => {
       plan: "INSTITUTION",
       allowedEmailDomains: ["university.edu"],
     });
-    await createTestMembership({ user: owner, organization: org, role: "OWNER" });
+    await createTestMembership({
+      user: owner,
+      organization: org,
+      role: "OWNER",
+    });
 
     setMockSession(owner);
     setMockOrganizationCookie(org.id);
 
-    const { createOrganizationInvitation } = await import(
-      "@/app/(app)/admin/actions"
-    );
+    const { createOrganizationInvitation } =
+      await import("@/app/(app)/admin/actions");
 
     await expect(
       createOrganizationInvitation({

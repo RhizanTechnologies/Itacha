@@ -40,7 +40,11 @@ export async function createTestUser(input?: {
       emailVerified: true,
     },
   });
-  return { id: user.id, email: user.email, name: user.name ?? "Test Researcher" };
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name ?? "Test Researcher",
+  };
 }
 
 export async function createTestOrganization(input?: {
@@ -48,6 +52,9 @@ export async function createTestOrganization(input?: {
   plan?: OrganizationPlan;
   maxMembers?: number;
   allowedEmailDomains?: string[];
+  billingCustomerId?: string;
+  subscriptionStatus?: string;
+  isSovereignExempt?: boolean;
 }): Promise<TestOrganization> {
   const prisma = getTestPrisma();
   const slug = nextId("org");
@@ -57,15 +64,21 @@ export async function createTestOrganization(input?: {
     data: {
       name: input?.name ?? "Test Lab",
       slug,
-      plan,
       allowedEmailDomains: input?.allowedEmailDomains ?? [],
+      billingCustomerId: input?.billingCustomerId,
+      subscriptionStatus: input?.subscriptionStatus ?? "active",
+      isSovereignExempt: input?.isSovereignExempt ?? false,
       ...quotas,
       ...(input?.maxMembers !== undefined
         ? { maxMembers: input.maxMembers }
         : {}),
     },
   });
-  return { id: organization.id, name: organization.name, slug: organization.slug };
+  return {
+    id: organization.id,
+    name: organization.name,
+    slug: organization.slug,
+  };
 }
 
 export async function createTestMembership(input: {
@@ -208,8 +221,12 @@ export async function createTestBackgroundJob(input: {
 }
 
 export async function createTwoOrganizationFixture() {
-  const ownerA = await createTestUser({ email: `owner-a-${Date.now()}@lab.edu` });
-  const ownerB = await createTestUser({ email: `owner-b-${Date.now()}@college.edu` });
+  const ownerA = await createTestUser({
+    email: `owner-a-${Date.now()}@lab.edu`,
+  });
+  const ownerB = await createTestUser({
+    email: `owner-b-${Date.now()}@college.edu`,
+  });
   const orgA = await createTestOrganization({ name: "Lab Alpha" });
   const orgB = await createTestOrganization({ name: "Lab Beta" });
   const membershipA = await createTestMembership({

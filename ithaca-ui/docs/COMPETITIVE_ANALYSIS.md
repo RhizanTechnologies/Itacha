@@ -42,18 +42,18 @@ Cataloged from the actual codebase (`src/lib/`, `src/components/canvas/`, `src/t
 
 ### Core Graph Engine
 
-| Feature               | Implementation                                             | Status                |
-| --------------------- | ---------------------------------------------------------- | --------------------- |
-| Graph visualization   | Sigma.js v3 + graphology v0.25.4                           | ✅ Implemented        |
-| Physics layout        | ForceAtlas2 (toggle on/off)                                | ✅ Implemented        |
-| Argumentation edges   | `supports` / `contradicts` / `extends` with confidence 0–1 | ✅ Live (LLM + S2)    |
-| Evidence citations    | `EvidenceItem` with snippet, source, relation, confidence  | ✅ Live              |
-| Semantic pathfinding  | Dijkstra's with 3 modes: shortest, conflict, consensus     | ✅ Implemented        |
-| Path comparison view  | Side-by-side path visualization with statistics            | ✅ Implemented        |
-| Node expansion        | Expand in/out/both, filter by edge type                    | ✅ Implemented        |
-| Topic clustering      | Color-coded clusters with labels                           | ✅ Implemented        |
-| Edge labels           | Inline confidence + type labels on hover                   | ✅ Implemented        |
-| Edge evidence popover | Click edge → see evidence snippets                         | ✅ Implemented        |
+| Feature               | Implementation                                             | Status             |
+| --------------------- | ---------------------------------------------------------- | ------------------ |
+| Graph visualization   | Sigma.js v3 + graphology v0.25.4                           | ✅ Implemented     |
+| Physics layout        | ForceAtlas2 (toggle on/off)                                | ✅ Implemented     |
+| Argumentation edges   | `supports` / `contradicts` / `extends` with confidence 0–1 | ✅ Live (LLM + S2) |
+| Evidence citations    | `EvidenceItem` with snippet, source, relation, confidence  | ✅ Live            |
+| Semantic pathfinding  | Dijkstra's with 3 modes: shortest, conflict, consensus     | ✅ Implemented     |
+| Path comparison view  | Side-by-side path visualization with statistics            | ✅ Implemented     |
+| Node expansion        | Expand in/out/both, filter by edge type                    | ✅ Implemented     |
+| Topic clustering      | Color-coded clusters with labels                           | ✅ Implemented     |
+| Edge labels           | Inline confidence + type labels on hover                   | ✅ Implemented     |
+| Edge evidence popover | Click edge → see evidence snippets                         | ✅ Implemented     |
 
 ### Canvas Interaction
 

@@ -43,7 +43,9 @@ const TRUNCATE_TABLES = [
 export async function resetDatabase(): Promise<void> {
   const prisma = getTestPrisma();
   const tableList = TRUNCATE_TABLES.map((name) => `"${name}"`).join(", ");
-  await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${tableList} RESTART IDENTITY CASCADE`);
+  await prisma.$executeRawUnsafe(
+    `TRUNCATE TABLE ${tableList} RESTART IDENTITY CASCADE`,
+  );
 }
 
 export async function disconnectTestDatabase(): Promise<void> {

@@ -35,16 +35,15 @@ function signIn() {
 
   const setCookie = response.stdout
     .split("\n")
-    .find((line) => line.toLowerCase().startsWith("set-cookie: ithaca.session_token="));
+    .find((line) =>
+      line.toLowerCase().startsWith("set-cookie: ithaca.session_token="),
+    );
 
   if (!setCookie) {
     throw new Error("Could not find ithaca.session_token in sign-in response");
   }
 
-  const cookiePair = setCookie
-    .slice("set-cookie:".length)
-    .trim()
-    .split(";")[0];
+  const cookiePair = setCookie.slice("set-cookie:".length).trim().split(";")[0];
 
   return cookiePair;
 }

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import "@/test/integration/mock-auth";
 import {
   canRunIntegrationTests,
@@ -42,15 +42,22 @@ describe.runIf(run)("plan quotas", () => {
     const owner = await createTestUser({ email: "owner@lab.edu" });
     const member = await createTestUser({ email: "member@lab.edu" });
     const org = await createTestOrganization({ maxMembers: 1 });
-    await createTestMembership({ user: owner, organization: org, role: "OWNER" });
-    await createTestMembership({ user: member, organization: org, role: "MEMBER" });
+    await createTestMembership({
+      user: owner,
+      organization: org,
+      role: "OWNER",
+    });
+    await createTestMembership({
+      user: member,
+      organization: org,
+      role: "MEMBER",
+    });
 
     setMockSession(owner);
     setMockOrganizationCookie(org.id);
 
-    const { createOrganizationInvitation } = await import(
-      "@/app/(app)/admin/actions"
-    );
+    const { createOrganizationInvitation } =
+      await import("@/app/(app)/admin/actions");
 
     await expect(
       createOrganizationInvitation({

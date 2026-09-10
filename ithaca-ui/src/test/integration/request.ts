@@ -19,7 +19,6 @@ export function buildRequest(
   return new NextRequest(url, {
     method: init?.method ?? "GET",
     headers: init?.headers,
-    body:
-      init?.body !== undefined ? JSON.stringify(init.body) : undefined,
+    body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
   });
 }

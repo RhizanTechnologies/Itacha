@@ -1,0 +1,10 @@
+node_modules
+.next
+.git
+.turbo
+dist
+coverage
+*.log
+.env.local
+.env*.local
+e2e/.auth

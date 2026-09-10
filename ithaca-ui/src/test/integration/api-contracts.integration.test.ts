@@ -71,14 +71,17 @@ describe.runIf(run)("API contracts", () => {
     setMockOrganizationCookie(org.id);
 
     const { POST } = await import("@/app/api/classify/route");
-    const citations = Array.from({ length: PLATFORM_LIMITS.ai.maxBatchSize + 1 }, (_, index) => ({
-      citingId: `W${index}`,
-      citedId: `W${index + 1000}`,
-      citingTitle: "Citing",
-      citingAbstract: "",
-      citedTitle: "Cited",
-      citedAbstract: "",
-    }));
+    const citations = Array.from(
+      { length: PLATFORM_LIMITS.ai.maxBatchSize + 1 },
+      (_, index) => ({
+        citingId: `W${index}`,
+        citedId: `W${index + 1000}`,
+        citingTitle: "Citing",
+        citingAbstract: "",
+        citedTitle: "Cited",
+        citedAbstract: "",
+      }),
+    );
 
     const response = await POST(
       buildRequest("/api/classify", {
@@ -178,7 +181,8 @@ describe.runIf(run)("API contracts", () => {
   it("allows members to correct edges and post comments", async () => {
     await seedRoleFixture("MEMBER");
 
-    const { POST: postCorrect } = await import("@/app/api/classify/correct/route");
+    const { POST: postCorrect } =
+      await import("@/app/api/classify/correct/route");
     const correction = await postCorrect(
       buildRequest("/api/classify/correct", {
         method: "POST",
@@ -192,7 +196,8 @@ describe.runIf(run)("API contracts", () => {
     );
     expect(correction.status).toBe(200);
 
-    const { POST: postComment } = await import("@/app/api/edges/comments/route");
+    const { POST: postComment } =
+      await import("@/app/api/edges/comments/route");
     const comment = await postComment(
       buildRequest("/api/edges/comments", {
         method: "POST",
@@ -212,7 +217,8 @@ describe.runIf(run)("API contracts", () => {
   it("blocks viewers from correcting edges or posting comments", async () => {
     await seedRoleFixture("VIEWER");
 
-    const { POST: postCorrect } = await import("@/app/api/classify/correct/route");
+    const { POST: postCorrect } =
+      await import("@/app/api/classify/correct/route");
     const correction = await postCorrect(
       buildRequest("/api/classify/correct", {
         method: "POST",
@@ -225,7 +231,8 @@ describe.runIf(run)("API contracts", () => {
     );
     expect(correction.status).toBe(401);
 
-    const { POST: postComment } = await import("@/app/api/edges/comments/route");
+    const { POST: postComment } =
+      await import("@/app/api/edges/comments/route");
     const comment = await postComment(
       buildRequest("/api/edges/comments", {
         method: "POST",

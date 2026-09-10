@@ -1,0 +1,61 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: ithaca-prod-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ithaca_production_secret_2026}
+      POSTGRES_DB: ithaca_db
+    volumes:
+      - ithaca_prod_postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: ithaca-prod-redis
+    restart: always
+    command: redis-server --appendonly yes
+    volumes:
+      - ithaca_prod_redis_data:/data
+    ports:
+      - "${REDIS_PORT:-6380}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ithaca-prod-web
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-ithaca_production_secret_2026}@db:5432/ithaca_db?schema=public
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-supersecret_better_auth_key_for_production_deployment}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      OPENALEX_EMAIL: ${OPENALEX_EMAIL:-engineering@rhizan.com}
+      REQUIRE_EMAIL_VERIFICATION: ${REQUIRE_EMAIL_VERIFICATION:-false}
+    ports:
+      - "3000:3000"
+
+volumes:
+  ithaca_prod_postgres_data:
+  ithaca_prod_redis_data:

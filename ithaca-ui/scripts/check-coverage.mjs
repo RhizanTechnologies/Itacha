@@ -40,8 +40,7 @@ for (const [filePath, metrics] of scopedEntries) {
   }
 }
 
-const aggregatePct =
-  totalLines === 0 ? 0 : (coveredLines / totalLines) * 100;
+const aggregatePct = totalLines === 0 ? 0 : (coveredLines / totalLines) * 100;
 
 console.log(
   `Scoped coverage (src/lib + src/modules): ${aggregatePct.toFixed(1)}% lines (${coveredLines}/${totalLines})`,

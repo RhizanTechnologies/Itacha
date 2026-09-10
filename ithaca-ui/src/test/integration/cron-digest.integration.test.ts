@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   canRunIntegrationTests,
   disconnectTestDatabase,
@@ -27,7 +27,9 @@ describe.runIf(run)("cron collection digest", () => {
   });
 
   it("rejects requests without a valid cron secret", async () => {
-    const response = await postCronDigest(buildRequest("/api/cron/collection-digest", { method: "POST" }));
+    const response = await postCronDigest(
+      buildRequest("/api/cron/collection-digest", { method: "POST" }),
+    );
     expect(response.status).toBe(401);
   });
 
@@ -46,8 +48,16 @@ describe.runIf(run)("cron collection digest", () => {
     const ownerB = await createTestUser({ email: "digest-b@college.edu" });
     const orgA = await createTestOrganization({ name: "Digest Lab A" });
     const orgB = await createTestOrganization({ name: "Digest Lab B" });
-    await createTestMembership({ user: ownerA, organization: orgA, role: "OWNER" });
-    await createTestMembership({ user: ownerB, organization: orgB, role: "OWNER" });
+    await createTestMembership({
+      user: ownerA,
+      organization: orgA,
+      role: "OWNER",
+    });
+    await createTestMembership({
+      user: ownerB,
+      organization: orgB,
+      role: "OWNER",
+    });
 
     await createTestCollection({
       user: ownerA,

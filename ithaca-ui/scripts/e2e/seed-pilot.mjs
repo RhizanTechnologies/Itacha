@@ -249,7 +249,11 @@ async function main() {
       `${JSON.stringify(manifest, null, 2)}\n`,
     );
 
-    console.log("Pilot e2e seed ready:", manifest.graphId, manifest.collectionId);
+    console.log(
+      "Pilot e2e seed ready:",
+      manifest.graphId,
+      manifest.collectionId,
+    );
   } finally {
     await prisma.$disconnect();
   }

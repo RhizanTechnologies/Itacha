@@ -14,9 +14,7 @@ test.describe("pilot debate-map depth", () => {
     test.setTimeout(120_000);
     const manifest = readPilotManifest();
 
-    await page.goto(
-      `/explore?graph=${manifest.graphId}&e2eEdge=e-pilot-1`,
-    );
+    await page.goto(`/explore?graph=${manifest.graphId}&e2eEdge=e-pilot-1`);
     await expect(page.getByTestId("canvas-share-button")).toBeVisible({
       timeout: 60_000,
     });
@@ -25,9 +23,9 @@ test.describe("pilot debate-map depth", () => {
     await expect(page.getByTestId("edge-evidence-popover")).toBeVisible({
       timeout: 30_000,
     });
-    await expect(
-      page.getByTestId("edge-evidence-popover"),
-    ).toContainText(/conflict with the cited work/i);
+    await expect(page.getByTestId("edge-evidence-popover")).toContainText(
+      /conflict with the cited work/i,
+    );
 
     await openShareDialog(page);
 

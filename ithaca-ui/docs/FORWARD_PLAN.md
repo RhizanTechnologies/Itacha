@@ -36,25 +36,25 @@
 
 ## P3 — Institution packaging (pilot-ready)
 
-| #   | Outcome                 | Done when                                                                 | Status |
-| --- | ----------------------- | -------------------------------------------------------------------------- | ------ |
-| 1   | Plan entitlements       | SOLO / LAB / INSTITUTION plans with seat and usage limits                  | ✅     |
-| 2   | Admin usage & seats     | Organization admin shows seats, AI usage, quotas, and plan                 | ✅     |
-| 3   | Domain allowlist        | Institution orgs can restrict invites to allowed email domains             | ✅     |
-| 4   | Collab by plan          | LAB/INSTITUTION enable collaborative workspaces by default                 | ✅     |
-| 5   | Honest pricing surface  | Landing shows three plans; SSO called out as upcoming, not fake-shipped    | ✅     |
+| #   | Outcome                | Done when                                                               | Status |
+| --- | ---------------------- | ----------------------------------------------------------------------- | ------ |
+| 1   | Plan entitlements      | SOLO / LAB / INSTITUTION plans with seat and usage limits               | ✅     |
+| 2   | Admin usage & seats    | Organization admin shows seats, AI usage, quotas, and plan              | ✅     |
+| 3   | Domain allowlist       | Institution orgs can restrict invites to allowed email domains          | ✅     |
+| 4   | Collab by plan         | LAB/INSTITUTION enable collaborative workspaces by default              | ✅     |
+| 5   | Honest pricing surface | Landing shows three plans; SSO called out as upcoming, not fake-shipped | ✅     |
 
 Full SAML/SCIM and billed Stripe checkout stay out of this tranche — package entitlements first so pilots can run as labs/institutions.
 
 ## P4 — Pilot readiness (ease the lab loop)
 
-| #   | Outcome                         | Done when                                                                                          | Status |
-| --- | ------------------------------- | -------------------------------------------------------------------------------------------------- | ------ |
-| 1   | Invite email + accept path      | Invite sends Resend email; accept lands on `/explore` with org cookie; copy-link remains secondary | ✅     |
-| 2   | First-session debate literacy   | New users see graph literacy once; `hasCompletedOnboarding` persisted                              | ✅     |
-| 3   | Watch + digest loop             | Watch UI shows weekly cadence + last digest; email deep-links to collection explore                | ✅     |
-| 4   | Debate-map share/export ease    | Debate Report + frozen share primary; empty states CTA to Explore/Projects; honest org-share copy  | ✅     |
-| 5   | Pilot support contact           | Admins set `supportContactEmail`; members see it in-app                                            | ✅     |
+| #   | Outcome                       | Done when                                                                                          | Status |
+| --- | ----------------------------- | -------------------------------------------------------------------------------------------------- | ------ |
+| 1   | Invite email + accept path    | Invite sends Resend email; accept lands on `/explore` with org cookie; copy-link remains secondary | ✅     |
+| 2   | First-session debate literacy | New users see graph literacy once; `hasCompletedOnboarding` persisted                              | ✅     |
+| 3   | Watch + digest loop           | Watch UI shows weekly cadence + last digest; email deep-links to collection explore                | ✅     |
+| 4   | Debate-map share/export ease  | Debate Report + frozen share primary; empty states CTA to Explore/Projects; honest org-share copy  | ✅     |
+| 5   | Pilot support contact         | Admins set `supportContactEmail`; members see it in-app                                            | ✅     |
 
 Out of scope: SAML/SCIM, Stripe, anonymous public graphs, contradiction-classified digests, fine-grained workspace ACLs.
 

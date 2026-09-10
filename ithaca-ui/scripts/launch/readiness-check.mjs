@@ -46,7 +46,7 @@ const buildEnv = {
   ...process.env,
   DATABASE_URL:
     process.env.DATABASE_URL ??
-    "postgresql://postgres:postgres@localhost:5432/ithaca_test",
+    "postgresql://postgres:postgres@localhost:5434/ithaca_test",
   BETTER_AUTH_SECRET:
     process.env.BETTER_AUTH_SECRET ?? "launch-check-launch-check-launch-check",
   BETTER_AUTH_URL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
@@ -68,8 +68,7 @@ const checks = [
   },
   {
     id: "integration_suite",
-    passed:
-      skipExecution || run("npm", ["run", "test:integration"], buildEnv),
+    passed: skipExecution || run("npm", ["run", "test:integration"], buildEnv),
   },
   {
     id: "production_build",
@@ -81,7 +80,7 @@ const checks = [
       skipExecution ||
       run(
         "npm",
-        ["run", "test", "--", "src/lib/platform/launch-gates.test.ts"],
+        ["run", "test:unit", "--", "src/lib/platform/launch-gates.test.ts"],
         process.env,
       ),
   },
@@ -91,7 +90,7 @@ const checks = [
       skipExecution ||
       run(
         "npm",
-        ["run", "test", "--", "src/lib/platform/load-budgets.test.ts"],
+        ["run", "test:unit", "--", "src/lib/platform/load-budgets.test.ts"],
         process.env,
       ),
   },

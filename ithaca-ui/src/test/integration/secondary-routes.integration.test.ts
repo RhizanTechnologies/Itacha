@@ -299,9 +299,8 @@ describe.runIf(run)("secondary API routes", () => {
     setMockSession(ownerB);
     setMockOrganizationCookie(orgB.id);
 
-    const { GET } = await import(
-      "@/app/api/artifacts/[artifactId]/download/route"
-    );
+    const { GET } =
+      await import("@/app/api/artifacts/[artifactId]/download/route");
     const response = await GET(
       buildRequest(`/api/artifacts/${artifact.id}/download`),
       { params: Promise.resolve({ artifactId: artifact.id }) },
@@ -321,9 +320,8 @@ describe.runIf(run)("secondary API routes", () => {
       organization: org,
       type: "graph_export",
     });
-    const { processGraphExportJob } = await import(
-      "@/modules/jobs/handlers/graph-export"
-    );
+    const { processGraphExportJob } =
+      await import("@/modules/jobs/handlers/graph-export");
 
     await processGraphExportJob({
       jobId: job.id,
@@ -361,7 +359,8 @@ describe.runIf(run)("secondary API routes", () => {
       },
     });
 
-    const { POST: postCorrect } = await import("@/app/api/classify/correct/route");
+    const { POST: postCorrect } =
+      await import("@/app/api/classify/correct/route");
     const correction = await postCorrect(
       buildRequest("/api/classify/correct", {
         method: "POST",

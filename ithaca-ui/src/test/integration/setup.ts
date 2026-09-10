@@ -1,4 +1,4 @@
-process.env.NODE_ENV ??= "test";
+(process.env as Record<string, string | undefined>).NODE_ENV ??= "test";
 process.env.DATABASE_URL ??=
   "postgresql://postgres:postgres@localhost:5434/ithaca_test";
 process.env.BETTER_AUTH_SECRET ??=

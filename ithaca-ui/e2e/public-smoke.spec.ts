@@ -8,9 +8,9 @@ test.describe("public application", () => {
 
     await expect(page).toHaveTitle(/Ithaca/i);
     await expect(
-      page.getByRole("link", { name: "Sign In" }).or(
-        page.getByRole("button", { name: /create free account/i }),
-      ),
+      page
+        .getByRole("link", { name: "Sign In" })
+        .or(page.getByRole("button", { name: /create free account/i })),
     ).toBeVisible({ timeout: 15_000 });
   });
 
