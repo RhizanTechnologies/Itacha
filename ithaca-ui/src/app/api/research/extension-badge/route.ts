@@ -38,30 +38,53 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // 1. Locate paper in database by DOI or title
-    let paperRecord = null;
-    if (doi) {
-      paperRecord = await prisma.paperRecord.findFirst({
-        where: {
-          doi: { equals: doi, mode: "insensitive" },
-        },
-      });
-    }
+    // 1. Locate paper in database by DOI, arXiv ID, or title
+    const arxivMatch = doi ? doi.match(/([0-9]{4}\.[0-9]{4,5})/i) : null;
+    const arxivId = arxivMatch ? arxivMatch[1] : null;
 
-    if (!paperRecord && title) {
-      paperRecord = await prisma.paperRecord.findFirst({
-        where: {
-          title: { contains: title, mode: "insensitive" },
-        },
-      });
-    }
+    const paperRecords = await prisma.paperRecord.findMany({
+      where: {
+        OR: [
+          ...(doi
+            ? [{ doi: { equals: doi, mode: "insensitive" as const } }]
+            : []),
+          ...(arxivId
+            ? [{ doi: { contains: arxivId, mode: "insensitive" as const } }]
+            : []),
+          ...(title
+            ? [{ title: { contains: title, mode: "insensitive" as const } }]
+            : []),
+        ],
+      },
+    });
+
+    const paperRecord =
+      paperRecords.find((r) => Boolean(r.openAlexId)) ??
+      paperRecords[0] ??
+      null;
 
     // 2. Resolve target IDs for citation stance lookup
-    const targetIds: string[] = [];
-    if (paperRecord?.openAlexId) targetIds.push(paperRecord.openAlexId);
-    if (paperRecord?.id) targetIds.push(paperRecord.id);
-    if (doi) targetIds.push(doi);
+    const targetIdsSet = new Set<string>();
+    if (doi) {
+      targetIdsSet.add(doi);
+      targetIdsSet.add(doi.toLowerCase());
+    }
+    if (arxivId) {
+      targetIdsSet.add(arxivId);
+      targetIdsSet.add(`arXiv.${arxivId}`);
+      targetIdsSet.add(`10.48550/arXiv.${arxivId}`);
+      targetIdsSet.add(`10.48550/arxiv.${arxivId}`);
+    }
+    for (const rec of paperRecords) {
+      if (rec.id) targetIdsSet.add(rec.id);
+      if (rec.openAlexId) targetIdsSet.add(rec.openAlexId);
+      if (rec.doi) {
+        targetIdsSet.add(rec.doi);
+        targetIdsSet.add(rec.doi.toLowerCase());
+      }
+    }
 
+    const targetIds = Array.from(targetIdsSet);
     let citations: { edgeType: string }[] = [];
     if (targetIds.length > 0) {
       citations = await prisma.citationCache.findMany({

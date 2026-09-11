@@ -40,7 +40,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       { type: "GET_BADGE", doi, title },
       (response) => {
         if (!response || !response.success || !response.data) {
-          titleEl.textContent = "No debate recorded yet for this paper.";
+          if (response?.error) {
+            titleEl.textContent = `Backend connection error (${response.error}). Ensure local server is running on localhost:3000.`;
+          } else {
+            titleEl.textContent = "No debate recorded yet for this paper.";
+          }
           return;
         }
 
@@ -55,9 +59,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         if (data.canonicalUrl) {
+          const apiBase = response.apiBase || "http://localhost:3000";
           const fullUrl = data.canonicalUrl.startsWith("http")
             ? data.canonicalUrl
-            : `http://localhost:3000${data.canonicalUrl}`;
+            : `${apiBase}${data.canonicalUrl}`;
           exploreBtn.href = fullUrl;
         }
       },

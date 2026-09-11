@@ -105,6 +105,14 @@
   const { doi, title } = extractPaperMetadata();
   if (!doi && !title) return;
 
+  if (typeof chrome !== "undefined" && chrome.runtime?.onMessage) {
+    chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+      if (message.type === "GET_PAGE_METADATA") {
+        sendResponse({ doi, title });
+      }
+    });
+  }
+
   if (typeof chrome !== "undefined" && chrome.runtime?.sendMessage) {
     chrome.runtime.sendMessage(
       { type: "GET_BADGE", doi, title },
