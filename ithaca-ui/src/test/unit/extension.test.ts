@@ -83,4 +83,46 @@ describe("Browser Extension Manifest V3 Compliance (TC-EXT-04)", () => {
     expect(contentScript).toContain("ithaca-extension-root");
     expect(contentScript).toContain("ithaca-dispute-popover");
   });
+
+  it("background.js implements LRU eviction, quota recovery, and single-flight coalescing", () => {
+    const bgScript = fs.readFileSync(
+      path.join(extensionDir, "background.js"),
+      "utf-8",
+    );
+    expect(bgScript).toContain("MAX_CACHE_ENTRIES");
+    expect(bgScript).toContain("pruneSessionCache");
+    expect(bgScript).toContain("inFlightRequests");
+    expect(bgScript).toContain("inFlightRequests.set");
+    expect(bgScript).toContain("inFlightRequests.delete");
+  });
+
+  it("content.js enforces closed shadow root, inlined CSS, JSON-LD parsing, and +Stance contribution", () => {
+    const contentScript = fs.readFileSync(
+      path.join(extensionDir, "content.js"),
+      "utf-8",
+    );
+    // Closed mode prevents host page from querying element.shadowRoot
+    expect(contentScript).toContain('attachShadow({ mode: "closed" })');
+    // Inlined styles for zero-exposure fingerprint protection
+    expect(contentScript).toContain("INLINE_CSS");
+    // SPA JSON-LD parser
+    expect(contentScript).toContain("extractJsonLd");
+    expect(contentScript).toContain("ScholarlyArticle");
+    // Bi-directional +Stance contribute CTA
+    expect(contentScript).toContain("ithaca-badge-contribute");
+    expect(contentScript).toContain("+ Stance");
+    // arXiv version extraction
+    expect(contentScript).toContain("ithaca-version-tag");
+  });
+
+  it("popup.js handles versioned papers, dispute severity alerts, and 1-click contribute CTA", () => {
+    const popupScript = fs.readFileSync(
+      path.join(extensionDir, "popup.js"),
+      "utf-8",
+    );
+    expect(popupScript).toContain("parseAcademicUrl");
+    expect(popupScript).toContain("effectiveVersion");
+    expect(popupScript).toContain("disputeSeverityAlert");
+    expect(popupScript).toContain("contributeBtn");
+  });
 });

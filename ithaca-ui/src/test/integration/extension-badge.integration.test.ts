@@ -119,6 +119,11 @@ describe.runIf(run)("Browser Extension Badge API Integration", () => {
     expect(body.extends).toBe(1);
     expect(body.cites).toBe(0);
     expect(body.total).toBe(4);
+    expect(body.weightedScore.supports).toBe(1.83);
+    expect(body.weightedScore.contradicts).toBe(0.91);
+    expect(body.weightedScore.extends).toBe(0.87);
+    expect(body.disputeSeverity).toBe("critical");
+    expect(body.highConfidenceDisputes).toBe(1);
     expect(body.canonicalUrl).toBe("/explore?doi=10.1038%2Fnature12373");
     expect(body.topDisputeSnippet).toBe(
       "Contradicts the sample efficiency claim.",
@@ -188,5 +193,36 @@ describe.runIf(run)("Browser Extension Badge API Integration", () => {
     expect(body.cites).toBe(0);
     expect(body.total).toBe(0);
     expect(body.canonicalUrl).toBe("/explore?doi=10.9999%2Fnonexistent");
+  });
+
+  it("TC-EXT-05: parses and propagates arXiv version parameter into query response", async () => {
+    const { GET } = await import("@/app/api/research/extension-badge/route");
+    const prisma = getTestPrisma();
+    const user = await createTestUser();
+    const org = await createTestOrganization();
+
+    await prisma.paperRecord.create({
+      data: {
+        organizationId: org.id,
+        userId: user.id,
+        dedupeKey: "arxiv:2301.00001",
+        doi: "10.48550/arXiv.2301.00001",
+        title: "Advances in Epistemic Logic",
+        isSovereignIndex: true,
+      },
+    });
+
+    const request = buildRequest(
+      "http://localhost/api/research/extension-badge?doi=10.48550/arXiv.2301.00001&version=v2",
+    );
+    const response = await GET(request);
+    expect(response.status).toBe(200);
+    const body = await response.json();
+
+    expect(body.found).toBe(true);
+    expect(body.queryVersion).toBe("v2");
+    expect(body.canonicalUrl).toContain("version=v2");
+    expect(body.isSovereignIndex).toBe(true);
+    expect(body.disputeSeverity).toBe("none");
   });
 });

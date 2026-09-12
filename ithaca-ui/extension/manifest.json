@@ -46,15 +46,5 @@
     "page": "options.html",
     "open_in_tab": false
   },
-  "web_accessible_resources": [
-    {
-      "resources": ["content.css"],
-      "matches": [
-        "https://arxiv.org/*",
-        "https://pubmed.ncbi.nlm.nih.gov/*",
-        "https://*.nature.com/*",
-        "https://scholar.google.com/*"
-      ]
-    }
-  ]
+  "web_accessible_resources": []
 }

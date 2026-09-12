@@ -97,11 +97,23 @@
       <div class="logo">🏛️ Ithaca Inspector</div>
       <div style="display: flex; align-items: center; gap: 8px">
         <span
+          id="badge-version"
+          style="
+            display: none;
+            font-size: 10px;
+            background: rgba(148, 163, 184, 0.2);
+            color: #94a3b8;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            padding: 1px 5px;
+            border-radius: 4px;
+            font-weight: 600;
+          "
+        ></span>
+        <span
           id="badge-sovereign"
-          style="display: none"
+          style="display: none; font-size: 11px"
           class="text-green"
-          style="font-size: 11px"
-          >🇪🇹 Sovereign</span
+          >🏛️ Sovereign</span
         >
         <button
           id="btn-settings"
@@ -121,6 +133,22 @@
       </div>
     </div>
     <div id="paper-title" class="paper-title">Scanning active tab...</div>
+    <div
+      id="dispute-severity-alert"
+      style="
+        display: none;
+        background: rgba(239, 68, 68, 0.15);
+        border: 1px solid rgba(239, 68, 68, 0.5);
+        border-radius: 6px;
+        padding: 6px 10px;
+        margin-bottom: 10px;
+        font-size: 11px;
+        color: #fca5a5;
+        font-weight: 600;
+      "
+    >
+      ⚠️ High-Confidence Peer Rebuttal Detected
+    </div>
     <div class="metric-grid">
       <div class="metric-card">
         <div id="count-support" class="num text-green">0</div>
@@ -153,14 +181,38 @@
       </div>
       <div id="dispute-quote" style="color: #cbd5e1; font-style: italic"></div>
     </div>
-    <a
-      id="btn-explore"
-      href="http://localhost:3000/explore"
-      target="_blank"
-      class="btn-launch"
-    >
-      Open Full Debate Matrix &rarr;
-    </a>
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <a
+        id="btn-explore"
+        href="http://localhost:3000/explore"
+        target="_blank"
+        class="btn-launch"
+      >
+        Open Full Debate Matrix &rarr;
+      </a>
+      <a
+        id="btn-contribute"
+        href="http://localhost:3000/explore?action=curate"
+        target="_blank"
+        style="
+          display: none;
+          width: 100%;
+          text-align: center;
+          box-sizing: border-box;
+          background: rgba(56, 189, 248, 0.12);
+          color: #38bdf8;
+          border: 1px solid rgba(56, 189, 248, 0.4);
+          padding: 6px 12px;
+          border-radius: 6px;
+          text-decoration: none;
+          font-weight: 600;
+          font-size: 11px;
+          transition: all 0.15s ease;
+        "
+      >
+        + Contribute Stance / Dispute ✍️
+      </a>
+    </div>
     <script src="popup.js"></script>
   </body>
 </html>
