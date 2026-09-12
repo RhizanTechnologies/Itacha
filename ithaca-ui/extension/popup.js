@@ -6,6 +6,19 @@ document.addEventListener("DOMContentLoaded", async () => {
   const extendEl = document.getElementById("count-extend");
   const sovereignEl = document.getElementById("badge-sovereign");
   const exploreBtn = document.getElementById("btn-explore");
+  const btnSettings = document.getElementById("btn-settings");
+  const disputeCard = document.getElementById("dispute-preview-card");
+  const disputeQuote = document.getElementById("dispute-quote");
+
+  if (btnSettings) {
+    btnSettings.addEventListener("click", () => {
+      if (typeof chrome !== "undefined" && chrome.runtime?.openOptionsPage) {
+        chrome.runtime.openOptionsPage();
+      } else if (typeof chrome !== "undefined" && chrome.runtime?.getURL) {
+        window.open(chrome.runtime.getURL("options.html"));
+      }
+    });
+  }
 
   if (typeof chrome === "undefined" || !chrome.tabs) {
     titleEl.textContent = "Ithaca Active Tab Inspector";
@@ -18,14 +31,42 @@ document.addEventListener("DOMContentLoaded", async () => {
     return;
   }
 
+  function parseAcademicUrl(url) {
+    // arXiv (abstract or PDF)
+    const arxivMatch = url.match(
+      /arxiv\.org\/(?:abs|pdf)\/([0-9]+\.[0-9]+)(?:\.pdf)?/i,
+    );
+    if (arxivMatch) {
+      return { doi: `10.48550/arXiv.${arxivMatch[1]}`, title: null };
+    }
+
+    // Nature articles
+    const natureMatch = url.match(/nature\.com\/articles\/([a-zA-Z0-9._-]+)/i);
+    if (natureMatch) {
+      return { doi: `10.1038/${natureMatch[1]}`, title: null };
+    }
+
+    // Google Scholar query fallback
+    if (url.includes("scholar.google")) {
+      const qMatch = url.match(/[?&]q=([^&]+)/);
+      if (qMatch) {
+        return {
+          doi: null,
+          title: decodeURIComponent(qMatch[1].replace(/\+/g, " ")),
+        };
+      }
+    }
+
+    return null;
+  }
+
   // Query background worker for current tab paper data
   chrome.tabs.sendMessage(tab.id, { type: "GET_PAGE_METADATA" }, (meta) => {
     if (chrome.runtime.lastError || !meta) {
-      // Fallback: extract from tab URL if arXiv
-      const arxivMatch = tab.url.match(/arxiv\.org\/abs\/([0-9]+\.[0-9]+)/);
-      const doi = arxivMatch ? `10.48550/arXiv.${arxivMatch[1]}` : null;
-      if (doi) {
-        fetchBadge(doi, null);
+      // Direct URL fallback (handles arXiv PDFs, Nature, etc.)
+      const parsed = parseAcademicUrl(tab.url);
+      if (parsed && (parsed.doi || parsed.title)) {
+        fetchBadge(parsed.doi, parsed.title);
       } else {
         titleEl.textContent =
           "Navigate to an arXiv, PubMed, or Nature article to view stances.";
@@ -56,6 +97,15 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         if (data.isSovereignIndex) {
           sovereignEl.style.display = "inline-block";
+        }
+
+        if (disputeCard && disputeQuote) {
+          if (data.topDisputeSnippet && (data.contradicts || 0) > 0) {
+            disputeQuote.textContent = `"${data.topDisputeSnippet}"`;
+            disputeCard.style.display = "block";
+          } else {
+            disputeCard.style.display = "none";
+          }
         }
 
         if (data.canonicalUrl) {

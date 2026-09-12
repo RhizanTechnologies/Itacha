@@ -3,8 +3,8 @@
 /**
  * Ithaca Chrome/Edge Extension Packager
  *
- * Verifies Manifest V3 compliance, validates icons and scripts,
- * and packages a production-ready distributable zip for Chrome Web Store.
+ * Verifies Manifest V3 compliance, validates icons, scripts, and options UI,
+ * and packages production-ready distributables for Chrome Web Store and developer sideloading.
  */
 
 import fs from "node:fs";
@@ -16,7 +16,10 @@ const extensionDir = path.join(rootDir, "extension");
 const distDir = path.join(rootDir, "dist");
 const manifestPath = path.join(extensionDir, "manifest.json");
 
-console.log("📦 Packaging Ithaca Academic Stance Extension (Manifest V3)...");
+const isProdMode = process.argv.includes("--mode=prod");
+const modeLabel = isProdMode ? "Production (Web Store)" : "Development (Local)";
+
+console.log(`📦 Packaging Ithaca Academic Stance Extension (${modeLabel})...`);
 
 // 1. Verify Manifest
 if (!fs.existsSync(manifestPath)) {
@@ -36,6 +39,8 @@ const requiredFiles = [
   "content.css",
   "popup.html",
   "popup.js",
+  "options.html",
+  "options.js",
   "icons/icon-16.png",
   "icons/icon-48.png",
   "icons/icon-128.png",
@@ -49,21 +54,58 @@ for (const file of requiredFiles) {
   }
 }
 
-// 3. Ensure dist directory
+// 3. Prepare packaging directory
 fs.mkdirSync(distDir, { recursive: true });
-const zipName = `ithaca-extension-v${version}.zip`;
+const stageDir = path.join(
+  distDir,
+  `staging-extension-${isProdMode ? "prod" : "dev"}`,
+);
+if (fs.existsSync(stageDir)) {
+  fs.rmSync(stageDir, { recursive: true, force: true });
+}
+fs.cpSync(extensionDir, stageDir, { recursive: true });
+
+// If production mode, sanitize manifest and background worker
+if (isProdMode) {
+  const stageManifestPath = path.join(stageDir, "manifest.json");
+  const stageManifest = JSON.parse(fs.readFileSync(stageManifestPath, "utf8"));
+  if (Array.isArray(stageManifest.host_permissions)) {
+    stageManifest.host_permissions = stageManifest.host_permissions.filter(
+      (h) => !h.includes("localhost"),
+    );
+  }
+  fs.writeFileSync(
+    stageManifestPath,
+    JSON.stringify(stageManifest, null, 2),
+    "utf8",
+  );
+
+  const stageBgPath = path.join(stageDir, "background.js");
+  let bgCode = fs.readFileSync(stageBgPath, "utf8");
+  bgCode = bgCode.replace(
+    /const DEFAULT_API_BASE = "http:\/\/localhost:3000";/,
+    'const DEFAULT_API_BASE = "https://ithaca.rhizan.com";',
+  );
+  fs.writeFileSync(stageBgPath, bgCode, "utf8");
+}
+
+const zipName = isProdMode
+  ? `ithaca-extension-v${version}-prod.zip`
+  : `ithaca-extension-v${version}.zip`;
 const zipPath = path.join(distDir, zipName);
 
 if (fs.existsSync(zipPath)) {
   fs.unlinkSync(zipPath);
 }
 
-// 4. Create ZIP package using zip command
+// 4. Create ZIP package
 try {
   execSync(`zip -r "${zipPath}" *`, {
-    cwd: extensionDir,
+    cwd: stageDir,
     stdio: "pipe",
   });
+  // Clean staging
+  fs.rmSync(stageDir, { recursive: true, force: true });
 } catch (error) {
   console.error("❌ Failed to create zip package:", error.message);
   process.exit(1);
@@ -72,8 +114,12 @@ try {
 const stats = fs.statSync(zipPath);
 const sizeKb = (stats.size / 1024).toFixed(1);
 
-console.log(`✅ Successfully packaged extension:`);
+console.log(`✅ Successfully packaged extension (${modeLabel}):`);
 console.log(`   Artifact: ${zipPath}`);
 console.log(`   Package Size: ${sizeKb} KB`);
 console.log(`   Files included: ${requiredFiles.length}`);
-console.log(`🚀 Ready for Chrome Web Store upload or manual unpacked loading.`);
+console.log(
+  isProdMode
+    ? "🚀 Ready for Chrome Web Store upload."
+    : "🚀 Ready for manual unpacked loading in Chrome.",
+);

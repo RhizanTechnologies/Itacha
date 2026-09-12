@@ -1,5 +1,10 @@
-/* Ithaca Browser Extension Styles */
-#ithaca-debate-pill-container {
+/* Ithaca Browser Extension Styles (Shadow DOM Isolated) */
+:host {
+  all: initial;
+}
+
+#ithaca-debate-pill-container,
+.ithaca-host-container {
   position: fixed;
   bottom: 24px;
   right: 24px;
@@ -13,8 +18,55 @@
     box-shadow 0.2s ease;
 }
 
-#ithaca-debate-pill-container:hover {
+#ithaca-debate-pill-container:hover,
+.ithaca-host-container:hover {
   transform: translateY(-2px);
+}
+
+.ithaca-dispute-popover {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  right: 0;
+  width: 290px;
+  padding: 10px 12px;
+  background: rgba(15, 23, 42, 0.96);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  border-radius: 8px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+  color: #f8fafc;
+  font-size: 11px;
+  line-height: 1.45;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(6px);
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease,
+    visibility 0.15s;
+  pointer-events: none;
+  z-index: 2147483648;
+}
+
+.ithaca-dispute-popover.active {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.ithaca-popover-header {
+  font-weight: 700;
+  color: #f87171;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ithaca-popover-quote {
+  color: #cbd5e1;
+  font-style: italic;
+  display: block;
 }
 
 .ithaca-badge-link {

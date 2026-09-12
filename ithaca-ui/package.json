@@ -32,6 +32,8 @@
     "seed:disciplines": "node scripts/seed-discipline-cache.mjs",
     "seed:demo": "node scripts/seed-demo-show.mjs",
     "build:extension": "node scripts/build-extension.mjs",
+    "build:extension:dev": "node scripts/build-extension.mjs --mode=dev",
+    "build:extension:prod": "node scripts/build-extension.mjs --mode=prod",
     "launch:check": "node scripts/launch/readiness-check.mjs",
     "postinstall": "prisma generate"
   },

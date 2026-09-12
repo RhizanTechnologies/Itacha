@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Ithaca Extension Settings</title>
+    <style>
+      body {
+        width: 360px;
+        margin: 0;
+        padding: 20px;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: #090d16;
+        color: #f1f5f9;
+      }
+      h2 {
+        font-size: 16px;
+        margin-top: 0;
+        margin-bottom: 6px;
+        color: #38bdf8;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      p.subtitle {
+        font-size: 12px;
+        color: #94a3b8;
+        margin-top: 0;
+        margin-bottom: 18px;
+        line-height: 1.4;
+      }
+      .option-group {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+      .option-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        background: #0f172a;
+        padding: 10px 12px;
+        border-radius: 8px;
+        border: 1px solid #1e293b;
+        cursor: pointer;
+        transition: border-color 0.15s ease;
+      }
+      .option-item:hover {
+        border-color: #38bdf8;
+      }
+      .option-item input[type="radio"] {
+        margin-top: 3px;
+        accent-color: #38bdf8;
+      }
+      .option-content {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .option-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: #f8fafc;
+      }
+      .option-desc {
+        font-size: 11px;
+        color: #94a3b8;
+      }
+      .custom-input {
+        width: 100%;
+        box-sizing: border-box;
+        background: #1e293b;
+        border: 1px solid #334155;
+        color: #ffffff;
+        padding: 8px 10px;
+        border-radius: 6px;
+        font-size: 12px;
+        margin-top: 6px;
+        display: none;
+      }
+      .custom-input:focus {
+        outline: none;
+        border-color: #38bdf8;
+      }
+      .btn-save {
+        width: 100%;
+        background: #2563eb;
+        color: #ffffff;
+        border: none;
+        border-radius: 6px;
+        padding: 9px 12px;
+        font-weight: 600;
+        font-size: 13px;
+        cursor: pointer;
+        transition: background 0.15s ease;
+      }
+      .btn-save:hover {
+        background: #1d4ed8;
+      }
+      .status-msg {
+        font-size: 12px;
+        text-align: center;
+        margin-top: 10px;
+        min-height: 18px;
+        color: #4ade80;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>🏛️ Ithaca Node Settings</h2>
+    <p class="subtitle">
+      Select which Ithaca instance processes your real-time citation
+      argumentation stances and sovereign archives.
+    </p>
+
+    <div class="option-group">
+      <label class="option-item">
+        <input
+          type="radio"
+          name="apiPreset"
+          value="http://localhost:3000"
+          id="opt-local"
+        />
+        <div class="option-content">
+          <span class="option-title">Local Development</span>
+          <span class="option-desc"
+            >http://localhost:3000 (Local Dev Server)</span
+          >
+        </div>
+      </label>
+
+      <label class="option-item">
+        <input
+          type="radio"
+          name="apiPreset"
+          value="https://ithaca.rhizan.com"
+          id="opt-prod"
+        />
+        <div class="option-content">
+          <span class="option-title">Ithaca Cloud (Production)</span>
+          <span class="option-desc">https://ithaca.rhizan.com</span>
+        </div>
+      </label>
+
+      <label class="option-item">
+        <input type="radio" name="apiPreset" value="custom" id="opt-custom" />
+        <div class="option-content" style="width: 100%">
+          <span class="option-title">Custom Institutional Node</span>
+          <span class="option-desc"
+            >Self-hosted university or enterprise server</span
+          >
+          <input
+            type="url"
+            id="input-custom-url"
+            class="custom-input"
+            placeholder="https://ithaca.your-institution.edu"
+          />
+        </div>
+      </label>
+    </div>
+
+    <button id="btn-save" class="btn-save">Save Settings</button>
+    <div id="status-msg" class="status-msg"></div>
+
+    <script src="options.js"></script>
+  </body>
+</html>

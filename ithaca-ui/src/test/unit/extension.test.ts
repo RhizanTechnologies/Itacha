@@ -36,8 +36,10 @@ describe("Browser Extension Manifest V3 Compliance (TC-EXT-04)", () => {
     expect(mainScript.js).toContain("content.js");
     expect(mainScript.css).toContain("content.css");
 
-    // Popup action
+    // Popup and options action
     expect(manifest.action?.default_popup).toBe("popup.html");
+    expect(manifest.options_ui?.page).toBe("options.html");
+    expect(manifest.web_accessible_resources).toBeDefined();
   });
 
   it("all required extension assets exist and are populated", () => {
@@ -48,6 +50,8 @@ describe("Browser Extension Manifest V3 Compliance (TC-EXT-04)", () => {
       "content.css",
       "popup.html",
       "popup.js",
+      "options.html",
+      "options.js",
     ];
 
     for (const file of requiredFiles) {
@@ -58,7 +62,7 @@ describe("Browser Extension Manifest V3 Compliance (TC-EXT-04)", () => {
     }
   });
 
-  it("service worker background.js exports or defines badge fetch logic", () => {
+  it("service worker background.js exports or defines badge fetch logic and session cache", () => {
     const backgroundScript = fs.readFileSync(
       path.join(extensionDir, "background.js"),
       "utf-8",
@@ -66,5 +70,17 @@ describe("Browser Extension Manifest V3 Compliance (TC-EXT-04)", () => {
     expect(backgroundScript).toContain("fetchBadgeData");
     expect(backgroundScript).toContain("/api/research/extension-badge");
     expect(backgroundScript).toContain("memoryCache");
+    expect(backgroundScript).toContain("getCachedBadge");
+    expect(backgroundScript).toContain("setCachedBadge");
+  });
+
+  it("content.js encapsulates the in-situ badge inside a Shadow Root", () => {
+    const contentScript = fs.readFileSync(
+      path.join(extensionDir, "content.js"),
+      "utf-8",
+    );
+    expect(contentScript).toContain("attachShadow");
+    expect(contentScript).toContain("ithaca-extension-root");
+    expect(contentScript).toContain("ithaca-dispute-popover");
   });
 });

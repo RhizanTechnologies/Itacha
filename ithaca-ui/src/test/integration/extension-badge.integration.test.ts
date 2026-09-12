@@ -120,6 +120,12 @@ describe.runIf(run)("Browser Extension Badge API Integration", () => {
     expect(body.cites).toBe(0);
     expect(body.total).toBe(4);
     expect(body.canonicalUrl).toBe("/explore?doi=10.1038%2Fnature12373");
+    expect(body.topDisputeSnippet).toBe(
+      "Contradicts the sample efficiency claim.",
+    );
+    expect(body.topExtensionSnippet).toBe(
+      "Extends AlphaGo to imperfect information.",
+    );
   });
 
   it("TC-EXT-02: returns stance breakdown for paper queried by Title fallback", async () => {

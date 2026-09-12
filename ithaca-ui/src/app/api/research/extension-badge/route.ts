@@ -38,25 +38,33 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // 1. Locate paper in database by DOI, arXiv ID, or title
+    // 1. Locate paper in database by DOI (indexed equality), then arXiv pattern or title fallback
     const arxivMatch = doi ? doi.match(/([0-9]{4}\.[0-9]{4,5})/i) : null;
     const arxivId = arxivMatch ? arxivMatch[1] : null;
+    let paperRecords: Awaited<ReturnType<typeof prisma.paperRecord.findMany>> =
+      [];
+    if (doi) {
+      paperRecords = await prisma.paperRecord.findMany({
+        where: { doi: { equals: doi, mode: "insensitive" } },
+        take: 5,
+      });
+    }
 
-    const paperRecords = await prisma.paperRecord.findMany({
-      where: {
-        OR: [
-          ...(doi
-            ? [{ doi: { equals: doi, mode: "insensitive" as const } }]
-            : []),
-          ...(arxivId
-            ? [{ doi: { contains: arxivId, mode: "insensitive" as const } }]
-            : []),
-          ...(title
-            ? [{ title: { contains: title, mode: "insensitive" as const } }]
-            : []),
-        ],
-      },
-    });
+    if (paperRecords.length === 0 && (arxivId || title)) {
+      paperRecords = await prisma.paperRecord.findMany({
+        where: {
+          OR: [
+            ...(arxivId
+              ? [{ doi: { contains: arxivId, mode: "insensitive" as const } }]
+              : []),
+            ...(title
+              ? [{ title: { contains: title, mode: "insensitive" as const } }]
+              : []),
+          ],
+        },
+        take: 5,
+      });
+    }
 
     const paperRecord =
       paperRecords.find((r) => Boolean(r.openAlexId)) ??
@@ -85,17 +93,22 @@ export async function GET(request: NextRequest) {
     }
 
     const targetIds = Array.from(targetIdsSet);
-    let citations: { edgeType: string }[] = [];
+    let citations: {
+      edgeType: string;
+      snippet: string | null;
+      confidence: number | null;
+    }[] = [];
     if (targetIds.length > 0) {
       citations = await prisma.citationCache.findMany({
         where: {
           OR: [{ citedId: { in: targetIds } }, { citingId: { in: targetIds } }],
         },
-        select: { edgeType: true },
+        select: { edgeType: true, snippet: true, confidence: true },
+        orderBy: { confidence: "desc" },
       });
     }
 
-    // 3. Aggregate stance counts
+    // 3. Aggregate stance counts & key snippets
     const supports = citations.filter((c) => c.edgeType === "supports").length;
     const contradicts = citations.filter(
       (c) => c.edgeType === "contradicts",
@@ -105,6 +118,13 @@ export async function GET(request: NextRequest) {
     ).length;
     const cites = citations.filter((c) => c.edgeType === "cites").length;
     const total = supports + contradicts + extendsCount + cites;
+
+    const topDispute = citations.find(
+      (c) => c.edgeType === "contradicts" && Boolean(c.snippet),
+    );
+    const topExtension = citations.find(
+      (c) => c.edgeType === "extends" && Boolean(c.snippet),
+    );
 
     const effectiveDoi = paperRecord?.doi ?? doi;
     const canonicalUrl = effectiveDoi
@@ -123,6 +143,8 @@ export async function GET(request: NextRequest) {
         total,
         isSovereignIndex: paperRecord?.isSovereignIndex ?? false,
         canonicalUrl,
+        topDisputeSnippet: topDispute?.snippet ?? null,
+        topExtensionSnippet: topExtension?.snippet ?? null,
       },
       context,
       { headers: CORS_HEADERS },

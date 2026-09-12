@@ -95,13 +95,30 @@
   <body>
     <div class="header">
       <div class="logo">🏛️ Ithaca Inspector</div>
-      <span
-        id="badge-sovereign"
-        style="display: none"
-        class="text-green"
-        style="font-size: 11px"
-        >🇪🇹 Sovereign</span
-      >
+      <div style="display: flex; align-items: center; gap: 8px">
+        <span
+          id="badge-sovereign"
+          style="display: none"
+          class="text-green"
+          style="font-size: 11px"
+          >🇪🇹 Sovereign</span
+        >
+        <button
+          id="btn-settings"
+          title="Configure Node Settings"
+          style="
+            background: none;
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 0;
+            line-height: 1;
+          "
+        >
+          ⚙️
+        </button>
+      </div>
     </div>
     <div id="paper-title" class="paper-title">Scanning active tab...</div>
     <div class="metric-grid">
@@ -117,6 +134,24 @@
         <div id="count-extend" class="num text-purple">0</div>
         <div class="lbl">Extends</div>
       </div>
+    </div>
+    <div
+      id="dispute-preview-card"
+      style="
+        display: none;
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        border-radius: 6px;
+        padding: 8px 10px;
+        margin-bottom: 12px;
+        font-size: 11px;
+        line-height: 1.4;
+      "
+    >
+      <div style="font-weight: 600; color: #f87171; margin-bottom: 2px">
+        ⚠️ Top Disputed Finding:
+      </div>
+      <div id="dispute-quote" style="color: #cbd5e1; font-style: italic"></div>
     </div>
     <a
       id="btn-explore"
