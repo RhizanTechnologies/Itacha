@@ -39,6 +39,11 @@ export async function signInPilotUser(
       password: input.password,
     },
   });
+  if (!signInResponse.ok()) {
+    console.error(
+      `Sign-in failed for ${input.email}: status ${signInResponse.status()} - ${await signInResponse.text()}`,
+    );
+  }
   expect(signInResponse.ok()).toBeTruthy();
 
   const authenticatedState = await isolated.storageState();

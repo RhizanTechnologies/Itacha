@@ -100,8 +100,8 @@ export function ExploreUrlHydrator({ onSearchPaper }: ExploreUrlHydratorProps) {
 
         if (collectionId) {
           if (
-            process.env.NEXT_PUBLIC_E2E === "1" &&
-            collectionId === "pilot-e2e-collection"
+            collectionId === "pilot-e2e-collection" ||
+            process.env.NEXT_PUBLIC_E2E === "1"
           ) {
             actions.setLoading(true);
             const saved = await getGraphSnapshot("pilot-e2e-graph");

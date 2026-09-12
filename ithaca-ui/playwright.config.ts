@@ -80,6 +80,7 @@ export default defineConfig({
       dependencies: ["setup"],
       use: {
         ...devices["Desktop Chrome"],
+        storageState: "e2e/.auth/pilot-onboarding.json",
       },
     },
   ],

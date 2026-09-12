@@ -578,9 +578,16 @@
   runLifecycle();
 
   // Lightweight SPA navigation observer
-  let currentHref = window.location.href;
+  let currentHref =
+    typeof window !== "undefined" && window.location
+      ? window.location.href
+      : "";
   const observer = new MutationObserver(() => {
-    if (window.location.href !== currentHref) {
+    if (
+      typeof window !== "undefined" &&
+      window.location &&
+      window.location.href !== currentHref
+    ) {
       currentHref = window.location.href;
       retryCount = 0;
       runLifecycle();

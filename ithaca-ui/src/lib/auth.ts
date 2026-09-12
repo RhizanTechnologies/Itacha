@@ -110,10 +110,11 @@ export const auth = betterAuth({
     generateId: () => crypto.randomUUID(),
   },
 
-  // Rate Limiting — relaxed for automated testing and serial sign-ins
+  // Rate Limiting — strictly active in production, disabled for local development and automated testing
   rateLimit: {
     enabled:
-      process.env.NEXT_PUBLIC_E2E !== "1" && process.env.NODE_ENV !== "test",
+      process.env.NODE_ENV === "production" &&
+      process.env.NEXT_PUBLIC_E2E !== "1",
     window: 60, // 1 minute window
     max: 100, // 100 requests per window
     storage: redis ? "secondary-storage" : "memory",

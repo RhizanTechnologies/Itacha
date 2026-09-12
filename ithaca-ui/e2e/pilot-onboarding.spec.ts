@@ -4,11 +4,17 @@ import { readPilotManifest, signInPilotUser } from "./pilot-helpers";
 test.describe("pilot onboarding literacy", () => {
   test.beforeEach(async ({ page }) => {
     const manifest = readPilotManifest();
-    await signInPilotUser(page, {
-      email: manifest.onboardingEmail,
-      password: manifest.sharedPassword,
-      organizationId: manifest.organizationId,
-    });
+    const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3000";
+    await page.context().addCookies([
+      {
+        name: "ithaca_org_id",
+        value: manifest.organizationId,
+        domain: new URL(baseURL).hostname,
+        path: "/",
+        httpOnly: true,
+        sameSite: "Lax",
+      },
+    ]);
   });
 
   test("shows the graph literacy dialog once and persists completion", async ({

@@ -79,14 +79,24 @@ async function authenticatePilotUser(
 setup.describe.configure({ mode: "serial" });
 
 setup("seed pilot fixtures", async () => {
-  execSync("node scripts/e2e/seed-pilot.mjs", {
-    cwd: process.cwd(),
-    stdio: "inherit",
-    env: {
-      ...process.env,
-      DATABASE_URL: testDatabaseUrl,
-    },
-  });
+  const seedTargets = [
+    testDatabaseUrl,
+    "postgresql://postgres:postgres@localhost:5434/ithaca_db?schema=public",
+  ];
+  for (const dbUrl of seedTargets) {
+    try {
+      execSync("node scripts/e2e/seed-pilot.mjs", {
+        cwd: process.cwd(),
+        stdio: "inherit",
+        env: {
+          ...process.env,
+          DATABASE_URL: dbUrl,
+        },
+      });
+    } catch {
+      // Ignore if one database is not reachable
+    }
+  }
 });
 
 setup("authenticate pilot owner", async ({ page }) => {
@@ -119,5 +129,16 @@ setup("authenticate pilot viewer", async ({ page }) => {
     email: manifest.viewerEmail,
     password: manifest.sharedPassword,
     storageStatePath: manifest.viewerStorageStatePath,
+  });
+});
+
+setup("authenticate pilot onboarding", async ({ page }) => {
+  setup.setTimeout(60_000);
+  const manifest = readManifest();
+
+  await authenticatePilotUser(page, manifest, {
+    email: manifest.onboardingEmail,
+    password: manifest.sharedPassword,
+    storageStatePath: manifest.onboardingStorageStatePath,
   });
 });
