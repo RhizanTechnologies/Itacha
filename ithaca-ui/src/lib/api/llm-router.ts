@@ -196,7 +196,10 @@ class GroqProvider implements ILLMProvider {
   private apiKey: string;
   private rateLimiter: RateLimiter;
 
-  constructor(apiKey: string, model = "llama-3.3-70b-versatile") {
+  constructor(
+    apiKey: string,
+    model = process.env.GROQ_MODEL || "qwen/qwen3.8-27b",
+  ) {
     this.apiKey = apiKey;
     this.model = model;
     // Free tier: ~30 RPM, ~14,400 RPD (varies)
@@ -223,36 +226,49 @@ class GroqProvider implements ILLMProvider {
       body.response_format = { type: "json_object" };
     }
 
-    const response = await fetch(
-      "https://api.groq.com/openai/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${this.apiKey}`,
+    const maxRetries = 2;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      const response = await fetch(
+        "https://api.groq.com/openai/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${this.apiKey}`,
+          },
+          body: JSON.stringify(body),
         },
-        body: JSON.stringify(body),
-      },
-    );
+      );
 
-    if (!response.ok) {
-      const error = await response.text();
-      if (response.status === 429) {
-        throw new Error("Groq rate limit reached");
+      if (!response.ok) {
+        const error = await response.text();
+        if (
+          (response.status === 429 || response.status === 503) &&
+          attempt < maxRetries
+        ) {
+          const waitMs = 1500 * (attempt + 1);
+          await new Promise((r) => setTimeout(r, waitMs));
+          continue;
+        }
+        if (response.status === 429) {
+          throw new Error(`Groq rate limit reached: ${error}`);
+        }
+        throw new Error(`Groq API error (${response.status}): ${error}`);
       }
-      throw new Error(`Groq API error (${response.status}): ${error}`);
+
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content || "";
+
+      this.rateLimiter.record();
+
+      return {
+        content,
+        model: this.model,
+        provider: this.name,
+      };
     }
 
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || "";
-
-    this.rateLimiter.record();
-
-    return {
-      content,
-      model: this.model,
-      provider: this.name,
-    };
+    throw new Error("Groq API failed after retries");
   }
 }
 
@@ -344,14 +360,12 @@ export class LLMRouter {
         return await provider.chat(messages, jsonMode);
       } catch (error) {
         const msg = error instanceof Error ? error.message : "Unknown error";
+        console.warn(
+          `[LLM Router] Provider "${provider.name}" failed: ${msg}. Trying next provider in chain...`,
+        );
         errors.push(`${provider.name}: ${msg}`);
 
-        // If it's a rate limit error, try the next provider
-        if (msg.includes("rate limit")) {
-          continue;
-        }
-
-        // For other errors, also try the next provider
+        // If it's a rate limit error or any other error, try the next provider
         continue;
       }
     }

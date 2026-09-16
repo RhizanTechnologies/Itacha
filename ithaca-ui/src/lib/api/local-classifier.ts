@@ -35,6 +35,16 @@ export function cleanCitationSentence(rawText: string): string {
   if (!rawText) return "";
   let text = rawText;
 
+  // Strip script and style tags completely
+  text = text.replace(
+    /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
+    " ",
+  );
+  text = text.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, " ");
+
+  // Strip remaining HTML tags
+  text = text.replace(/<[^>]+>/g, " ");
+
   // Remove bracket citations like [1], [12, 13], [1-3]
   text = text.replace(/\[\s*\d+(?:[,\s–-]+\d+)*\s*\]/g, "");
 
@@ -66,6 +76,7 @@ export function extractClaimSentence(
       "contradict",
       "refute",
       "disprove",
+      "challenge",
       "fail",
       "no evidence",
       "extend",
@@ -185,6 +196,13 @@ const CONTRADICT_SIGNALS: SignalRule[] = [
   { phrase: "flawed", weight: 3 },
   { phrase: "inconsistent with", weight: 4 },
   { phrase: "contrary to", weight: 4 },
+  { phrase: "in contrast to", weight: 4 },
+  { phrase: "in contrast", weight: 3 },
+  { phrase: "challenge the", weight: 4 },
+  { phrase: "challenges the", weight: 4 },
+  { phrase: "challenge", weight: 4 },
+  { phrase: "challenges", weight: 4 },
+  { phrase: "challenging", weight: 3 },
   { phrase: "disagree", weight: 3 },
   { phrase: "dispute", weight: 3 },
   { phrase: "undermines", weight: 3 },
@@ -375,9 +393,23 @@ export function analyzeStance(
   let extendScore = 0;
   const matchedSignals: string[] = [];
 
+  const findWordStartMatch = (text: string, phrase: string): number => {
+    let searchFrom = 0;
+    while (searchFrom < text.length) {
+      const idx = text.indexOf(phrase, searchFrom);
+      if (idx === -1) return -1;
+      const isWordStart = idx === 0 || !/[a-zA-Z0-9]/.test(text[idx - 1]);
+      if (isWordStart) {
+        return idx;
+      }
+      searchFrom = idx + 1;
+    }
+    return -1;
+  };
+
   // Check contradiction signals
   for (const rule of CONTRADICT_SIGNALS) {
-    const idx = primaryText.indexOf(rule.phrase);
+    const idx = findWordStartMatch(primaryText, rule.phrase);
     if (idx !== -1) {
       contradictScore += rule.weight;
       matchedSignals.push(`contradicts:${rule.phrase}`);
@@ -386,7 +418,7 @@ export function analyzeStance(
 
   // Check support signals with negation check
   for (const rule of SUPPORT_SIGNALS) {
-    const idx = primaryText.indexOf(rule.phrase);
+    const idx = findWordStartMatch(primaryText, rule.phrase);
     if (idx !== -1) {
       if (isPrecededByNegation(primaryText, idx)) {
         // Negated support = contradiction!
@@ -401,7 +433,7 @@ export function analyzeStance(
 
   // Check extend signals
   for (const rule of EXTEND_SIGNALS) {
-    const idx = primaryText.indexOf(rule.phrase);
+    const idx = findWordStartMatch(primaryText, rule.phrase);
     if (idx !== -1) {
       if (isPrecededByNegation(primaryText, idx)) {
         contradictScore += rule.weight;

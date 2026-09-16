@@ -81,11 +81,12 @@ export function calculateClassificationMetrics(
 }
 
 const PROMPT_INJECTION_PATTERNS = [
-  /ignore (all\s+|any\s+|the\s+)?(previous\s+)?instructions/i,
-  /system prompt/i,
-  /developer message/i,
-  /reveal (your|the) (secret|key|instructions)/i,
-  /call (a|the) tool/i,
+  /ignore\s+(all\s+|any\s+|the\s+)?(previous\s+)?(instructions|guidelines|directions|commands|prompts)/i,
+  /(system|developer|admin)\s+(instruction|prompt|message)\s*:/i,
+  /(system|developer|instruction)\s+override/i,
+  /reveal\s+(your|the)\s+(secret|key|instructions|system\s+prompt)/i,
+  /call\s+(a|the)\s+tool/i,
+  /always\s+output\s+json\s*:/i,
 ];
 
 export function containsPromptInjectionRisk(text: string): boolean {

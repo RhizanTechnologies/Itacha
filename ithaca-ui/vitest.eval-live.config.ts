@@ -10,7 +10,7 @@ export default defineConfig({
   test: {
     environment: "node",
     globals: false,
-    include: ["eval/classifier-live.test.ts"],
+    include: ["eval/**/*.test.ts"],
     testTimeout: 600_000,
     hookTimeout: 30_000,
   },

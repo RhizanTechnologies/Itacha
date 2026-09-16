@@ -187,6 +187,14 @@
 }
 `;
 
+  function normalizeDoi(raw) {
+    if (!raw || typeof raw !== "string") return null;
+    let cleaned = raw.trim();
+    cleaned = cleaned.replace(/^https?:\/\/(?:dx\.)?doi\.org\//i, "");
+    cleaned = cleaned.replace(/^doi:\s*/i, "");
+    return cleaned.trim() || null;
+  }
+
   function extractJsonLd() {
     try {
       const scripts = document.querySelectorAll(
@@ -220,23 +228,14 @@
             let title = null;
 
             if (typeof item.identifier === "string") {
-              const id = item.identifier.trim();
-              if (id.includes("10.") || id.startsWith("doi:")) {
-                doi = id.replace(/^doi:\s*/i, "").trim();
-              }
+              doi = normalizeDoi(item.identifier);
             } else if (item.identifier && typeof item.identifier === "object") {
               const val = item.identifier.value || item.identifier.name || "";
-              if (val.includes("10.") || val.startsWith("doi:")) {
-                doi = val.replace(/^doi:\s*/i, "").trim();
-              }
+              doi = normalizeDoi(val);
             }
 
-            if (
-              !doi &&
-              typeof item.sameAs === "string" &&
-              item.sameAs.includes("doi.org/")
-            ) {
-              doi = item.sameAs.split("doi.org/")[1]?.trim();
+            if (!doi && typeof item.sameAs === "string") {
+              doi = normalizeDoi(item.sameAs);
             }
 
             if (typeof item.name === "string") {
@@ -281,7 +280,7 @@
         .querySelector('meta[name="prism.publicationName"]')
         ?.getAttribute("content");
 
-    let doi = metaDoi || null;
+    let doi = normalizeDoi(metaDoi);
     let title = metaTitle || null;
     let version = null;
 
@@ -308,7 +307,7 @@
         ".citation-doi, .identifier.doi .id-link",
       );
       if (doiEl && !doi) {
-        doi = doiEl.textContent.trim().replace(/^doi:\s*/i, "");
+        doi = normalizeDoi(doiEl.textContent);
       }
       if (!title) {
         const heading = document.querySelector(".heading-title");
@@ -330,11 +329,11 @@
     // JSON-LD structured data fallback for SPAs (Elsevier, Springer, Wiley)
     if (!doi || !title) {
       const jsonLd = extractJsonLd();
-      if (!doi && jsonLd.doi) doi = jsonLd.doi;
+      if (!doi && jsonLd.doi) doi = normalizeDoi(jsonLd.doi);
       if (!title && jsonLd.title) title = jsonLd.title;
     }
 
-    return { doi, title, version };
+    return { doi: normalizeDoi(doi), title, version };
   }
 
   function createPill(type, dotClass, count, titleText) {
@@ -574,24 +573,43 @@
     }
   }
 
-  // Initial load
-  runLifecycle();
+  // Export for Node/test environments
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = {
+      extractPaperMetadata,
+      extractJsonLd,
+      injectBadge,
+      createPill,
+      runLifecycle,
+      ROOT_ID,
+    };
+  }
 
-  // Lightweight SPA navigation observer
-  let currentHref =
-    typeof window !== "undefined" && window.location
-      ? window.location.href
-      : "";
-  const observer = new MutationObserver(() => {
+  // Initial load
+  if (typeof window !== "undefined" && !window.__ITHACA_TEST_ENV__) {
+    runLifecycle();
+
+    // Lightweight SPA navigation observer
+    let currentHref =
+      typeof window !== "undefined" && window.location
+        ? window.location.href
+        : "";
     if (
-      typeof window !== "undefined" &&
-      window.location &&
-      window.location.href !== currentHref
+      typeof MutationObserver !== "undefined" &&
+      typeof document !== "undefined"
     ) {
-      currentHref = window.location.href;
-      retryCount = 0;
-      runLifecycle();
+      const observer = new MutationObserver(() => {
+        if (
+          typeof window !== "undefined" &&
+          window.location &&
+          window.location.href !== currentHref
+        ) {
+          currentHref = window.location.href;
+          retryCount = 0;
+          runLifecycle();
+        }
+      });
+      observer.observe(document, { subtree: true, childList: true });
     }
-  });
-  observer.observe(document, { subtree: true, childList: true });
+  }
 })();

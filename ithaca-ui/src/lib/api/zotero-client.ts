@@ -149,3 +149,29 @@ export async function findConflictingStudies(
 
   return Array.from(alertsMap.values());
 }
+
+/**
+ * Synchronizes user library items with Ithaca and detects active scientific disputes.
+ */
+export async function syncZoteroLibraryWithIthaca(
+  items: Array<ZoteroItem | ZoteroItemData | Record<string, unknown>>,
+  _organizationId?: string,
+  _userId?: string,
+): Promise<SyncZoteroResult> {
+  const importedPapers = normalizeZoteroItems(items);
+  const identifiers = importedPapers
+    .flatMap((p) => [p.identifiers?.doi, p.identifiers?.openAlex])
+    .filter((id): id is string => Boolean(id));
+  const conflictingStudies = await findConflictingStudies(identifiers);
+  const activeDisputeCount = conflictingStudies.reduce(
+    (acc, curr) => acc + curr.contradictingCount,
+    0,
+  );
+
+  return {
+    syncedItemCount: items.length,
+    importedPapers,
+    conflictingStudies,
+    activeDisputeCount,
+  };
+}

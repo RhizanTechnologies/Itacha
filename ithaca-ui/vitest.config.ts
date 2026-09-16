@@ -8,7 +8,12 @@ export default defineConfig({
     },
   },
   test: {
-    exclude: ["e2e/**", "node_modules/**", "src/test/integration/**"],
+    exclude: [
+      "e2e/**",
+      "node_modules/**",
+      "src/test/integration/**",
+      "eval/**",
+    ],
     environment: "jsdom",
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
