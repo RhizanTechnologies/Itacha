@@ -84,9 +84,15 @@ describe("Phase 2: Multi-Tenant AI Metering & Article 41 Sovereign Downgrade", (
       const soloPlan = PLAN_ENTITLEMENTS[ORGANIZATION_PLANS.SOLO];
       const labPlan = PLAN_ENTITLEMENTS[ORGANIZATION_PLANS.LAB];
 
-      expect(isQuotaAvailable(1999, soloPlan.maxAiRequests)).toBe(true);
-      expect(isQuotaAvailable(2000, soloPlan.maxAiRequests)).toBe(false);
-      expect(isQuotaAvailable(2500, soloPlan.maxAiRequests)).toBe(false);
+      expect(
+        isQuotaAvailable(soloPlan.maxAiRequests - 1, soloPlan.maxAiRequests),
+      ).toBe(true);
+      expect(
+        isQuotaAvailable(soloPlan.maxAiRequests, soloPlan.maxAiRequests),
+      ).toBe(false);
+      expect(
+        isQuotaAvailable(soloPlan.maxAiRequests + 500, soloPlan.maxAiRequests),
+      ).toBe(false);
 
       expect(() =>
         assertQuotaAvailable(

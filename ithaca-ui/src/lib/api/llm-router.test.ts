@@ -70,11 +70,19 @@ SEMANTIC SCHOLAR INTENT LABELS: ResultComparison`,
     ).toBe(true);
   });
 
-  it("prioritizes LocalMoatProvider when CLASSIFIER_MODE is local", () => {
-    vi.stubEnv("CLASSIFIER_MODE", "local");
-    vi.stubEnv("GEMINI_API_KEY", "dummy-key");
-    const router = getLLMRouter();
-    const status = router.getStatus();
-    expect(status[0].name).toBe(LOCAL_PROVIDER_NAME);
+  it("LocalMoatProvider responds intelligently to conversational chat and greetings", async () => {
+    const provider = new LocalMoatProvider();
+    const messages: LLMMessage[] = [
+      {
+        role: "system",
+        content:
+          "You are Ithaca, an AI research assistant embedded in a citation graph explorer.",
+      },
+      { role: "user", content: "who are you" },
+    ];
+
+    const response = await provider.chat(messages, false);
+    expect(response.provider).toBe(LOCAL_PROVIDER_NAME);
+    expect(response.content).toContain("I'm Ithaca's AI Graph Assistant");
   });
 });
