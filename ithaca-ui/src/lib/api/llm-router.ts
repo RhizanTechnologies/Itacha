@@ -195,10 +195,17 @@ class GroqProvider implements ILLMProvider {
   readonly model: string;
   private apiKey: string;
   private rateLimiter: RateLimiter;
+  private candidateModels: string[];
 
-  constructor(apiKey: string, model = "llama-3.3-70b-versatile") {
+  constructor(apiKey: string, model?: string) {
     this.apiKey = apiKey;
-    this.model = model;
+    this.model = model || process.env.GROQ_MODEL || "qwen/qwen3.8-27b";
+    this.candidateModels = [
+      this.model,
+      "qwen/qwen3.8-27b",
+      "openai/gpt-oss-120b",
+      "openai/gpt-oss-20b",
+    ].filter((m, i, arr) => arr.indexOf(m) === i);
     // Free tier: ~30 RPM, ~14,400 RPD (varies)
     this.rateLimiter = new RateLimiter(25, 14000);
   }
@@ -212,47 +219,71 @@ class GroqProvider implements ILLMProvider {
       throw new Error("Groq rate limit reached");
     }
 
-    const body: Record<string, unknown> = {
-      model: this.model,
-      messages,
-      temperature: 0,
-      max_tokens: 256,
-    };
+    let lastError = "";
 
-    if (jsonMode) {
-      body.response_format = { type: "json_object" };
-    }
+    for (const candidate of this.candidateModels) {
+      const body: Record<string, unknown> = {
+        model: candidate,
+        messages,
+        temperature: 0,
+        max_tokens: 512,
+      };
 
-    const response = await fetch(
-      "https://api.groq.com/openai/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify(body),
-      },
-    );
-
-    if (!response.ok) {
-      const error = await response.text();
-      if (response.status === 429) {
-        throw new Error("Groq rate limit reached");
+      if (jsonMode) {
+        body.response_format = { type: "json_object" };
       }
-      throw new Error(`Groq API error (${response.status}): ${error}`);
+
+      try {
+        const response = await fetch(
+          "https://api.groq.com/openai/v1/chat/completions",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${this.apiKey}`,
+            },
+            body: JSON.stringify(body),
+          },
+        );
+
+        if (!response.ok) {
+          const error = await response.text();
+          if (response.status === 429) {
+            throw new Error("Groq rate limit reached");
+          }
+          lastError = `Groq API error (${response.status}): ${error}`;
+          if (
+            response.status === 404 ||
+            error.includes("does not exist") ||
+            error.includes("model_not_found")
+          ) {
+            continue; // try next candidate model
+          }
+          throw new Error(lastError);
+        }
+
+        const data = await response.json();
+        const content = data.choices?.[0]?.message?.content || "";
+
+        this.rateLimiter.record();
+
+        return {
+          content,
+          model: candidate,
+          provider: this.name,
+        };
+      } catch (err) {
+        if (
+          err instanceof Error &&
+          err.message.includes("rate limit reached")
+        ) {
+          throw err;
+        }
+        lastError = err instanceof Error ? err.message : String(err);
+      }
     }
 
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || "";
-
-    this.rateLimiter.record();
-
-    return {
-      content,
-      model: this.model,
-      provider: this.name,
-    };
+    throw new Error(lastError || "All Groq candidate models failed");
   }
 }
 
@@ -270,49 +301,196 @@ export class LocalMoatProvider implements ILLMProvider {
 
   async chat(messages: LLMMessage[], jsonMode = false): Promise<LLMResponse> {
     const userMessage = messages.find((m) => m.role === "user")?.content || "";
+    const systemMessage =
+      messages.find((m) => m.role === "system")?.content || "";
 
-    // Extract citation context if present
-    let claim = "";
-    const contextMatch = userMessage.match(
-      /CITATION CONTEXT SENTENCES[^\n]*\n([\s\S]*?)(?:\n\n|\n[A-Z]|$)/i,
-    );
-    if (contextMatch) {
-      claim = cleanCitationSentence(contextMatch[1]);
-    } else {
-      const abstractMatch = userMessage.match(/Abstract:\s*([^\n]+)/i);
-      if (abstractMatch) {
-        claim = cleanCitationSentence(abstractMatch[1]);
+    // Determine if this is a citation classification prompt
+    const isClassificationPrompt =
+      userMessage.includes("CITATION CONTEXT SENTENCES") ||
+      userMessage.includes("CITING PAPER:") ||
+      userMessage.includes("CITED PAPER:") ||
+      systemMessage.includes("classifying the rhetorical stance");
+
+    if (isClassificationPrompt) {
+      // Extract citation context if present
+      let claim = "";
+      const contextMatch = userMessage.match(
+        /CITATION CONTEXT SENTENCES[^\n]*\n([\s\S]*?)(?:\n\n|\n[A-Z]|$)/i,
+      );
+      if (contextMatch) {
+        claim = cleanCitationSentence(contextMatch[1]);
+      } else {
+        const abstractMatch = userMessage.match(/Abstract:\s*([^\n]+)/i);
+        if (abstractMatch) {
+          claim = cleanCitationSentence(abstractMatch[1]);
+        }
       }
-    }
 
-    const citingTitleMatch = userMessage.match(/CITING PAPER:\s*"([^"]+)"/i);
-    const citingTitle = citingTitleMatch ? citingTitleMatch[1] : "";
+      const citingTitleMatch = userMessage.match(/CITING PAPER:\s*"([^"]+)"/i);
+      const citingTitle = citingTitleMatch ? citingTitleMatch[1] : "";
 
-    const intents: string[] = [];
-    if (userMessage.includes("ResultComparison"))
-      intents.push("ResultComparison");
-    if (userMessage.includes("Methodology")) intents.push("Methodology");
-    if (userMessage.includes("Background")) intents.push("Background");
+      const intents: string[] = [];
+      if (userMessage.includes("ResultComparison"))
+        intents.push("ResultComparison");
+      if (userMessage.includes("Methodology")) intents.push("Methodology");
+      if (userMessage.includes("Background")) intents.push("Background");
 
-    const analysis = analyzeStance(claim, citingTitle, userMessage, intents);
+      const analysis = analyzeStance(claim, citingTitle, userMessage, intents);
 
-    if (jsonMode) {
+      if (jsonMode) {
+        return {
+          content: JSON.stringify({
+            edgeType: analysis.stance,
+            confidence: analysis.confidence,
+            snippet: analysis.snippet,
+          }),
+          model: this.model,
+          provider: this.name,
+        };
+      }
+
       return {
-        content: JSON.stringify({
-          edgeType: analysis.stance,
-          confidence: analysis.confidence,
-          snippet: analysis.snippet,
-        }),
+        content: analysis.snippet,
         model: this.model,
         provider: this.name,
       };
     }
 
+    // Check if this is a summarizer prompt
+    if (
+      systemMessage.includes("research paper summarizer") ||
+      userMessage.includes("<paper>")
+    ) {
+      const abstractMatch = userMessage.match(
+        /<abstract>([\s\S]*?)<\/abstract>/i,
+      );
+      const titleMatch = userMessage.match(/<title>([\s\S]*?)<\/title>/i);
+      const rawAbstract = abstractMatch
+        ? cleanCitationSentence(abstractMatch[1])
+        : "";
+      const rawTitle = titleMatch
+        ? cleanCitationSentence(titleMatch[1])
+        : "This work";
+
+      let summary = "";
+      if (rawAbstract.length > 50) {
+        const sentences = rawAbstract.split(/(?<=[.?!])\s+/);
+        summary = sentences.slice(0, 2).join(" ");
+      } else {
+        summary = `${rawTitle} presents an empirical framework and methodology contributing to the broader academic discourse.`;
+      }
+
+      return {
+        content: summary,
+        model: this.model,
+        provider: this.name,
+      };
+    }
+
+    // General Conversational Chat / Graph Assistant Reply
+    const content = this.generateAssistantReply(userMessage, systemMessage);
     return {
-      content: analysis.snippet,
+      content,
       model: this.model,
       provider: this.name,
     };
+  }
+
+  private generateAssistantReply(
+    userMessage: string,
+    systemMessage: string,
+  ): string {
+    const lower = userMessage.toLowerCase().trim();
+
+    // 1. Greetings & Identity
+    if (
+      lower === "hi" ||
+      lower === "hello" ||
+      lower === "hey" ||
+      lower.startsWith("hi ") ||
+      lower.startsWith("hello ") ||
+      lower.includes("who are you") ||
+      lower.includes("what can you do")
+    ) {
+      return (
+        "Hello! I'm Ithaca's AI Graph Assistant. I help you navigate and analyze the research papers, citation networks, and scientific debates in this graph.\n\n" +
+        "You can ask me to:\n" +
+        "• Summarize the most influential papers in this view\n" +
+        "• Identify points of contradiction or debate\n" +
+        "• Explain citation stances (supports, contradicts, extends)"
+      );
+    }
+
+    // 2. Extract graph state info from system message if available
+    const papersMatch = systemMessage.match(
+      /Papers in this graph \(sorted by citations\):([\s\S]*)/i,
+    );
+    const paperLines = papersMatch
+      ? papersMatch[1]
+          .trim()
+          .split("\n")
+          .filter((line) => line.trim().length > 0)
+      : [];
+
+    const stateMatch = systemMessage.match(
+      /Current graph state:\s*(\d+)\s*papers,\s*(\d+)\s*citation edges/i,
+    );
+    const nodeCount = stateMatch ? stateMatch[1] : null;
+    const edgeCount = stateMatch ? stateMatch[2] : null;
+
+    // 3. Summarization / Overview queries
+    if (
+      lower.includes("summarize") ||
+      lower.includes("summary") ||
+      lower.includes("overview") ||
+      lower.includes("most influential") ||
+      lower.includes("key papers") ||
+      lower.includes("top papers") ||
+      lower.includes("what is this graph")
+    ) {
+      if (paperLines.length > 0) {
+        const topPapers = paperLines.slice(0, 5).join("\n");
+        return (
+          `This graph contains ${nodeCount ?? paperLines.length} papers and ${edgeCount ?? "multiple"} citation edges.\n\n` +
+          `**Key papers in this view:**\n${topPapers}\n\n` +
+          "Click on any paper in the canvas or use the **Battlefield Toggle** in the toolbar to isolate points of dispute."
+        );
+      }
+      return (
+        "This graph visualizes the citation and debate landscape for your selected topic. " +
+        "Use the canvas controls to inspect papers, highlight contradiction paths, or filter by citation thresholds."
+      );
+    }
+
+    // 4. Disputes / Contradictions / Trends queries
+    if (
+      lower.includes("contradict") ||
+      lower.includes("dispute") ||
+      lower.includes("debate") ||
+      lower.includes("conflict") ||
+      lower.includes("trend")
+    ) {
+      return (
+        "To explore scientific disputes in this graph:\n" +
+        "• Toggle the **Battlefield Mode** in the toolbar to dim neutral citations and highlight conflicting studies (red edges).\n" +
+        "• Click on any citation edge to inspect the exact in-text evidence snippet.\n" +
+        "• Select two opposing papers to find the **Conflict Trail** between them."
+      );
+    }
+
+    // 5. Default contextual assistance
+    if (paperLines.length > 0) {
+      const firstPaper = paperLines[0];
+      return (
+        `The primary landmark paper in this graph is ${firstPaper}.\n\n` +
+        "You can explore related citations by clicking on connected nodes or selecting a paper to view its full abstract and evidence."
+      );
+    }
+
+    return (
+      "I'm here to help you explore this citation graph. You can ask about key papers, " +
+      "citation trends, or scientific debates between the works shown on your canvas."
+    );
   }
 }
 

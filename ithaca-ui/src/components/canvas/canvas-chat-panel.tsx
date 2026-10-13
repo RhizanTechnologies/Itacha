@@ -228,16 +228,27 @@ export function CanvasChatPanel({
           }),
         });
 
-        if (!res.ok) {
-          throw new Error(`Chat request failed (${res.status})`);
+        let data: any = null;
+        try {
+          data = await res.json();
+        } catch {
+          // Ignore non-json responses
         }
 
-        const data = await res.json();
+        if (!res.ok) {
+          if (res.status === 401) {
+            throw new Error("AUTHENTICATION_REQUIRED");
+          }
+          if (res.status === 429) {
+            throw new Error(data?.error || "RATE_LIMIT_EXCEEDED");
+          }
+          throw new Error(data?.error || `Chat request failed (${res.status})`);
+        }
 
         // Check if response indicates LLM fallback
         const responseContent =
-          data.response ||
-          data.fallback ||
+          data?.response ||
+          data?.fallback ||
           "I couldn't generate a response. Try rephrasing your question.";
 
         const assistantMessage: ChatMessage = {
@@ -250,28 +261,40 @@ export function CanvasChatPanel({
       } catch (error) {
         console.error("[Chat] Error:", error);
 
-        // Provide a useful fallback using local graph data
-        const papers = graphContext.papers || [];
-        let fallbackContent =
-          "I'm having trouble connecting to the AI service. ";
+        const errMsg = error instanceof Error ? error.message : "";
+        let fallbackContent = "";
 
-        if (papers.length > 0) {
-          const mostCited = [...papers]
-            .sort((a, b) => b.citations - a.citations)
-            .slice(0, 3);
-          const contradicted = papers.filter((p) => p.refutes > 0);
-
-          fallbackContent += `Here's what I can tell you from the graph data:\n\n`;
-          fallbackContent += `**${graphContext.nodeCount} papers** with **${graphContext.edgeCount} citation links**\n\n`;
-          fallbackContent += `**Most cited:**\n`;
-          mostCited.forEach((p) => {
-            fallbackContent += `- ${p.title} (${p.year}) — ${p.citations} citations\n`;
-          });
-          if (contradicted.length > 0) {
-            fallbackContent += `\n**Papers with contradictions:** ${contradicted.length}`;
-          }
+        if (errMsg === "AUTHENTICATION_REQUIRED") {
+          fallbackContent =
+            "Please sign in to use the AI Graph Assistant. You can sign in using your account at /signin to continue.";
+        } else if (
+          errMsg.includes("budget exceeded") ||
+          errMsg.includes("RATE_LIMIT")
+        ) {
+          fallbackContent =
+            "Organization AI usage limit reached. Please check your plan quota or try again in a few moments.";
         } else {
-          fallbackContent += "Please try again in a moment.";
+          // Provide a useful fallback using local graph data
+          const papers = graphContext.papers || [];
+          if (papers.length > 0) {
+            const mostCited = [...papers]
+              .sort((a, b) => b.citations - a.citations)
+              .slice(0, 3);
+            const contradicted = papers.filter((p) => (p.refutes ?? 0) > 0);
+
+            fallbackContent = `Here is what the local graph data indicates:\n\n`;
+            fallbackContent += `**${graphContext.nodeCount} papers** with **${graphContext.edgeCount} citation links**\n\n`;
+            fallbackContent += `**Most cited:**\n`;
+            mostCited.forEach((p) => {
+              fallbackContent += `- ${p.title} (${p.year}) — ${p.citations} citations\n`;
+            });
+            if (contradicted.length > 0) {
+              fallbackContent += `\n**Papers with contradictions:** ${contradicted.length}`;
+            }
+          } else {
+            fallbackContent =
+              "I'm having trouble connecting to the AI service. Please try again in a moment.";
+          }
         }
 
         const errorMessage: ChatMessage = {

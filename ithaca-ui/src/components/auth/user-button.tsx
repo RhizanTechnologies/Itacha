@@ -2,6 +2,7 @@
 
 import { User, Settings, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,7 +24,17 @@ export function UserButton() {
   }
 
   if (!session) {
-    return null;
+    return (
+      <Link href="/signin">
+        <Button
+          variant="default"
+          size="sm"
+          className="h-8 gap-1.5 px-3 text-xs"
+        >
+          Sign In
+        </Button>
+      </Link>
+    );
   }
 
   const user = session.user;
