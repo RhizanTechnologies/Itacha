@@ -34,6 +34,10 @@ import {
   type SchoolOfThought,
   type MetaEdge,
 } from "@/lib/graph-clustering";
+import {
+  applyHemisphericLayout,
+  applyBattlefieldLayout,
+} from "@/lib/perspective-layout";
 
 // =============================================================================
 // GRAPH LOADER COMPONENT
@@ -119,7 +123,8 @@ export const GraphLoader = memo(function GraphLoader({
   const [hoveredEdges, setHoveredEdges] = useState<Set<string>>(new Set());
   const graphRef = useRef<Graph | null>(null);
 
-  // Topology Intelligence & Battlefield State
+  // Topology Intelligence & Perspective State
+  const perspective = useCanvasStore((s) => s.perspective);
   const battlefieldMode = useCanvasStore((s) => s.battlefieldMode);
   const clusterViewMode = useCanvasStore((s) => s.clusterViewMode);
   const sovereignFilterActive = useCanvasStore((s) => s.sovereignFilterActive);
@@ -340,12 +345,7 @@ export const GraphLoader = memo(function GraphLoader({
         onGraphLoaded(nodes);
       }
 
-      const graph = new Graph();
-
-      // ... existing logic to calculate ranges ...
-      // Initialize graph with data needs logic to map attributes correctly if raw session data
-      // Session data stores generic attributes.
-      // We need to ensure types match PaperNode/EdgeData
+      const graph = new Graph({ multi: false, type: "directed" });
 
       // Calculate data ranges for dynamic filters
       let minYear = Infinity;
@@ -387,18 +387,15 @@ export const GraphLoader = memo(function GraphLoader({
         const score = controversyScores.get(node.id) || 0;
         const isControversial = score >= CONTROVERSY.THRESHOLD;
 
-        // If loaded from session, attributes might be there already, but we re-calculate styling
-        // to ensure theme/logic consistency.
-        // However, 'status' (Solid/Ghost) must be preserved from session if present.
-
         graph.addNode(node.id, {
           ...node,
           originalSize: node.size,
           hidden: false,
           controversyScore: score,
           highlighted: isControversial,
+          zIndex: isControversial ? 10 : 1,
           color: isControversial
-            ? COLORS.CONTRADICTS
+            ? "#f43f5e"
             : node.color || COLORS.CLUSTERS[node.cluster],
         });
       });
@@ -406,11 +403,18 @@ export const GraphLoader = memo(function GraphLoader({
       // Add edges
       edges.forEach((edge) => {
         if (!graph.hasEdge(edge.id)) {
-          // Prevent generic error if duplicate
+          const isContradiction = edge.edgeType === "contradicts";
           graph.mergeEdgeWithKey(edge.id, edge.source, edge.target, {
             ...edge,
-            originalColor: edge.color,
-            originalSize: edge.size || GRAPH.DEFAULT_EDGE_SIZE,
+            originalColor: isContradiction ? "#f43f5e" : edge.color,
+            originalSize: isContradiction
+              ? Math.max(edge.size || GRAPH.DEFAULT_EDGE_SIZE, 3.2)
+              : edge.size || GRAPH.DEFAULT_EDGE_SIZE,
+            zIndex: isContradiction
+              ? 10
+              : edge.edgeType === "supports" || edge.edgeType === "extends"
+                ? 5
+                : 1,
             hidden: false,
           });
         }
@@ -442,6 +446,19 @@ export const GraphLoader = memo(function GraphLoader({
           edgeCount: metanodeGraph.size,
         });
         return;
+      }
+
+      // Apply initial perspective layout if fresh fetch
+      if (!loadedFromSession) {
+        const currentPerspective = useCanvasStore.getState().perspective;
+        if (currentPerspective === "battlefield") {
+          applyBattlefieldLayout(graph, { anchorId: focusNode || undefined });
+        } else if (
+          currentPerspective === "synthesis" ||
+          currentPerspective === "foundations"
+        ) {
+          applyHemisphericLayout(graph, { anchorId: focusNode || undefined });
+        }
       }
 
       graphRef.current = graph;
@@ -531,18 +548,27 @@ export const GraphLoader = memo(function GraphLoader({
           hidden: false,
           controversyScore: score,
           highlighted: isControversial,
+          zIndex: isControversial ? 10 : 1,
           color: isControversial
-            ? COLORS.CONTRADICTS
+            ? "#f43f5e"
             : node.color || COLORS.CLUSTERS[node.cluster],
         });
       });
 
       rawEdgesRef.current.forEach((edge) => {
         if (!graph.hasEdge(edge.id)) {
+          const isContradiction = edge.edgeType === "contradicts";
           graph.mergeEdgeWithKey(edge.id, edge.source, edge.target, {
             ...edge,
-            originalColor: edge.color,
-            originalSize: edge.size || GRAPH.DEFAULT_EDGE_SIZE,
+            originalColor: isContradiction ? "#f43f5e" : edge.color,
+            originalSize: isContradiction
+              ? Math.max(edge.size || GRAPH.DEFAULT_EDGE_SIZE, 3.2)
+              : edge.size || GRAPH.DEFAULT_EDGE_SIZE,
+            zIndex: isContradiction
+              ? 10
+              : edge.edgeType === "supports" || edge.edgeType === "extends"
+                ? 5
+                : 1,
             hidden: false,
           });
         }
@@ -601,6 +627,33 @@ export const GraphLoader = memo(function GraphLoader({
 
         graph.forEachEdge((edge, _attrs, source, target) => {
           if (!visibleSet.has(source) || !visibleSet.has(target)) {
+            effectiveHiddenEdges.add(edge);
+          }
+        });
+      }
+
+      // Perspective-driven zero-collision filtering
+      if (perspective === "battlefield") {
+        // Prune all upstream bibliography references (0% background noise)
+        graph.forEachNode((node, attrs) => {
+          if (attrs.lineageRole === "upstream") {
+            effectiveHiddenNodes.add(node);
+          }
+        });
+        graph.forEachEdge((edge, attrs) => {
+          if (attrs.direction === "outbound") {
+            effectiveHiddenEdges.add(edge);
+          }
+        });
+      } else if (perspective === "foundations") {
+        // Prune downstream debate works, showing only foundational ancestry
+        graph.forEachNode((node, attrs) => {
+          if (attrs.lineageRole === "downstream") {
+            effectiveHiddenNodes.add(node);
+          }
+        });
+        graph.forEachEdge((edge, attrs) => {
+          if (attrs.direction === "inbound") {
             effectiveHiddenEdges.add(edge);
           }
         });
@@ -767,6 +820,9 @@ export const GraphLoader = memo(function GraphLoader({
           } else if (edgeType === "supports") {
             edgeColor = COLORS.SUPPORTS; // 🟢 #10b981
             edgeSize = Math.max(edgeSize * 2.2, 2.5);
+          } else if (edgeType === "extends") {
+            edgeColor = "#3b82f6"; // 🔵 electric blue
+            edgeSize = Math.max(edgeSize * 2.0, 2.2);
           } else {
             // Dim neutral cites edges to 5% opacity and hairline width
             edgeColor = "rgba(160, 160, 160, 0.05)";
@@ -793,13 +849,22 @@ export const GraphLoader = memo(function GraphLoader({
             edgeSize = 0.2;
           }
         } else if (!isPathActive) {
-          if (isCites) {
+          if (edgeType === "contradicts") {
+            edgeColor = "#f43f5e";
+            edgeSize = Math.max(edgeSize * 2.5, 3.4);
+          } else if (edgeType === "supports") {
+            edgeColor = COLORS.SUPPORTS;
+            edgeSize = Math.max(edgeSize * 1.5, 2.0);
+          } else if (edgeType === "extends") {
+            edgeColor = COLORS.EXTENDS;
+            edgeSize = Math.max(edgeSize * 1.4, 1.8);
+          } else if (isCites) {
             // "cites" edges: subtle neutral line — visible but doesn't compete with classified edges
-            const alpha = Math.round(0.45 * 255)
+            const alpha = Math.round(0.35 * 255)
               .toString(16)
               .padStart(2, "0");
             edgeColor = `${edgeColor.slice(0, 7)}${alpha}`;
-            edgeSize = Math.max(edgeSize * 0.7, 0.4);
+            edgeSize = Math.max(edgeSize * 0.6, 0.4);
           } else if (confidence != null && confidence < 80) {
             // Scale opacity: 0% confidence → 35% opacity, 80% → 100% opacity
             const opacity = 0.35 + (confidence / 80) * 0.65;
@@ -825,11 +890,19 @@ export const GraphLoader = memo(function GraphLoader({
           }
         }
 
+        const edgeZIndex =
+          edgeType === "contradicts"
+            ? 10
+            : edgeType === "supports" || edgeType === "extends"
+              ? 5
+              : 1;
+
         return {
           ...attrs,
           hidden: false,
           color: edgeColor,
           size: edgeSize,
+          zIndex: edgeZIndex,
         };
       });
 
@@ -867,6 +940,7 @@ export const GraphLoader = memo(function GraphLoader({
             }).length,
             abstract: attrs.abstract,
             status: attrs.status,
+            lineageRole: attrs.lineageRole,
           });
         });
         onGraphLoaded(visible);
@@ -892,8 +966,26 @@ export const GraphLoader = memo(function GraphLoader({
     selectedNodes,
     highlightedPath,
     battlefieldMode,
+    perspective,
     sovereignFilterActive,
   ]);
+
+  // Switch perspective layout when user toggles perspective
+  const prevPerspectiveRef = useRef(perspective);
+  useEffect(() => {
+    if (prevPerspectiveRef.current === perspective) return;
+    prevPerspectiveRef.current = perspective;
+
+    const graph = sigma.getGraph();
+    if (!graph || graph.order === 0) return;
+
+    if (perspective === "battlefield") {
+      applyBattlefieldLayout(graph, { anchorId: focusNode || undefined });
+    } else if (perspective === "synthesis" || perspective === "foundations") {
+      applyHemisphericLayout(graph, { anchorId: focusNode || undefined });
+    }
+    sigma.refresh();
+  }, [perspective, sigma, focusNode]);
 
   // Register Interaction API
   useEffect(() => {
@@ -1327,6 +1419,8 @@ export const GraphLoader = memo(function GraphLoader({
           abstract: attrs.abstract,
           aiSummary: attrs.aiSummary,
           status: attrs.status,
+          originalPublicationYear: attrs.originalPublicationYear,
+          isReissue: attrs.isReissue,
         };
 
         onNodeClick(paperData, evidence);

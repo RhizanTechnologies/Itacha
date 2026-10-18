@@ -4,5 +4,9 @@ import { getOrganizationContext } from "@/lib/organization-context";
 export async function getOptionalOrganizationContextFromRequest(
   _request: NextRequest,
 ) {
-  return getOrganizationContext();
+  try {
+    return await getOrganizationContext();
+  } catch {
+    return null;
+  }
 }

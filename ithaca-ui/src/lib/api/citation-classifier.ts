@@ -12,6 +12,7 @@
 import { getLLMRouter, type LLMMessage } from "./llm-router";
 import { prisma } from "@/lib/prisma";
 import { classifyCitationLocally } from "./local-classifier";
+import { cleanCitationSentence, cleanClaimSnippet } from "./citation-cleaner";
 
 // =============================================================================
 // TYPES
@@ -27,6 +28,8 @@ export interface ClassificationInput {
   // Semantic Scholar citation context enrichment (Phase 2)
   citationContexts?: string[]; // Actual sentences from citing paper referencing cited paper
   s2Intents?: string[]; // S2 intent labels: "Background", "Methodology", "ResultComparison"
+  targetAuthorSurname?: string;
+  targetYear?: number;
 }
 
 export interface ClassificationResult {
@@ -50,6 +53,8 @@ export interface ClassificationResult {
   contexts?: string[];
   /** Version of the classifier that generated this result */
   classifierVersion?: number;
+  /** Epistemic directness tier: 1 = direct replication/comment, 2 = finding critique, 3 = disciplinary context */
+  directnessTier?: 1 | 2 | 3;
 }
 
 // =============================================================================
@@ -90,6 +95,8 @@ CRITICAL RULES:
 - Proposing an alternative is NOT "contradicts" — there must be explicit disagreement with the cited finding.
 - Using a method is NOT "extends" — extension requires applying it to a new domain with novel contribution.
 - Pay attention to negation: "does not support", "no evidence for", "failed to replicate" = contradiction.
+- CANONICAL CRITIQUE TITLES: If the citing paper's title explicitly indicates a critique or rebuttal of the cited author (e.g. "Piaget on play: A critique", "Comment on Bem", "A Critique of..."), this is a direct theoretical critique and MUST be classified as "contradicts" (confidence >= 0.85).
+- INSTRUMENTAL CITATION FALLACY: Distinguish between using a cited author to refute a third-party target versus refuting the cited author themselves. For example, if authors use or apply the cited author's framework to refute school curriculum standards or another theory, the cited author is being SUPPORTED or EXTENDED as an authoritative framework, NOT contradicted.
 
 Respond with ONLY valid JSON: {"edgeType": "...", "confidence": 0.0, "snippet": "Authors claim..."}`;
 
@@ -115,6 +122,7 @@ Based on these claims, which best describes the likely stance of the citing pape
 
 Confidence rules:
 - Max 0.55 for any non-"cites" classification — this is inference, not observation
+- EXCEPTION: If the citing title is an explicit comment, rebuttal, or replication of the cited paper (e.g. "Comment on [Author]", "Replication of [Author]"), confidence can be up to 0.95
 - Use 0.8 for "cites" when genuinely no signal exists
 
 IMPORTANT:
@@ -126,6 +134,45 @@ IMPORTANT:
 
 Respond with ONLY valid JSON: {"edgeType": "...", "confidence": 0.0, "snippet": "Abstracts suggest authors..."}`;
 
+/**
+ * High-precision batch classification prompt.
+ * Evaluates multiple citation pairs in a single LLM invocation to slash latency,
+ * eliminate rate limits, and provide consistent, few-shot calibrated reasoning.
+ */
+const BATCH_CLASSIFICATION_PROMPT = `You are an expert academic bibliometric and epistemological classifier mapping scientific consensus, theoretical extension, and active empirical debates.
+You will evaluate a batch of numbered citations. For each citation [ID: N], determine the rhetorical stance of the CITING paper toward the CITED paper.
+
+EVALUATION LABELS:
+- "supports": Citing authors explicitly confirm, validate, replicate, or corroborate the cited paper's specific finding.
+- "contradicts": Citing authors explicitly challenge, refute, fail to replicate, or present counter-evidence to the cited work.
+- "extends": Citing authors apply the cited methodology or theoretical framework to a novel domain, or use the cited author as an authoritative weapon to attack another policy/framework.
+- "cites": Routine background reference, method usage without extension, disciplinary meta-review, or no clear directional evaluation.
+
+CRITICAL DISAMBIGUATION RULES (FEW-SHOT GROUNDING):
+1. INSTRUMENTAL CITATION FALLACY: Distinguish between using a cited author to refute a third-party target versus refuting the cited author themselves.
+   Example: If teachers use Piaget's developmental theories to refute state curriculum standards, Piaget is being EXTENDED/SUPPORTED as an authoritative framework, NOT contradicted. Classify as "extends" (or "cites"), NOT "contradicts".
+2. NULL HYPOTHESIS REFUTATIONS: In empirical science, "supporting the null hypothesis" (H0) or finding "null effect" means the cited effect failed to appear.
+   Example: Wagenmakers et al. finding that Bayesian analysis "supports the null hypothesis" of no precognition is an empirical REFUTATION of Bem. Classify as "contradicts" (confidence >= 0.90, directnessTier: 1).
+3. CANONICAL THEORETICAL CRITIQUE TITLES: If the citing paper's title explicitly indicates a critique of the cited author (e.g. "Piaget on play: A critique", "Comment on Bem", "A Critique of [Target]"), this is a direct theoretical critique. Classify as "contradicts" (confidence >= 0.85, directnessTier: 1) even if the in-text context sentence is descriptive.
+4. EPISTEMIC DIRECTNESS TIERS:
+   - Tier 1: Direct empirical replication attempt or published critique targeting the cited work.
+   - Tier 2: Specific finding evaluation or methodological extension.
+   - Tier 3: General disciplinary context or meta-review without direct finding evaluation.
+5. CLEAN SNIPPETS: Write a single, clean, polished analytical sentence (max 25 words). NEVER include raw enumeration markers (like "1. ", "[1] ") or redundant quotes.
+
+Respond with ONLY valid JSON:
+{
+  "classifications": [
+    {
+      "id": 0,
+      "edgeType": "supports" | "contradicts" | "extends" | "cites",
+      "confidence": 0.85,
+      "snippet": "Authors challenge or contradict cited finding: ...",
+      "directnessTier": 1 | 2 | 3
+    }
+  ]
+}`;
+
 // =============================================================================
 // JSON SANITIZER
 // =============================================================================
@@ -133,12 +180,6 @@ Respond with ONLY valid JSON: {"edgeType": "...", "confidence": 0.0, "snippet": 
 /**
  * Sanitize LLM JSON output that may be wrapped in markdown code fences,
  * have trailing commas, or contain other common LLM formatting artifacts.
- *
- * Examples of inputs this handles:
- *   ```json\n{"edgeType": "supports"}\n```
- *   ```{"edgeType": "supports"}```
- *   Here is the JSON: {"edgeType": "supports"}
- *   {"edgeType": "supports",}  ← trailing comma
  */
 function sanitizeJSON(raw: string): string {
   let s = raw.trim();
@@ -146,13 +187,13 @@ function sanitizeJSON(raw: string): string {
   // Strip markdown code fences: ```json ... ``` or ``` ... ```
   s = s.replace(/^```(?:json|JSON)?\s*\n?/m, "").replace(/\n?\s*```\s*$/m, "");
 
-  // Extract the first JSON object {...} if surrounded by other text
-  const braceMatch = s.match(/(\{[\s\S]*\})/);
-  if (braceMatch) {
-    s = braceMatch[1];
+  // Extract the first JSON object {...} or array [...] if surrounded by other text
+  const match = s.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
+  if (match) {
+    s = match[1];
   }
 
-  // Remove trailing commas before closing braces: {"a": 1,} → {"a": 1}
+  // Remove trailing commas before closing braces/brackets: {"a": 1,} → {"a": 1}
   s = s.replace(/,\s*([\]}])/g, "$1");
 
   return s.trim();
@@ -164,17 +205,31 @@ function sanitizeJSON(raw: string): string {
 
 /**
  * Current classifier version — bump when prompt or gate logic changes to invalidate stale cache.
- * v8: Ithaca Local Intent Engine (Sovereign Moat) with negation guards and vectorized similarity.
+ * v10: LLM-First Core Engine with Batch Prompting and Epistemic Calibration.
  */
-export const CLASSIFIER_VERSION = 8;
+export const CLASSIFIER_VERSION = 10;
 export const USER_CORRECTION_VERSION = 999;
 
-function isCacheEntryUsable(cached: {
-  classifierVersion: number;
-  provider: string;
-}): boolean {
+function isCacheEntryUsable(
+  cached: {
+    classifierVersion?: number;
+    provider: string;
+    confidence?: number;
+    snippet?: string;
+  },
+  input?: ClassificationInput,
+): boolean {
   if (cached.provider === "user-correction") return true;
-  return cached.classifierVersion === CLASSIFIER_VERSION;
+  if (cached.classifierVersion !== CLASSIFIER_VERSION) return false;
+  // If cached entry has low confidence / inferential abstract snippet, but input now has rich in-text contexts, upgrade it!
+  if (
+    (cached.confidence ?? 0) < 0.7 &&
+    input?.citationContexts &&
+    input.citationContexts.length > 0
+  ) {
+    return false;
+  }
+  return true;
 }
 
 /**
@@ -186,247 +241,289 @@ function isCacheEntryUsable(cached: {
  *   - Abstracts only (no S2) → LLM inference, confidence capped at 0.55
  *   - Titles only → always "cites"
  */
+/**
+ * Classify a chunk (e.g. 5–6 items) of citation pairs in a single LLM invocation.
+ * Uses few-shot prompt calibrated for instrumental usage, null hypotheses, and theoretical critiques.
+ */
+export async function classifyChunkWithLLM(
+  chunk: ClassificationInput[],
+): Promise<ClassificationResult[]> {
+  if (chunk.length === 0) return [];
+
+  const results: (ClassificationResult | undefined)[] = new Array(chunk.length);
+
+  // 1. Sovereign Local Mode override
+  if (process.env.CLASSIFIER_MODE === "local") {
+    return Promise.all(
+      chunk.map(async (input) => {
+        const local = classifyCitationLocally(input);
+        await cacheClassification(
+          local,
+          input.citationContexts,
+          input.s2Intents,
+        );
+        return local;
+      }),
+    );
+  }
+
+  // 2. Evidence Gating: evaluate items that can be resolved deterministically
+  for (let i = 0; i < chunk.length; i++) {
+    const input = chunk[i];
+    const hasContexts =
+      Boolean(input.citationContexts && input.citationContexts.length > 0);
+    const hasCitingAbstract =
+      Boolean(input.citingAbstract && input.citingAbstract.length > 20);
+    const hasCitedAbstract =
+      Boolean(input.citedAbstract && input.citedAbstract.length > 20);
+    const hasAbstracts = hasCitingAbstract || hasCitedAbstract;
+    const intents = input.s2Intents ?? [];
+    const hasS2Intents = intents.length > 0;
+    const hasResultComparison = intents.includes("ResultComparison");
+    const hasMethodology = intents.includes("Methodology");
+    const hasBackgroundOnly =
+      intents.length > 0 && intents.every((intent) => intent === "Background");
+
+    // Gate 1: Titles only
+    if (!hasContexts && !hasAbstracts) {
+      const res: ClassificationResult = {
+        citingId: input.citingId,
+        citedId: input.citedId,
+        edgeType: "cites",
+        confidence: 0.9,
+        snippet:
+          "Citation relationship — insufficient evidence for detailed classification.",
+        provider: "evidence-gate",
+        cached: false,
+        signalSource: "default",
+      };
+      results[i] = res;
+      await cacheClassification(res, input.citationContexts, input.s2Intents);
+      continue;
+    }
+
+    // Gate 2: S2 Background only
+    if ((hasContexts || hasS2Intents) && hasBackgroundOnly) {
+      const res: ClassificationResult = {
+        citingId: input.citingId,
+        citedId: input.citedId,
+        edgeType: "cites",
+        confidence: 0.85,
+        snippet:
+          "Background citation — referenced as prior work without explicit evaluation.",
+        provider: "evidence-gate/s2-background",
+        cached: false,
+        signalSource: "llm+contexts",
+        contexts: input.citationContexts,
+      };
+      results[i] = res;
+      await cacheClassification(res, input.citationContexts, input.s2Intents);
+      continue;
+    }
+
+    // Gate 3: S2 Methodology only without ResultComparison
+    if ((hasContexts || hasS2Intents) && hasMethodology && !hasResultComparison) {
+      const res: ClassificationResult = {
+        citingId: input.citingId,
+        citedId: input.citedId,
+        edgeType: "cites",
+        confidence: 0.8,
+        snippet: "Methodology citation — uses methods from the cited work.",
+        provider: "evidence-gate/s2-methodology-use",
+        cached: false,
+        signalSource: "llm+contexts",
+        contexts: input.citationContexts,
+      };
+      results[i] = res;
+      await cacheClassification(res, input.citationContexts, input.s2Intents);
+      continue;
+    }
+  }
+
+  // 3. Pending items that require LLM reasoning
+  const pending: { input: ClassificationInput; index: number }[] = [];
+  for (let i = 0; i < chunk.length; i++) {
+    if (!results[i]) {
+      pending.push({ input: chunk[i], index: i });
+    }
+  }
+
+  if (pending.length === 0) {
+    return results as ClassificationResult[];
+  }
+
+  // 4. Build single batch prompt for pending citations
+  const promptItems = pending
+    .map(({ input, index }) => {
+      let itemStr = `[CITATION ID: ${index}]\nCITING PAPER: "${input.citingTitle}"\nCITING ABSTRACT: ${input.citingAbstract ? input.citingAbstract.slice(0, 600) : "No abstract available."}\nCITED PAPER: "${input.citedTitle}"\nCITED ABSTRACT: ${input.citedAbstract ? input.citedAbstract.slice(0, 600) : "No abstract available."}`;
+      if (input.citationContexts && input.citationContexts.length > 0) {
+        itemStr += `\nIN-TEXT CITATION CONTEXT SENTENCES:\n${input.citationContexts.map((ctx, cIdx) => `  (${cIdx + 1}) "${cleanCitationSentence(ctx)}"`).join("\n")}`;
+      }
+      if (input.s2Intents && input.s2Intents.length > 0) {
+        itemStr += `\nSEMANTIC SCHOLAR INTENTS: ${input.s2Intents.join(", ")}`;
+      }
+      return itemStr;
+    })
+    .join("\n\n---\n\n");
+
+  try {
+    const router = getLLMRouter();
+    const response = await router.chat(
+      [
+        { role: "system", content: BATCH_CLASSIFICATION_PROMPT },
+        { role: "user", content: promptItems },
+      ],
+      true,
+    );
+
+    const sanitized = sanitizeJSON(response.content);
+    const parsed = JSON.parse(sanitized);
+    const rawList: any[] = Array.isArray(parsed)
+      ? parsed
+      : Array.isArray(parsed?.classifications)
+        ? parsed.classifications
+        : Array.isArray(parsed?.results)
+          ? parsed.results
+          : typeof parsed === "object" && parsed !== null
+            ? [parsed]
+            : [];
+
+    const parsedMap = new Map<number, any>();
+    rawList.forEach((item, pos) => {
+      const id = typeof item.id === "number" ? item.id : pending[pos]?.index;
+      if (id !== undefined) parsedMap.set(id, item);
+    });
+
+    for (const { input, index } of pending) {
+      const item = parsedMap.get(index);
+      if (!item) {
+        const local = classifyCitationLocally(input);
+        results[index] = local;
+        await cacheClassification(
+          local,
+          input.citationContexts,
+          input.s2Intents,
+        );
+        continue;
+      }
+
+      const validTypes = [
+        "supports",
+        "contradicts",
+        "extends",
+        "cites",
+      ] as const;
+      let edgeType: "supports" | "contradicts" | "extends" | "cites" =
+        validTypes.includes(item.edgeType) ? item.edgeType : "cites";
+      if ((item.edgeType as string) === "unknown") edgeType = "cites";
+
+      const hasContexts = Boolean(
+        input.citationContexts && input.citationContexts.length > 0,
+      );
+      const citingTitleLower = (input.citingTitle || "").toLowerCase();
+      const cleanSurname = input.targetAuthorSurname?.trim().toLowerCase();
+      const isDirectTitleCritique =
+        citingTitleLower.includes("comment on") ||
+        citingTitleLower.includes("rebuttal to") ||
+        citingTitleLower.includes("reply to") ||
+        citingTitleLower.includes("response to") ||
+        citingTitleLower.includes("failure to replicate") ||
+        citingTitleLower.includes("failures to replicate") ||
+        citingTitleLower.includes("failed to replicate") ||
+        (Boolean(cleanSurname) &&
+          cleanSurname!.length >= 3 &&
+          citingTitleLower.includes(cleanSurname!));
+
+      const maxConfidence =
+        hasContexts || isDirectTitleCritique
+          ? 1.0
+          : input.s2Intents && input.s2Intents.length > 0
+            ? 0.7
+            : 0.55;
+
+      const rawConfidence = Math.max(
+        0,
+        Math.min(1, Number(item.confidence) || 0.5),
+      );
+      const confidence =
+        edgeType === "cites"
+          ? Math.max(0.5, rawConfidence)
+          : Math.min(maxConfidence, rawConfidence);
+
+      const snippet = cleanClaimSnippet(
+        item.snippet || "Citation relationship evaluated by AI.",
+      );
+      const directnessTier =
+        item.directnessTier === 1 ||
+        item.directnessTier === 2 ||
+        item.directnessTier === 3
+          ? item.directnessTier
+          : undefined;
+
+      const classification: ClassificationResult = {
+        citingId: input.citingId,
+        citedId: input.citedId,
+        edgeType,
+        confidence,
+        snippet,
+        provider: `${response.provider}/${response.model}`,
+        cached: false,
+        signalSource: hasContexts
+          ? "llm+contexts"
+          : input.s2Intents && input.s2Intents.length > 0
+            ? "llm+contexts"
+            : "llm+abstracts",
+        contexts: input.citationContexts,
+        directnessTier,
+      };
+
+      results[index] = classification;
+      await cacheClassification(
+        classification,
+        input.citationContexts,
+        input.s2Intents,
+      );
+    }
+  } catch (err) {
+    console.warn(
+      "[classifyChunkWithLLM] Batch LLM classification failed, falling back to sovereign local moat:",
+      err,
+    );
+    for (const { input, index } of pending) {
+      const local = classifyCitationLocally(input);
+      results[index] = local;
+      await cacheClassification(
+        local,
+        input.citationContexts,
+        input.s2Intents,
+      );
+    }
+  }
+
+  // Final sanity check: ensure no undefined slots
+  for (let i = 0; i < chunk.length; i++) {
+    if (!results[i]) {
+      const local = classifyCitationLocally(chunk[i]);
+      results[i] = local;
+    }
+  }
+
+  return results as ClassificationResult[];
+}
+
 export async function classifyCitation(
   input: ClassificationInput,
 ): Promise<ClassificationResult> {
   // 1. Check cache — skip stale entries from old classifier versions
   const cached = await getCachedClassification(input.citingId, input.citedId);
-  if (cached && isCacheEntryUsable(cached)) {
+  if (cached && isCacheEntryUsable(cached, input)) {
     return { ...cached, cached: true, contexts: input.citationContexts };
   }
 
-  // 2. Sovereign Local Mode: direct in-process local execution (Zero FX burn)
-  if (process.env.CLASSIFIER_MODE === "local") {
-    const localResult = classifyCitationLocally(input);
-    await cacheClassification(
-      localResult,
-      input.citationContexts,
-      input.s2Intents,
-    );
-    return localResult;
-  }
-
-  // Determine what evidence we have
-  const hasContexts =
-    input.citationContexts && input.citationContexts.length > 0;
-  const hasCitingAbstract =
-    !!input.citingAbstract && input.citingAbstract.length > 20;
-  const hasCitedAbstract =
-    !!input.citedAbstract && input.citedAbstract.length > 20;
-  const hasAbstracts = hasCitingAbstract || hasCitedAbstract;
-  const intents = input.s2Intents ?? [];
-  const hasS2Intents = intents.length > 0; // S2 gave us intent labels (may lack context sentences)
-  const hasResultComparison = intents.includes("ResultComparison");
-  const hasMethodology = intents.includes("Methodology");
-  const hasBackgroundOnly =
-    intents.length > 0 && intents.every((i) => i === "Background");
-
-  // =========================================================================
-  // EVIDENCE GATING — The core of the "cites as default" approach
-  // Only promote to supports/contradicts/extends with real evidence
-  // =========================================================================
-
-  // Gate 1: Titles only (no abstracts, no contexts) → always "cites"
-  if (!hasContexts && !hasAbstracts) {
-    const result: ClassificationResult = {
-      citingId: input.citingId,
-      citedId: input.citedId,
-      edgeType: "cites",
-      confidence: 0.9, // High confidence it IS a citation, just unclassified
-      snippet:
-        "Citation relationship — insufficient evidence for detailed classification.",
-      provider: "evidence-gate",
-      cached: false,
-      signalSource: "default",
-    };
-    await cacheClassification(result, input.citationContexts, input.s2Intents);
-    return result;
-  }
-
-  // Gate 2: S2 says "Background" only → "cites" (routine reference, don't waste LLM)
-  // Widened: works with intents alone (no context sentences needed)
-  if ((hasContexts || hasS2Intents) && hasBackgroundOnly) {
-    const result: ClassificationResult = {
-      citingId: input.citingId,
-      citedId: input.citedId,
-      edgeType: "cites",
-      confidence: 0.85,
-      snippet:
-        "Background citation — referenced as prior work without explicit evaluation.",
-      provider: "evidence-gate/s2-background",
-      cached: false,
-      signalSource: "llm+contexts", // S2 contexts were available
-      contexts: input.citationContexts,
-    };
-    await cacheClassification(result, input.citationContexts, input.s2Intents);
-    return result;
-  }
-
-  // Gate 3: S2 says "Methodology" only (no ResultComparison) → "cites"
-  // Rationale: using a method from a prior paper is not extending its intellectual contribution.
-  // Methodology + ResultComparison falls through to LLM (they evaluated AND used methods).
-  if ((hasContexts || hasS2Intents) && hasMethodology && !hasResultComparison) {
-    const result: ClassificationResult = {
-      citingId: input.citingId,
-      citedId: input.citedId,
-      edgeType: "cites",
-      confidence: 0.8,
-      snippet: "Methodology citation — uses methods from the cited work.",
-      provider: "evidence-gate/s2-methodology-use",
-      cached: false,
-      signalSource: "llm+contexts",
-      contexts: input.citationContexts,
-    };
-    await cacheClassification(result, input.citationContexts, input.s2Intents);
-    return result;
-  }
-
-  // Gate 3B: S2 says Methodology + ResultComparison → send to LLM (richer than Gate 3)
-  // This falls through to the LLM call below — no early return needed.
-
-  // Gate 4: S2 "ResultComparison" (with or without contexts) → full LLM classification
-  // Gate 5: No S2 data, but has abstracts → LLM can try, lower confidence
-  // Both gates proceed to LLM, but with different confidence caps
-
-  const isAbstractsOnly = !hasContexts && !hasS2Intents && hasAbstracts;
-  // Three confidence tiers:
-  //   - Full contexts (S2 sentences) → 100%
-  //   - Intents only (S2 labels, no sentences) → 70%
-  //   - Abstracts only (inferential prompt) → 65%
-  // Confidence caps by signal quality:
-  //   Full S2 context sentences → up to 1.0 (grounded in actual text)
-  //   S2 intent labels only     → up to 0.7 (signal without sentences)
-  //   Abstracts only            → up to 0.55 (inference, not observation)
-  const maxConfidence = hasContexts ? 1.0 : hasS2Intents ? 0.7 : 0.55;
-
-  // 2. Build user message — include citation contexts from S2 if available
-  let userContent = `CITING PAPER: "${input.citingTitle}"
-Abstract: ${input.citingAbstract || "No abstract available."}
-
-CITED PAPER: "${input.citedTitle}"
-Abstract: ${input.citedAbstract || "No abstract available."}`;
-
-  if (input.citationContexts && input.citationContexts.length > 0) {
-    userContent += `\n\nCITATION CONTEXT SENTENCES (extracted from the citing paper's full text where it references the cited paper):
-${input.citationContexts.map((ctx, i) => `${i + 1}. "${ctx}"`).join("\n")}`;
-  }
-
-  if (input.s2Intents && input.s2Intents.length > 0) {
-    userContent += `\n\nSEMANTIC SCHOLAR INTENT LABELS: ${input.s2Intents.join(", ")}`;
-  }
-
-  // 3. Try LLM classification
-  try {
-    const router = getLLMRouter();
-
-    // Select prompt based on signal quality:
-    // - With S2 contexts/intents: use strict prompt (evidence-based)
-    // - Abstracts only: use inferential prompt (pattern-based)
-    const systemPrompt = isAbstractsOnly
-      ? ABSTRACTS_ONLY_PROMPT
-      : CLASSIFICATION_PROMPT;
-
-    const messages: LLMMessage[] = [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userContent },
-    ];
-
-    const response = await router.chat(messages, true);
-
-    // 4. Parse response — sanitize LLM output first
-    let result: { edgeType: string; confidence: number; snippet: string };
-    try {
-      const sanitized = sanitizeJSON(response.content);
-      result = JSON.parse(sanitized);
-    } catch {
-      console.warn(
-        "[Citation Classifier] Failed to parse LLM JSON, defaulting to cites. Raw:",
-        response.content.substring(0, 200),
-      );
-      // Default to "cites" instead of heuristic guessing
-      const fallback: ClassificationResult = {
-        citingId: input.citingId,
-        citedId: input.citedId,
-        edgeType: "cites",
-        confidence: 0.5,
-        snippet: "Citation relationship — LLM response unparseable.",
-        provider: `${response.provider}/${response.model}`,
-        cached: false,
-        signalSource: isAbstractsOnly ? "llm+abstracts" : "llm+contexts",
-        contexts: input.citationContexts,
-      };
-      await cacheClassification(
-        fallback,
-        input.citationContexts,
-        input.s2Intents,
-      );
-      return fallback;
-    }
-
-    // Validate edgeType — "cites" is the new default instead of "unknown"
-    const validTypes = ["supports", "contradicts", "extends", "cites"] as const;
-    let edgeType: "supports" | "contradicts" | "extends" | "cites" =
-      validTypes.includes(result.edgeType as (typeof validTypes)[number])
-        ? (result.edgeType as (typeof validTypes)[number])
-        : "cites";
-
-    // Map "unknown" from LLM response to "cites"
-    if ((result.edgeType as string) === "unknown") {
-      edgeType = "cites";
-    }
-
-    // Determine signal source for this classification
-    const signalSource = hasContexts
-      ? ("llm+contexts" as const)
-      : hasAbstracts
-        ? ("llm+abstracts" as const)
-        : ("llm+titles" as const);
-
-    // Auto-cap confidence based on signal quality
-    const rawConfidence = Math.max(
-      0,
-      Math.min(1, Number(result.confidence) || 0.5),
-    );
-    const confidence =
-      edgeType === "cites"
-        ? Math.max(0.5, rawConfidence) // "cites" should have reasonable confidence
-        : Math.min(maxConfidence, rawConfidence);
-
-    const classification: ClassificationResult = {
-      citingId: input.citingId,
-      citedId: input.citedId,
-      edgeType,
-      confidence,
-      snippet: result.snippet || "No explanation available.",
-      provider: `${response.provider}/${response.model}`,
-      cached: false,
-      signalSource,
-      contexts: input.citationContexts,
-    };
-
-    // 5. Cache the result
-    await cacheClassification(
-      classification,
-      input.citationContexts,
-      input.s2Intents,
-    );
-
-    return classification;
-  } catch (error) {
-    // LLM unavailable — fall back to high-precision local sovereign engine with zero FX burn
-    console.error(
-      `[Citation Classifier] LLM failed for ${input.citingId}→${input.citedId}, using sovereign local moat:`,
-      error instanceof Error ? error.message : error,
-    );
-    const localFallback = classifyCitationLocally(input);
-    await cacheClassification(
-      localFallback,
-      input.citationContexts,
-      input.s2Intents,
-    );
-    return localFallback;
-  }
+  const [result] = await classifyChunkWithLLM([input]);
+  return result;
 }
+
 
 // =============================================================================
 // HEURISTIC CLASSIFIER (local fallback when LLM is unavailable)
@@ -673,49 +770,62 @@ export function heuristicClassify(
 }
 
 /**
- * Classify multiple citation relationships in parallel with concurrency limit.
- * Cache-first: only calls LLM for uncached pairs.
+ * Classify multiple citation relationships in parallel using batch LLM prompting.
+ * Cache-first: only calls LLM for uncached pairs, grouping uncached into chunks of 5.
  */
 export async function classifyBatch(
   inputs: ClassificationInput[],
-  concurrency = 3,
+  concurrency = 5,
 ): Promise<ClassificationResult[]> {
-  const results: ClassificationResult[] = [];
-  const queue = [...inputs];
+  if (inputs.length === 0) return [];
 
-  // Process in chunks to respect rate limits
-  while (queue.length > 0) {
-    const chunk = queue.splice(0, concurrency);
-    const chunkResults = await Promise.allSettled(
-      chunk.map((input) => classifyCitation(input)),
-    );
+  // 1. Bulk cache lookup
+  const cachedMap = await getCachedClassifications(
+    inputs.map((i) => ({ citingId: i.citingId, citedId: i.citedId })),
+  );
 
-    for (let i = 0; i < chunkResults.length; i++) {
-      const result = chunkResults[i];
-      if (result.status === "fulfilled") {
-        results.push(result.value);
-      } else {
-        // If classification fails, return a default "cites"
-        results.push({
-          citingId: chunk[i].citingId,
-          citedId: chunk[i].citedId,
-          edgeType: "cites",
-          confidence: 0.5,
-          snippet: "Citation relationship — classification error.",
-          provider: "fallback",
-          signalSource: "default" as const,
-          cached: false,
-        });
-      }
-    }
+  const results: (ClassificationResult | undefined)[] = new Array(inputs.length);
+  const uncached: { input: ClassificationInput; originalIndex: number }[] = [];
 
-    // Small delay between chunks to avoid hammering APIs
-    if (queue.length > 0) {
-      await new Promise((resolve) => setTimeout(resolve, 200));
+  for (let i = 0; i < inputs.length; i++) {
+    const input = inputs[i];
+    const key = `${input.citingId}->${input.citedId}`;
+    const cached = cachedMap.get(key);
+    if (cached && isCacheEntryUsable(cached, input)) {
+      results[i] = {
+        ...cached,
+        cached: true,
+        contexts: input.citationContexts ?? cached.contexts,
+      };
+    } else {
+      uncached.push({ input, originalIndex: i });
     }
   }
 
-  return results;
+  // 2. Process uncached in LLM batch chunks of 5
+  const chunkSize = Math.max(1, concurrency);
+  for (let i = 0; i < uncached.length; i += chunkSize) {
+    const chunkSlice = uncached.slice(i, i + chunkSize);
+    const chunkInputs = chunkSlice.map((x) => x.input);
+    const chunkResults = await classifyChunkWithLLM(chunkInputs);
+
+    for (let k = 0; k < chunkSlice.length; k++) {
+      results[chunkSlice[k].originalIndex] = chunkResults[k];
+    }
+
+    if (i + chunkSize < uncached.length) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  }
+
+  // Safety fallback for any missed entries
+  for (let i = 0; i < inputs.length; i++) {
+    if (!results[i]) {
+      results[i] = classifyCitationLocally(inputs[i]);
+    }
+  }
+
+  return results as ClassificationResult[];
 }
 
 /**
@@ -772,12 +882,12 @@ export async function getCachedClassifications(
 
 /**
  * Stream citation classifications in chunks.
- * Immediate flush for cached entries, then micro-batches for uncached pairs.
+ * Immediate flush for cached entries, then batch LLM prompts for uncached pairs.
  */
 export async function classifyBatchStream(
   inputs: ClassificationInput[],
   onChunk: (results: ClassificationResult[]) => Promise<void> | void,
-  concurrency = 3,
+  concurrency = 5,
   signal?: AbortSignal,
 ): Promise<{
   total: number;
@@ -796,7 +906,7 @@ export async function classifyBatchStream(
   for (const input of inputs) {
     const key = `${input.citingId}->${input.citedId}`;
     const cached = cachedMap.get(key);
-    if (cached) {
+    if (cached && isCacheEntryUsable(cached, input)) {
       initialChunk.push({
         ...cached,
         cached: true,
@@ -824,49 +934,31 @@ export async function classifyBatchStream(
     };
   }
 
-  // 2. Process uncached in micro-batches
+  // 2. Process uncached in LLM batch chunks
+  const batchSize = Math.max(1, concurrency);
   const queue = [...uncachedInputs];
   while (queue.length > 0) {
     if (signal?.aborted) break;
 
-    const chunk = queue.splice(0, concurrency);
-    const chunkResults = await Promise.allSettled(
-      chunk.map((input) => classifyCitation(input)),
-    );
+    const chunk = queue.splice(0, batchSize);
+    const chunkResults = await classifyChunkWithLLM(chunk);
 
-    const emitted: ClassificationResult[] = [];
-    for (let i = 0; i < chunkResults.length; i++) {
-      const res = chunkResults[i];
-      if (res.status === "fulfilled") {
-        emitted.push(res.value);
-        if (res.value.cached) {
-          cachedCount++;
-        } else if (res.value.provider === "fallback") {
-          failedCount++;
-        } else {
-          classifiedCount++;
-        }
-      } else {
+    for (const res of chunkResults) {
+      if (res.cached) {
+        cachedCount++;
+      } else if (res.provider === "fallback") {
         failedCount++;
-        emitted.push({
-          citingId: chunk[i].citingId,
-          citedId: chunk[i].citedId,
-          edgeType: "cites",
-          confidence: 0.5,
-          snippet: "Citation relationship — classification error.",
-          provider: "fallback",
-          signalSource: "default" as const,
-          cached: false,
-        });
+      } else {
+        classifiedCount++;
       }
     }
 
-    if (emitted.length > 0) {
-      await onChunk(emitted);
+    if (chunkResults.length > 0) {
+      await onChunk(chunkResults);
     }
 
     if (queue.length > 0 && !signal?.aborted) {
-      await new Promise((resolve) => setTimeout(resolve, 150));
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
   }
 

@@ -95,7 +95,7 @@ export const COLORS = {
   /** Edge color for contradicting relationships */
   CONTRADICTS: "#ef4444",
   /** Edge color for extending relationships */
-  EXTENDS: "#eab308",
+  EXTENDS: "#3b82f6",
   /** Edge color for unknown/uncertain relationships */
   UNKNOWN: "#94a3b8",
   /** Edge color for neutral citation (default) */

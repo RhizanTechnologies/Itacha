@@ -210,6 +210,9 @@ describe("Phase 2: Canvas Store State Machine & Transactional Undo/Redo", () => 
         false,
       );
 
+      // Starts in battlefield (true) -> toggles to synthesis (false) -> back to battlefield (true)
+      store.toggleBattlefieldMode();
+      expect(useCanvasStore.getState().battlefieldMode).toBe(false);
       store.toggleBattlefieldMode();
       expect(useCanvasStore.getState().battlefieldMode).toBe(true);
     });

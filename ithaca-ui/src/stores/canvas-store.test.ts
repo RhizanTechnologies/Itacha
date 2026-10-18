@@ -91,30 +91,45 @@ describe("useCanvasStore — Topology Intelligence & Battlefield Mode", () => {
     useCanvasStore.getState().reset();
   });
 
-  it("initializes with battlefieldMode false and clusterViewMode 'papers'", () => {
+  it("initializes with perspective 'battlefield', battlefieldMode true and clusterViewMode 'papers'", () => {
     const {
+      perspective,
       battlefieldMode,
       clusterViewMode,
       expandedSchools,
       schoolsOfThought,
     } = useCanvasStore.getState();
-    expect(battlefieldMode).toBe(false);
+    expect(perspective).toBe("battlefield");
+    expect(battlefieldMode).toBe(true);
     expect(clusterViewMode).toBe("papers");
     expect(expandedSchools.size).toBe(0);
     expect(schoolsOfThought).toHaveLength(0);
   });
 
-  it("toggles and sets battlefieldMode cleanly", () => {
-    const { toggleBattlefieldMode, setBattlefieldMode } =
+  it("toggles and sets battlefieldMode and perspectives cleanly", () => {
+    const { toggleBattlefieldMode, setBattlefieldMode, setPerspective } =
       useCanvasStore.getState();
 
-    toggleBattlefieldMode();
-    expect(useCanvasStore.getState().battlefieldMode).toBe(true);
-
+    // Starts in battlefield (true) -> toggles to synthesis (false)
     toggleBattlefieldMode();
     expect(useCanvasStore.getState().battlefieldMode).toBe(false);
+    expect(useCanvasStore.getState().perspective).toBe("synthesis");
 
-    setBattlefieldMode(true);
+    // Toggles back to battlefield (true)
+    toggleBattlefieldMode();
+    expect(useCanvasStore.getState().battlefieldMode).toBe(true);
+    expect(useCanvasStore.getState().perspective).toBe("battlefield");
+
+    setBattlefieldMode(false);
+    expect(useCanvasStore.getState().battlefieldMode).toBe(false);
+    expect(useCanvasStore.getState().perspective).toBe("synthesis");
+
+    setPerspective("foundations");
+    expect(useCanvasStore.getState().perspective).toBe("foundations");
+    expect(useCanvasStore.getState().battlefieldMode).toBe(false);
+
+    setPerspective("battlefield");
+    expect(useCanvasStore.getState().perspective).toBe("battlefield");
     expect(useCanvasStore.getState().battlefieldMode).toBe(true);
   });
 

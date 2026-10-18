@@ -53,6 +53,9 @@ export interface PaperData {
   institutionName?: string;
   repositoryHandle?: string;
   advisors?: string[];
+  lineageRole?: "anchor" | "downstream" | "upstream" | "lateral";
+  originalPublicationYear?: number;
+  isReissue?: boolean;
 }
 
 // Evidence item interface
@@ -210,8 +213,18 @@ export const PaperInspector = memo(function PaperInspector({
             {/* Metadata row */}
             <div className="text-muted-foreground mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs">
               <span className="text-foreground/80 font-medium">
-                {paper.year}
+                {paper.isReissue && paper.originalPublicationYear
+                  ? `c. ${paper.originalPublicationYear} (Reissue ${paper.year})`
+                  : paper.year}
               </span>
+              {paper.isReissue && (
+                <Badge
+                  variant="outline"
+                  className="px-2 py-0 text-xs font-normal border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10"
+                >
+                  Reissue Edition
+                </Badge>
+              )}
               {paper.venue && (
                 <Badge
                   variant="secondary"

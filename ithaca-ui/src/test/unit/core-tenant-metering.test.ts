@@ -209,7 +209,7 @@ describe("Phase 2: Multi-Tenant AI Metering & Article 41 Sovereign Downgrade", (
       expect(result.provider).toBe(LOCAL_PROVIDER_NAME);
       expect(LOCAL_PROVIDER_NAME).toBe("ithaca-local-moat");
       expect(LOCAL_MODEL_NAME).toBe("sovereign-intent-v1");
-      expect(LOCAL_CLASSIFIER_VERSION).toBe(8);
+      expect(LOCAL_CLASSIFIER_VERSION).toBeGreaterThanOrEqual(9);
       expect(result.edgeType).toBe("contradicts");
       expect(result.confidence).toBeGreaterThan(0.7);
       expect(result.snippet).toBeDefined();

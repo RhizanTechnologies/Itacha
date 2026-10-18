@@ -18,8 +18,12 @@ import type {
   ClassificationInput,
   ClassificationResult,
 } from "./citation-classifier";
+import { cleanCitationSentence, cleanClaimSnippet } from "./citation-cleaner";
+import { synthesizeCitationContexts } from "./citation-context-synthesizer";
 
-export const LOCAL_CLASSIFIER_VERSION = 8;
+export { cleanCitationSentence, cleanClaimSnippet } from "./citation-cleaner";
+
+export const LOCAL_CLASSIFIER_VERSION = 10;
 export const LOCAL_PROVIDER_NAME = "ithaca-local-moat";
 export const LOCAL_MODEL_NAME = "sovereign-intent-v1";
 
@@ -27,94 +31,277 @@ export const LOCAL_MODEL_NAME = "sovereign-intent-v1";
 // CITATION CLEANING & CLAIM EXTRACTION
 // =============================================================================
 
+export type DirectnessTier = 1 | 2 | 3;
+
 /**
- * Remove bracketed/parenthetical academic citations from text.
- * E.g., "According to Smith et al. [1, 2], our results..." -> "According to Smith et al., our results..."
+ * Checks if a title is a canonical direct critique of the target author/work.
+ * Matches:
+ *  - "Comment on [Target]" / "Rebuttal to [Target]" / "Reply to [Target]"
+ *  - "[Target] on [Topic]: A Critique" (e.g. "Piaget on play: A critique")
+ *  - "A Critique of [Target]" / "Critique of [Target]"
  */
-export function cleanCitationSentence(rawText: string): string {
-  if (!rawText) return "";
-  let text = rawText;
+export function isCanonicalCritiqueTitle(
+  title = "",
+  targetSurname?: string,
+): boolean {
+  if (!title) return false;
+  const lower = title.toLowerCase();
 
-  // Strip script and style tags completely
-  text = text.replace(
-    /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
-    " ",
-  );
-  text = text.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, " ");
+  if (
+    lower.includes("comment on") ||
+    lower.includes("rebuttal to") ||
+    lower.includes("reply to") ||
+    lower.includes("failure to replicate") ||
+    lower.includes("failures to replicate") ||
+    lower.includes("failed to replicate") ||
+    lower.includes("attempts to replicate")
+  ) {
+    return true;
+  }
 
-  // Strip remaining HTML tags
-  text = text.replace(/<[^>]+>/g, " ");
+  if (!targetSurname || targetSurname.length < 3) {
+    return lower.includes(": a critique") || lower.includes("a critique of");
+  }
 
-  // Remove bracket citations like [1], [12, 13], [1-3]
-  text = text.replace(/\[\s*\d+(?:[,\s–-]+\d+)*\s*\]/g, "");
+  const s = targetSurname.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const patterns = [
+    new RegExp(`\\b${s}\\b\\s+on\\s+[a-z0-9\\s]+:\\s*a\\s+critique`, "i"),
+    new RegExp(`\\ba\\s+critique\\s+of\\s+(?:[a-z0-9\\s]{0,20}\\s+)?\\b${s}\\b`, "i"),
+    new RegExp(`\\bcritique\\s+of\\s+\\b${s}\\b`, "i"),
+    new RegExp(`\\b${s}\\b(?:['’]s)?\\s+[a-z0-9\\s]{0,30}:\\s*a\\s+critique`, "i"),
+  ];
 
-  // Remove parenthetical author citations like (Smith et al., 2020) or (Smith & Doe, 2019)
-  text = text.replace(
-    /\((?:[A-Z][a-zA-Z]+(?:\s+et\s+al\.)?(?:,\s*\d{4}[a-z]?)*(?:;\s*)?)+\)/g,
-    "",
-  );
-
-  // Normalize duplicate spaces and whitespace
-  return text.replace(/\s+/g, " ").trim();
+  return patterns.some((p) => p.test(title));
 }
 
 /**
- * Extract the primary claim proposition from citation context sentences or abstract.
+ * Detect instrumental usage of the target author.
+ * E.g., "educators' use of Piaget's theories to refute proposed curriculum"
+ * or "teachers' arguments, based on Piaget, to refute the standards".
+ * In these constructions, the Target is the authoritative weapon/instrument,
+ * and the third party (curriculum/standards) is the entity being refuted.
+ * Therefore, Target is being SUPPORTED or EXTENDED, NOT contradicted.
+ */
+export function detectInstrumentalUsage(
+  text: string,
+  targetSurname?: string,
+): boolean {
+  if (!text || !targetSurname || targetSurname.length < 3) return false;
+  const surname = targetSurname.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const authorStem = `(?:\\b${surname}(?:ian|['’]s)?\\b)`;
+
+  const instrumentalPatterns = [
+    new RegExp(
+      `(?:use|using|uses|used)\\s+(?:of\\s+)?(?:[a-z0-9'’\\s]{0,35}\\s+)?${authorStem}[a-z'’\\s]{0,45}\\s+to\\s+(?:refute|challenge|reject|oppose|counter|disprove|criticize|stifle)`,
+      "i",
+    ),
+    new RegExp(
+      `(?:based\\s+on|drawing\\s+on|draws\\s+on|drew\\s+on)\\s+(?:[a-z0-9'’\\s]{0,35}\\s+)?${authorStem}[a-z'’\\s]{0,45}\\s+to\\s+(?:refute|challenge|reject|oppose|counter|disprove)`,
+      "i",
+    ),
+    new RegExp(
+      `(?:referred\\s+to|referring\\s+to|relied\\s+on|relying\\s+on|rely\\s+on)\\s+(?:[a-z0-9'’\\s]{0,35}\\s+)?${authorStem}[a-z'’\\s]{0,45}\\s+to\\s+(?:refute|challenge|reject|oppose|counter|disprove)`,
+      "i",
+    ),
+    new RegExp(
+      `(?:applied|applying|applies|employ|employed|employing)\\s+(?:[a-z0-9'’\\s]{0,35}\\s+)?${authorStem}[a-z'’\\s]{0,45}\\s+to\\s+(?:refute|challenge|reject|oppose|counter|disprove)`,
+      "i",
+    ),
+    new RegExp(
+      `${authorStem}(?:\\s+and\\s+[a-z]+)?\\s+(?:theories|theory|framework|findings?|work|ideas?)[a-z'’\\s]{0,25}\\s+to\\s+(?:refute|challenge|reject|oppose|counter|disprove)`,
+      "i",
+    ),
+    new RegExp(
+      `(?:arguments?|perspective|standpoint|evidence),\\s*(?:based\\s+on|drawing\\s+on|drew\\s+on)\\s+${authorStem}[a-z'’\\s]{0,35}\\s+to\\s+(?:refute|challenge|reject|oppose|counter|disprove)`,
+      "i",
+    ),
+  ];
+
+  return instrumentalPatterns.some((pattern) => pattern.test(text));
+}
+
+/**
+ * Extract the primary claim proposition from citation context sentences, abstract, or title.
+ * Also classifies the Epistemic Directness Tier:
+ *   - Tier 1: Direct empirical replication, statistical reanalysis, or title commentary naming the target.
+ *   - Tier 2: Specific in-text or abstract citation targeting the cited author's claims.
+ *   - Tier 3: Disciplinary meta-review or general context citation without target author mention.
  */
 export function extractClaimSentence(
   contexts?: string[],
   abstract?: string,
-): { claimText: string; isDirectContext: boolean } {
-  if (contexts && contexts.length > 0) {
-    // Find context sentence with strongest discourse marker
-    const salientMarkers = [
-      "confirm",
-      "replicate",
-      "reproduce",
-      "validate",
-      "corroborate",
-      "contradict",
-      "refute",
-      "disprove",
-      "challenge",
-      "fail",
-      "no evidence",
-      "extend",
-      "generalize",
-      "scale",
-      "adapt",
-      "contrast",
-    ];
+  options?: {
+    citingTitle?: string;
+    targetAuthorSurname?: string;
+  },
+): { claimText: string; isDirectContext: boolean; directnessTier: DirectnessTier } {
+  const cleanSurname = options?.targetAuthorSurname?.trim().toLowerCase();
+  const citingTitle = options?.citingTitle || "";
+  const citingTitleLower = citingTitle.toLowerCase();
 
+  // Detect explicit direct commentary / rebuttal / replication titles
+  const isDirectTitleCritique =
+    isCanonicalCritiqueTitle(citingTitle, cleanSurname) ||
+    (Boolean(cleanSurname) &&
+      cleanSurname!.length >= 3 &&
+      citingTitleLower.includes(cleanSurname!) &&
+      (citingTitleLower.includes("critique") ||
+        citingTitleLower.includes("rebut") ||
+        citingTitleLower.includes("refut") ||
+        citingTitleLower.includes("disprov") ||
+        citingTitleLower.includes("challeng")));
+
+  const salientMarkers = [
+    "confirm",
+    "replicate",
+    "reproduce",
+    "validate",
+    "corroborate",
+    "contradict",
+    "refute",
+    "disprove",
+    "challenge",
+    "fail",
+    "no evidence",
+    "reanalysis",
+    "re-analysis",
+    "null",
+    "support",
+    "extend",
+    "generalize",
+    "scale",
+    "adapt",
+    "contrast",
+  ];
+
+  if (contexts && contexts.length > 0) {
+    // 1. In-text context sentence with target author surname + marker (Tier 1)
+    if (cleanSurname && cleanSurname.length >= 3) {
+      for (const ctx of contexts) {
+        const lower = ctx.toLowerCase();
+        if (lower.includes(cleanSurname) && salientMarkers.some((m) => lower.includes(m))) {
+          return {
+            claimText: cleanCitationSentence(ctx),
+            isDirectContext: true,
+            directnessTier: 1,
+          };
+        }
+      }
+
+      // 1b. In-text context sentence mentioning target surname without explicit marker (Tier 2 targeted context, or Tier 1 if title is critique)
+      for (const ctx of contexts) {
+        const lower = ctx.toLowerCase();
+        if (lower.includes(cleanSurname)) {
+          return {
+            claimText: cleanCitationSentence(ctx),
+            isDirectContext: true,
+            directnessTier: isDirectTitleCritique ? 1 : 2,
+          };
+        }
+      }
+
+      // 1c. If cleanSurname is known and neither title nor citation contexts mention target surname,
+      // this is a contextual / background / general citation, NOT a targeted evaluation.
+      if (!isDirectTitleCritique) {
+        return {
+          claimText: cleanCitationSentence(contexts[0]),
+          isDirectContext: true,
+          directnessTier: 3,
+        };
+      }
+    }
+
+    // 2. In-text context sentence with salient marker (when surname is unknown or title is direct critique)
     for (const ctx of contexts) {
       const lower = ctx.toLowerCase();
       if (salientMarkers.some((m) => lower.includes(m))) {
-        return { claimText: cleanCitationSentence(ctx), isDirectContext: true };
+        return {
+          claimText: cleanCitationSentence(ctx),
+          isDirectContext: true,
+          directnessTier: isDirectTitleCritique ? 1 : 2,
+        };
       }
     }
+
     return {
       claimText: cleanCitationSentence(contexts[0]),
       isDirectContext: true,
+      directnessTier: isDirectTitleCritique ? 1 : 2,
     };
   }
 
+  // If no direct in-text context, check title directness first
+  if (isDirectTitleCritique && options?.citingTitle) {
+    return {
+      claimText: cleanCitationSentence(options.citingTitle),
+      isDirectContext: false,
+      directnessTier: 1,
+    };
+  }
+
+  // Scan abstract for target author surname
   if (abstract && abstract.length > 20) {
-    // Take the first or concluding sentence of abstract
     const sentences = abstract.split(/(?<=[.?!])\s+/);
+
+    if (cleanSurname && cleanSurname.length >= 3) {
+      for (const raw of sentences) {
+        const lower = raw.toLowerCase();
+        if (lower.includes(cleanSurname)) {
+          const cleaned = cleanCitationSentence(raw);
+          if (cleaned.length > 20) {
+            const hasMarker = salientMarkers.some((m) => lower.includes(m));
+            return {
+              claimText: cleaned,
+              isDirectContext: false,
+              directnessTier: hasMarker ? 1 : 2,
+            };
+          }
+        }
+      }
+    }
+
+    // If target surname was NOT in the abstract or title, any debate marker in this paper
+    // is about the paper's OWN topic (e.g., "Replication in Social Science") or general field,
+    // NOT a direct evaluation of the cited paper. This is Tier 3 (Contextual / Disciplinary).
+    for (const raw of sentences) {
+      const lower = raw.toLowerCase();
+      if (salientMarkers.some((m) => lower.includes(m))) {
+        const cleaned = cleanCitationSentence(raw);
+        if (cleaned.length > 20) {
+          return {
+            claimText: cleaned,
+            isDirectContext: false,
+            directnessTier: 3,
+          };
+        }
+      }
+    }
+
     const lastSentence = sentences[sentences.length - 1];
     if (lastSentence && lastSentence.length > 30) {
       return {
         claimText: cleanCitationSentence(lastSentence),
         isDirectContext: false,
+        directnessTier: 3,
       };
     }
     return {
       claimText: cleanCitationSentence(sentences[0]),
       isDirectContext: false,
+      directnessTier: 3,
     };
   }
 
-  return { claimText: "", isDirectContext: false };
+  // Fallback to title if abstract was absent
+  if (options?.citingTitle && options.citingTitle.length > 15) {
+    return {
+      claimText: cleanCitationSentence(options.citingTitle),
+      isDirectContext: false,
+      directnessTier: isDirectTitleCritique ? 1 : 3,
+    };
+  }
+
+  return { claimText: "", isDirectContext: false, directnessTier: 3 };
 }
 
 // =============================================================================
@@ -149,13 +336,42 @@ const NEGATION_PREFIXES = [
 
 const CONTRADICT_SIGNALS: SignalRule[] = [
   // Explicit refutations & replication failures (Weight 4-5)
+  { phrase: "failure to replicate", weight: 5 },
+  { phrase: "failures to replicate", weight: 5 },
   { phrase: "fail to replicate", weight: 5 },
   { phrase: "failed to replicate", weight: 5 },
+  { phrase: "failed attempt to replicate", weight: 5 },
+  { phrase: "unsuccessful attempt to replicate", weight: 5 },
+  { phrase: "unsuccessful attempts to replicate", weight: 5 },
   { phrase: "could not replicate", weight: 5 },
   { phrase: "not replicated", weight: 5 },
+  { phrase: "no support", weight: 5 },
+  { phrase: "no support for", weight: 5 },
+  { phrase: "offer no support", weight: 5 },
+  { phrase: "offers no support", weight: 5 },
   { phrase: "does not support", weight: 5 },
   { phrase: "do not support", weight: 5 },
   { phrase: "did not support", weight: 5 },
+  { phrase: "supports the null hypothesis", weight: 6 },
+  { phrase: "support the null hypothesis", weight: 6 },
+  { phrase: "supports the null", weight: 6 },
+  { phrase: "support the null", weight: 6 },
+  { phrase: "supports h0", weight: 6 },
+  { phrase: "support h0", weight: 6 },
+  { phrase: "evidence supports the null", weight: 6 },
+  { phrase: "evidence overwhelmingly supports h0", weight: 6 },
+  { phrase: "overwhelmingly supports h0", weight: 6 },
+  { phrase: "overwhelmingly supports the null", weight: 6 },
+  { phrase: "in favor of the null hypothesis", weight: 5 },
+  { phrase: "in favor of the null", weight: 5 },
+  { phrase: "favors the null hypothesis", weight: 5 },
+  { phrase: "favors the null", weight: 5 },
+  { phrase: "null hypothesis of no", weight: 5 },
+  { phrase: "null effect", weight: 4 },
+  { phrase: "null results", weight: 4 },
+  { phrase: "null result", weight: 4 },
+  { phrase: "is not all you need", weight: 5 },
+  { phrase: "comment on", weight: 3 },
   { phrase: "no evidence for", weight: 5 },
   { phrase: "no evidence of", weight: 5 },
   { phrase: "no evidence", weight: 4 },
@@ -244,7 +460,9 @@ const SUPPORT_SIGNALS: SignalRule[] = [
   { phrase: "supports the", weight: 3 },
   { phrase: "support the", weight: 3 },
   { phrase: "supports a", weight: 3 },
+  { phrase: "support for", weight: 3 },
   { phrase: "supports", weight: 2 },
+  { phrase: "support", weight: 2 },
   { phrase: "lends support", weight: 3 },
   { phrase: "reinforces", weight: 3 },
   { phrase: "demonstrates the validity", weight: 4 },
@@ -371,27 +589,42 @@ export interface LocalStanceAnalysis {
   confidence: number;
   snippet: string;
   matchedSignals: string[];
+  directnessTier?: DirectnessTier;
 }
 
 /**
  * Analyze rhetorical stance using deterministic pattern rules, negation guards,
- * and token-vectorized similarity scoring.
+ * directness tier constraints, and token-vectorized similarity scoring.
  */
 export function analyzeStance(
   claimText: string,
   citingTitle = "",
   citingAbstract = "",
   s2Intents: string[] = [],
+  directnessTier: DirectnessTier = 2,
+  targetAuthorSurname?: string,
 ): LocalStanceAnalysis {
-  const primaryText = (
-    claimText || `${citingTitle} ${citingAbstract}`
-  ).toLowerCase();
+  const primaryText = [claimText, citingTitle, citingAbstract]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
   const tokens = tokenize(primaryText);
 
   let contradictScore = 0;
   let supportScore = 0;
   let extendScore = 0;
   const matchedSignals: string[] = [];
+
+  // Check canonical critique titles (e.g. "Piaget on play: A critique", "Comment on Bem")
+  const isDirectCritique = isCanonicalCritiqueTitle(
+    citingTitle,
+    targetAuthorSurname,
+  );
+  if (isDirectCritique) {
+    contradictScore += 6;
+    directnessTier = 1;
+    matchedSignals.push("canonical_critique_title");
+  }
 
   const findWordStartMatch = (text: string, phrase: string): number => {
     let searchFrom = 0;
@@ -416,11 +649,29 @@ export function analyzeStance(
     }
   }
 
-  // Check support signals with negation check
+  // Check support signals with negation & null hypothesis check
+  const NULL_TARGETS = [
+    "null hypothesis",
+    "null",
+    "h0",
+    "h_0",
+    "the null",
+    "no effect",
+    "no precognition",
+  ];
+  const isNullHypothesisSupport = (text: string, matchIdx: number): boolean => {
+    const following = text.substring(matchIdx, matchIdx + 45).toLowerCase();
+    return NULL_TARGETS.some((tgt) => following.includes(tgt));
+  };
+
   for (const rule of SUPPORT_SIGNALS) {
     const idx = findWordStartMatch(primaryText, rule.phrase);
     if (idx !== -1) {
-      if (isPrecededByNegation(primaryText, idx)) {
+      if (isNullHypothesisSupport(primaryText, idx)) {
+        // "Supports the null hypothesis" / "supports H0" is an empirical REFUTATION of the target effect!
+        contradictScore += rule.weight + 3;
+        matchedSignals.push(`null_hypothesis_contradiction:${rule.phrase}`);
+      } else if (isPrecededByNegation(primaryText, idx)) {
         // Negated support = contradiction!
         contradictScore += rule.weight + 2;
         matchedSignals.push(`negated_support:${rule.phrase}`);
@@ -469,11 +720,48 @@ export function analyzeStance(
   supportScore += simSupport * 3;
   extendScore += simExtend * 3;
 
+  // Check for instrumental citation fallacy:
+  // e.g. "educators' use of Piaget's theories to refute proposed curriculum standards"
+  // Here, the target author is used as an authoritative weapon to refute a third-party target.
+  const isInstrumental =
+    !isDirectCritique &&
+    Boolean(targetAuthorSurname && targetAuthorSurname.length >= 3) &&
+    detectInstrumentalUsage(primaryText, targetAuthorSurname);
+
+  if (isInstrumental) {
+    contradictScore = 0;
+    extendScore += 4;
+    matchedSignals.push("instrumental_authority_application");
+  }
+
+  // Directness Tier 1 Elevation: Citing title explicitly comments on / rebuts target
+  if (directnessTier === 1 && contradictScore > 0) {
+    contradictScore += 4;
+  }
+
+  // =========================================================================
+  // TIER 3 GUARD: Disciplinary reviews without target author cross-mention
+  // NEVER promote a general meta-review to a contradiction unless it directly
+  // evaluates the target finding.
+  // =========================================================================
+  if (directnessTier === 3) {
+    return {
+      stance: "cites",
+      confidence: 0.82,
+      snippet: claimText
+        ? `Disciplinary review referencing cited work in broader literature: "${cleanClaimSnippet(claimText)}"`
+        : "Standard academic citation without direct dispute or confirmation.",
+      matchedSignals,
+      directnessTier: 3,
+    };
+  }
+
   // Stance Decision Hierarchy
   let stance: "supports" | "contradicts" | "extends" | "cites" = "cites";
   let confidence = 0.7;
-  let snippet = claimText
-    ? `Citation reference: "${claimText}"`
+  const cleanClaim = cleanClaimSnippet(claimText);
+  let snippet = cleanClaim
+    ? `Citation reference: "${cleanClaim}"`
     : "Citation relationship — background or methodological reference.";
 
   if (
@@ -483,9 +771,15 @@ export function analyzeStance(
   ) {
     stance = "contradicts";
     confidence = Math.min(0.95, 0.65 + contradictScore * 0.05);
-    snippet = claimText
-      ? `Authors challenge or contradict cited finding: "${claimText}"`
+    snippet = cleanClaim
+      ? `Authors challenge or contradict cited finding: "${cleanClaim}"`
       : `Contradiction detected from discourse markers (confidence: ${confidence.toFixed(2)}).`;
+    if (
+      isDirectCritique &&
+      (!cleanClaim || cleanClaim === cleanCitationSentence(citingTitle))
+    ) {
+      snippet = `Authors challenge or contradict cited finding: "${cleanClaimSnippet(citingTitle)}"`;
+    }
   } else if (
     supportScore >= 3 &&
     supportScore > contradictScore &&
@@ -493,21 +787,21 @@ export function analyzeStance(
   ) {
     stance = "supports";
     confidence = Math.min(0.95, 0.65 + supportScore * 0.05);
-    snippet = claimText
-      ? `Authors confirm and validate cited finding: "${claimText}"`
+    snippet = cleanClaim
+      ? `Authors confirm and validate cited finding: "${cleanClaim}"`
       : `Support detected from empirical confirmation markers (confidence: ${confidence.toFixed(2)}).`;
   } else if (extendScore >= 3 && extendScore > contradictScore) {
     stance = "extends";
     confidence = Math.min(0.92, 0.6 + extendScore * 0.05);
-    snippet = claimText
-      ? `Authors extend cited method to novel domain: "${claimText}"`
+    snippet = cleanClaim
+      ? `Authors extend cited method to novel domain: "${cleanClaim}"`
       : `Methodological extension detected (confidence: ${confidence.toFixed(2)}).`;
   } else {
     // Default neutral citation
     stance = "cites";
     confidence = 0.75;
-    snippet = claimText
-      ? `Authors cite work as foundational context: "${claimText}"`
+    snippet = cleanClaim
+      ? `Authors cite work as foundational context: "${cleanClaim}"`
       : "Standard academic citation without direct dispute or confirmation.";
   }
 
@@ -516,6 +810,7 @@ export function analyzeStance(
     confidence: Number(confidence.toFixed(2)),
     snippet,
     matchedSignals,
+    directnessTier,
   };
 }
 
@@ -526,20 +821,43 @@ export function analyzeStance(
 export function classifyCitationLocally(
   input: ClassificationInput,
 ): ClassificationResult {
-  const { claimText } = extractClaimSentence(
-    input.citationContexts,
+  let contexts = input.citationContexts;
+  let s2Intents = input.s2Intents ?? [];
+
+  if (!contexts || contexts.length === 0) {
+    const synth = synthesizeCitationContexts({
+      citingTitle: input.citingTitle,
+      citingAbstract: input.citingAbstract,
+      targetAuthorSurname: input.targetAuthorSurname,
+      targetYear: input.targetYear,
+      targetTitle: input.citedTitle,
+    });
+    if (synth.contexts.length > 0) {
+      contexts = synth.contexts;
+      if (s2Intents.length === 0) {
+        s2Intents = synth.intents;
+      }
+    }
+  }
+
+  const { claimText, directnessTier } = extractClaimSentence(
+    contexts,
     input.citingAbstract,
+    {
+      citingTitle: input.citingTitle,
+      targetAuthorSurname: input.targetAuthorSurname,
+    },
   );
   const analysis = analyzeStance(
     claimText,
     input.citingTitle,
     input.citingAbstract,
-    input.s2Intents ?? [],
+    s2Intents,
+    directnessTier,
+    input.targetAuthorSurname,
   );
 
-  const hasContexts = Boolean(
-    input.citationContexts && input.citationContexts.length > 0,
-  );
+  const hasContexts = Boolean(contexts && contexts.length > 0);
   const hasAbstracts = Boolean(
     input.citingAbstract && input.citingAbstract.length > 20,
   );
@@ -557,8 +875,9 @@ export function classifyCitationLocally(
       : hasAbstracts
         ? "llm+abstracts"
         : "heuristic",
-    contexts: input.citationContexts,
+    contexts,
     classifierVersion: LOCAL_CLASSIFIER_VERSION,
+    directnessTier: analysis.directnessTier,
   };
 }
 

@@ -8,6 +8,7 @@
 // Re-export API types
 export type {
   PaperNode,
+  PaperLineageRole,
   EdgeData,
   EvidenceItem,
   GraphStats,

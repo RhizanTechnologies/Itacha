@@ -145,7 +145,7 @@ class GeminiProvider implements ILLMProvider {
     // Generation config
     const generationConfig: Record<string, unknown> = {
       temperature: 0,
-      maxOutputTokens: 256,
+      maxOutputTokens: 2048,
     };
 
     if (jsonMode) {
@@ -229,7 +229,7 @@ class GroqProvider implements ILLMProvider {
         model: candidate,
         messages,
         temperature: 0,
-        max_tokens: 512,
+        max_tokens: 2048,
       };
 
       if (jsonMode) {
@@ -303,6 +303,148 @@ class GroqProvider implements ILLMProvider {
     }
 
     throw new Error(lastError || "All Groq candidate models failed");
+  }
+}
+
+// =============================================================================
+// ANTHROPIC PROVIDER (Claude 3.5 Sonnet / Haiku)
+// =============================================================================
+
+class AnthropicProvider implements ILLMProvider {
+  readonly name = "anthropic";
+  readonly model: string;
+  private apiKey: string;
+  private rateLimiter: RateLimiter;
+
+  constructor(
+    apiKey: string,
+    model = process.env.ANTHROPIC_MODEL || "claude-3-5-sonnet-latest",
+  ) {
+    this.apiKey = apiKey;
+    this.model = model;
+    this.rateLimiter = new RateLimiter(50, 20000);
+  }
+
+  isAvailable(): boolean {
+    return !!this.apiKey && this.rateLimiter.canProceed();
+  }
+
+  async chat(messages: LLMMessage[], jsonMode = false): Promise<LLMResponse> {
+    if (!this.rateLimiter.canProceed()) {
+      throw new Error("Anthropic rate limit reached");
+    }
+
+    const systemInstruction =
+      messages.find((m) => m.role === "system")?.content || "";
+    const userMessages = messages
+      .filter((m) => m.role !== "system")
+      .map((m) => ({
+        role: m.role === "assistant" ? ("assistant" as const) : ("user" as const),
+        content: m.content,
+      }));
+
+    const body: Record<string, unknown> = {
+      model: this.model,
+      system: systemInstruction,
+      messages: userMessages,
+      max_tokens: 2048,
+      temperature: 0,
+    };
+
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": this.apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      if (response.status === 429) {
+        throw new Error("Anthropic rate limit reached");
+      }
+      throw new Error(`Anthropic API error (${response.status}): ${error}`);
+    }
+
+    const data = await response.json();
+    const content = data.content?.[0]?.text || "";
+
+    this.rateLimiter.record();
+
+    return {
+      content,
+      model: this.model,
+      provider: this.name,
+    };
+  }
+}
+
+// =============================================================================
+// OPENAI PROVIDER (GPT-4o / GPT-4o-mini)
+// =============================================================================
+
+class OpenAIProvider implements ILLMProvider {
+  readonly name = "openai";
+  readonly model: string;
+  private apiKey: string;
+  private rateLimiter: RateLimiter;
+
+  constructor(apiKey: string, model = process.env.OPENAI_MODEL || "gpt-4o-mini") {
+    this.apiKey = apiKey;
+    this.model = model;
+    this.rateLimiter = new RateLimiter(60, 50000);
+  }
+
+  isAvailable(): boolean {
+    return !!this.apiKey && this.rateLimiter.canProceed();
+  }
+
+  async chat(messages: LLMMessage[], jsonMode = false): Promise<LLMResponse> {
+    if (!this.rateLimiter.canProceed()) {
+      throw new Error("OpenAI rate limit reached");
+    }
+
+    const body: Record<string, unknown> = {
+      model: this.model,
+      messages,
+      temperature: 0,
+      max_tokens: 2048,
+    };
+
+    if (jsonMode) {
+      body.response_format = { type: "json_object" };
+    }
+
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.apiKey}`,
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      if (response.status === 429) {
+        throw new Error("OpenAI rate limit reached");
+      }
+      throw new Error(`OpenAI API error (${response.status}): ${error}`);
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || "";
+
+    this.rateLimiter.record();
+
+    return {
+      content,
+      model: this.model,
+      provider: this.name,
+    };
   }
 }
 
@@ -589,16 +731,41 @@ export function getLLMRouter(): LLMRouter {
       providers.push(localProvider);
     }
 
-    // Primary external: Gemini (most generous free tier)
-    const geminiKey = process.env.GEMINI_API_KEY;
-    if (geminiKey) {
-      providers.push(new GeminiProvider(geminiKey));
+    const primaryChoice = (
+      process.env.AI_PRIMARY_PROVIDER || ""
+    ).toLowerCase().trim();
+
+    // Map of configured cloud providers
+    const cloudMap: Record<string, ILLMProvider | null> = {
+      groq: process.env.GROQ_API_KEY
+        ? new GroqProvider(process.env.GROQ_API_KEY)
+        : null,
+      gemini: process.env.GEMINI_API_KEY
+        ? new GeminiProvider(process.env.GEMINI_API_KEY)
+        : null,
+      anthropic: process.env.ANTHROPIC_API_KEY
+        ? new AnthropicProvider(process.env.ANTHROPIC_API_KEY)
+        : null,
+      claude: process.env.ANTHROPIC_API_KEY
+        ? new AnthropicProvider(process.env.ANTHROPIC_API_KEY)
+        : null,
+      openai: process.env.OPENAI_API_KEY
+        ? new OpenAIProvider(process.env.OPENAI_API_KEY)
+        : null,
+    };
+
+    // If an explicit primary provider is requested and configured, prioritize it
+    if (primaryChoice && cloudMap[primaryChoice]) {
+      providers.push(cloudMap[primaryChoice]!);
     }
 
-    // Fallback external: Groq
-    const groqKey = process.env.GROQ_API_KEY;
-    if (groqKey) {
-      providers.push(new GroqProvider(groqKey));
+    // Add remaining configured cloud providers in standard priority order
+    const priorityOrder = ["groq", "gemini", "anthropic", "openai"];
+    for (const pName of priorityOrder) {
+      const p = cloudMap[pName];
+      if (p && !providers.some((existing) => existing.name === p.name)) {
+        providers.push(p);
+      }
     }
 
     // If local was not prioritized first, append it as guaranteed sovereign fallback

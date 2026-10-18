@@ -45,6 +45,8 @@ export interface HydrationState {
   cachedCount: number;
 }
 
+export type CanvasPerspective = "battlefield" | "foundations" | "synthesis";
+
 // =============================================================================
 // STATE
 // =============================================================================
@@ -109,7 +111,8 @@ interface CanvasStoreState {
   tutorialActive: boolean;
   layoutMode: "force" | "temporal";
 
-  // Topology Intelligence & Battlefield
+  // Topology Intelligence & Perspective
+  perspective: CanvasPerspective;
   battlefieldMode: boolean;
   clusterViewMode: "papers" | "schools";
   expandedSchools: Set<string>;
@@ -194,7 +197,8 @@ interface CanvasStoreActions {
   setTutorialActive: (active: boolean) => void;
   setLayoutMode: (mode: "force" | "temporal") => void;
 
-  // Topology Intelligence & Battlefield
+  // Topology Intelligence & Perspective
+  setPerspective: (perspective: CanvasPerspective) => void;
   toggleBattlefieldMode: () => void;
   setBattlefieldMode: (enabled: boolean) => void;
   setClusterViewMode: (mode: "papers" | "schools") => void;
@@ -273,7 +277,8 @@ const initialState: CanvasStoreState = {
   tutorialActive: false,
   layoutMode: "force",
 
-  battlefieldMode: false,
+  perspective: "battlefield",
+  battlefieldMode: true,
   clusterViewMode: "papers",
   expandedSchools: new Set(),
   schoolsOfThought: [],
@@ -418,10 +423,26 @@ export const useCanvasStore = create<CanvasStoreState & CanvasStoreActions>()(
         physicsEnabled: mode === "force",
       }),
 
-    // Topology Intelligence & Battlefield
+    // Topology Intelligence & Perspective
+    setPerspective: (perspective) =>
+      set({
+        perspective,
+        battlefieldMode: perspective === "battlefield",
+      }),
     toggleBattlefieldMode: () =>
-      set((s) => ({ battlefieldMode: !s.battlefieldMode })),
-    setBattlefieldMode: (enabled) => set({ battlefieldMode: enabled }),
+      set((s) => {
+        const next =
+          s.perspective === "battlefield" ? "synthesis" : "battlefield";
+        return {
+          perspective: next,
+          battlefieldMode: next === "battlefield",
+        };
+      }),
+    setBattlefieldMode: (enabled) =>
+      set({
+        battlefieldMode: enabled,
+        perspective: enabled ? "battlefield" : "synthesis",
+      }),
     setClusterViewMode: (mode) => set({ clusterViewMode: mode }),
     toggleSchoolExpansion: (schoolId) => {
       const next = new Set(get().expandedSchools);

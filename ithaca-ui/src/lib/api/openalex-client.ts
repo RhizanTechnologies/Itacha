@@ -249,6 +249,112 @@ export async function getCitingWorks(
 }
 
 /**
+ * Multi-Strata Epistemic Sampling (MSES)
+ * Fetches citing works across 3 balanced epistemic strata:
+ * 1. Stratum 1A: Direct author-named rebuttals/critiques/comments (e.g. "Comment on Bem")
+ * 2. Stratum 1B: Epistemic debate & replication keywords (replication, refute, fail, critique)
+ * 3. Stratum 2: Top high-impact citing descendants (highest citation count)
+ *
+ * Merges and deduplicates while prioritizing direct controversy over generic methodology textbooks.
+ */
+export async function getDebateCitingWorks(
+  paperId: string,
+  options: {
+    authorSurname?: string;
+    limit?: number;
+  } = {},
+): Promise<OpenAlexWork[]> {
+  const cleanId = paperId.replace("https://openalex.org/", "");
+  const limit = options.limit ?? 20;
+
+  // Clean and prepare author surname query if available
+  const surname = options.authorSurname?.trim().replace(/[^a-zA-Z-]/g, "");
+
+  try {
+    const [namedCritiques, replicationDebates, topCiting] = await Promise.all([
+      // Stratum 1A: Works citing this paper with author surname in title (e.g. "Comment on Bem")
+      surname && surname.length > 2
+        ? openAlexFetch<OpenAlexListResponse<OpenAlexWork>>("/works", {
+            filter: `cites:${cleanId},title.search:${surname}`,
+            per_page: "10",
+            select: SEARCH_FIELDS,
+          })
+            .then((r) => r.results)
+            .catch(() => [])
+        : Promise.resolve([]),
+
+      // Stratum 1B: Epistemic debate search (replication, refute, critique, comment, fail)
+      // Anchored with target author surname when available to prevent cross-domain keyword bleed
+      openAlexFetch<OpenAlexListResponse<OpenAlexWork>>("/works", {
+        filter: `cites:${cleanId}`,
+        search:
+          surname && surname.length > 2
+            ? `"${surname}" (replication OR replicate OR refute OR critique OR fail OR comment OR re-analysis)`
+            : "replication OR replicate OR refute OR critique OR fail OR comment OR re-analysis",
+        per_page: "12",
+        select: SEARCH_FIELDS,
+      })
+        .then((r) => r.results)
+        .catch(() => []),
+
+      // Stratum 2: Top high-impact citing descendants (sorted by citation count)
+      openAlexFetch<OpenAlexListResponse<OpenAlexWork>>("/works", {
+        filter: `cites:${cleanId}`,
+        per_page: "8",
+        sort: "cited_by_count:desc",
+        select: SEARCH_FIELDS,
+      })
+        .then((r) => r.results)
+        .catch(() => []),
+    ]);
+
+    // Deduplicate and merge while preserving priority
+    const seen = new Set<string>();
+    const results: OpenAlexWork[] = [];
+
+    // Stream 1: Named critiques (highest priority)
+    for (const work of namedCritiques) {
+      const id = work.id.replace("https://openalex.org/", "");
+      if (!seen.has(id)) {
+        seen.add(id);
+        results.push(work);
+      }
+    }
+
+    // Stream 2: Epistemic replication & debate works
+    for (const work of replicationDebates) {
+      const id = work.id.replace("https://openalex.org/", "");
+      if (!seen.has(id)) {
+        seen.add(id);
+        results.push(work);
+      }
+    }
+
+    // Stream 3: High-impact extensions (fill remaining slots up to limit)
+    for (const work of topCiting) {
+      const id = work.id.replace("https://openalex.org/", "");
+      if (!seen.has(id)) {
+        seen.add(id);
+        results.push(work);
+      }
+    }
+
+    // If all strata combined are still fewer than limit or if strata had no results,
+    // fallback to standard citing works
+    if (results.length === 0) {
+      const fallback = await getCitingWorks(cleanId, { perPage: limit });
+      return fallback.results;
+    }
+
+    return results.slice(0, limit);
+  } catch (err) {
+    console.warn("[OpenAlex] Error in getDebateCitingWorks, falling back:", err);
+    const fallback = await getCitingWorks(cleanId, { perPage: limit });
+    return fallback.results;
+  }
+}
+
+/**
  * Get works that a given paper references (cited by this paper).
  * Fetches the referenced_works IDs from the paper, then batch-fetches them.
  */

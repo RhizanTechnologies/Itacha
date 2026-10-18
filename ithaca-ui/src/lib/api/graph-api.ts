@@ -13,6 +13,12 @@ import { OpenAlexProvider } from "./openalex-provider";
 // TYPES
 // =============================================================================
 
+export type PaperLineageRole =
+  | "anchor"
+  | "downstream"
+  | "upstream"
+  | "lateral";
+
 export interface PaperNode {
   id: string;
   paperId: string;
@@ -37,6 +43,9 @@ export interface PaperNode {
   y: number;
   size: number;
   color: string;
+  lineageRole?: PaperLineageRole;
+  originalPublicationYear?: number;
+  isReissue?: boolean;
 }
 
 /** How the classification was determined — drives UI trust indicators */
@@ -65,6 +74,10 @@ export interface EdgeData {
   contexts?: string[];
   /** Which LLM/model classified this edge */
   provider?: string;
+  /** Citation direction relative to anchor: inbound (debater -> anchor), outbound (anchor -> past), lateral (debater -> debater) */
+  direction?: "inbound" | "outbound" | "lateral";
+  /** Epistemic directness tier: 1 = direct replication/comment, 2 = finding critique, 3 = disciplinary context */
+  directnessTier?: 1 | 2 | 3;
 }
 
 export interface EvidenceItem {

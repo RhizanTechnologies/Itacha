@@ -147,7 +147,8 @@ export function useCanvasActions() {
       setTutorialActive: useCanvasStore.getState().setTutorialActive,
       setLayoutMode: useCanvasStore.getState().setLayoutMode,
 
-      // Topology Intelligence & Battlefield
+      // Topology Intelligence & Perspective
+      setPerspective: useCanvasStore.getState().setPerspective,
       toggleBattlefieldMode: useCanvasStore.getState().toggleBattlefieldMode,
       setBattlefieldMode: useCanvasStore.getState().setBattlefieldMode,
       setClusterViewMode: useCanvasStore.getState().setClusterViewMode,

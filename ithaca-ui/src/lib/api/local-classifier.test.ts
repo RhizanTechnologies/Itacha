@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   cleanCitationSentence,
+  cleanClaimSnippet,
   extractClaimSentence,
   analyzeStance,
   classifyCitationLocally,
   classifyBatchLocally,
   buildLocalMoatProvenance,
+  isCanonicalCritiqueTitle,
+  detectInstrumentalUsage,
   LOCAL_CLASSIFIER_VERSION,
   LOCAL_PROVIDER_NAME,
 } from "./local-classifier";
@@ -133,7 +136,7 @@ describe("local-classifier unit tests", () => {
   });
 
   describe("TC-LOC-07: Latency Budget & Batch Classification", () => {
-    it("classifies a citation locally with provider 'ithaca-local-moat' and version 8", () => {
+    it("classifies a citation locally with provider 'ithaca-local-moat' and version 9", () => {
       const input: ClassificationInput = {
         citingId: "W100",
         citedId: "W200",
@@ -187,6 +190,159 @@ describe("local-classifier unit tests", () => {
       console.log(
         `[TC-LOC-07] 100 local classifications completed in ${totalElapsedMs.toFixed(2)}ms (avg: ${averageMs.toFixed(3)}ms/pair)`,
       );
+    });
+  });
+
+  describe("TC-LOC-08: Epistemic Directness Hierarchy & Tiered Contradiction Guards", () => {
+    it("elevates canonical direct critique title (Wagenmakers) to Tier 1 contradiction (>= 90% confidence)", () => {
+      const input: ClassificationInput = {
+        citingId: "W-WAGENMAKERS",
+        citedId: "W-BEM",
+        targetAuthorSurname: "Bem",
+        targetYear: 2011,
+        citingTitle: "Why psychologists must change the way they analyze their data: A comment on Bem (2011)",
+        citingAbstract:
+          "Bem (2011) presented evidence for precognition. We demonstrate using Bayesian analysis that the evidence actually supports the null hypothesis of no precognition.",
+        citedTitle: "Feeling the Future: Experimental Evidence for Anomalous Retroactive Influences",
+        citedAbstract: "The article presents 9 experiments testing precognition...",
+        citationContexts: [
+          "Our Bayesian reanalysis of Bem's data shows the evidence overwhelmingly supports H0.",
+        ],
+        s2Intents: ["ResultComparison"],
+      };
+
+      const result = classifyCitationLocally(input);
+      expect(result.edgeType).toBe("contradicts");
+      expect(result.directnessTier).toBe(1);
+      expect(result.confidence).toBeGreaterThanOrEqual(0.9);
+      expect(result.snippet).toContain("Bem");
+    });
+
+    it("identifies targeted empirical replication failure as Tier 2 contradiction", () => {
+      const input: ClassificationInput = {
+        citingId: "W-RITCHIE",
+        citedId: "W-BEM",
+        citingTitle: "Failing the Future: Three Unsuccessful Attempts to Replicate Bem's Retroactive Facilitation",
+        citingAbstract: "We conducted three pre-registered independent replications...",
+        citedTitle: "Feeling the Future: Experimental Evidence for Anomalous Retroactive Influences",
+        citedAbstract: "Precognition experiments.",
+        citationContexts: [
+          "Across all three studies, we failed to replicate the effect reported by Bem.",
+        ],
+        s2Intents: ["ResultComparison"],
+      };
+
+      const result = classifyCitationLocally(input);
+      expect(result.edgeType).toBe("contradicts");
+      expect(result.directnessTier).toBe(1); // Title has both "replicate" and "Bem" -> Tier 1
+      expect(result.confidence).toBeGreaterThanOrEqual(0.9);
+    });
+
+    it("strictly demotes disciplinary meta-reviews without target surname to Tier 3 cites (preventing false contradictions)", () => {
+      const input: ClassificationInput = {
+        citingId: "W-FREESE",
+        citedId: "W-BEM",
+        targetAuthorSurname: "Bem",
+        targetYear: 2011,
+        citingTitle: "Replication in Social Science",
+        citingAbstract:
+          "The replication crisis has spurred renewed interest in methodological rigor, statistical power, and registered reports across psychology and sociology. Many landmark findings have failed to replicate.",
+        citedTitle: "Feeling the Future: Experimental Evidence for Anomalous Retroactive Influences",
+        citedAbstract: "Precognition experiments.",
+        citationContexts: [
+          "For discussions of replication difficulties in experimental paradigms, see recent surveys.",
+        ],
+        s2Intents: ["Background"],
+      };
+
+      const result = classifyCitationLocally(input);
+      // Freese does NOT test or directly critique Bem; abstract discussion of 'failed to replicate' must NOT turn this into contradicts!
+      expect(result.edgeType).toBe("cites");
+      expect(result.directnessTier).toBe(3);
+    });
+  });
+
+  describe("TC-LOC-09: Instrumental Authority Application (Hinde 2007)", () => {
+    it("detects instrumental citation where target author is used as an authoritative framework to refute a 3rd party", () => {
+      const text =
+        "The authors analyze educators' use of Piaget's theories to refute proposed social studies curriculum standards.";
+      expect(detectInstrumentalUsage(text, "Piaget")).toBe(true);
+
+      const analysis = analyzeStance(
+        text,
+        "Curriculum Controversies in Elementary Education",
+        "Teachers used developmental frameworks to challenge state policy.",
+        ["Background"],
+        2,
+        "Piaget",
+      );
+      // Must NOT be classified as contradicts
+      expect(analysis.stance).not.toBe("contradicts");
+      expect(analysis.matchedSignals).toContain("instrumental_authority_application");
+    });
+
+    it("classifies end-to-end Hinde (2007) context correctly without false positive contradiction", () => {
+      const input: ClassificationInput = {
+        citingId: "W2107775073",
+        citedId: "W1976518595",
+        citingTitle: "The Social Studies Curriculum Debate",
+        citingAbstract: "This study examines teachers' arguments, based on Piaget, to refute the state standards.",
+        citedTitle: "The Psychology of Intelligence",
+        citedAbstract: "A treatise on child cognitive development.",
+        citationContexts: [
+          "We examine how teachers drew on Piagetian theory to refute the mandated learning benchmarks.",
+        ],
+        targetAuthorSurname: "Piaget",
+      };
+
+      const result = classifyCitationLocally(input);
+      expect(result.edgeType).not.toBe("contradicts");
+      expect(result.edgeType === "extends" || result.edgeType === "cites").toBe(true);
+    });
+  });
+
+  describe("TC-LOC-10: Canonical Theoretical Critique Titles (Sutton-Smith 1966)", () => {
+    it("identifies canonical critique title patterns accurately", () => {
+      expect(isCanonicalCritiqueTitle("Piaget on play: A critique", "Piaget")).toBe(true);
+      expect(isCanonicalCritiqueTitle("A Critique of Piaget's Theory", "Piaget")).toBe(true);
+      expect(isCanonicalCritiqueTitle("Comment on Bem (2011)", "Bem")).toBe(true);
+      expect(isCanonicalCritiqueTitle("General Cognitive Foundations", "Piaget")).toBe(false);
+    });
+
+    it("elevates canonical critique title to contradicts even with neutral or title-only citation", () => {
+      const input: ClassificationInput = {
+        citingId: "W2001",
+        citedId: "W1976518595",
+        citingTitle: "Piaget on play: A critique",
+        citingAbstract: "",
+        citedTitle: "The Psychology of Intelligence",
+        citedAbstract: "Foundational theory of stages of cognitive development.",
+        citationContexts: [
+          "Piaget (1951) conceptualizes play as the primacy of assimilation over accommodation.",
+        ],
+        targetAuthorSurname: "Piaget",
+      };
+
+      const result = classifyCitationLocally(input);
+      expect(result.edgeType).toBe("contradicts");
+      expect(result.confidence).toBeGreaterThanOrEqual(0.85);
+      expect(result.directnessTier).toBe(1);
+    });
+  });
+
+  describe("TC-LOC-11: Clean Claim Snippet Typography", () => {
+    it("strips leading numbers, list bullets, boilerplate intros, and redundant quotes", () => {
+      expect(
+        cleanClaimSnippet('1. "We find no evidence supporting the proposed stage model."'),
+      ).toBe("We find no evidence supporting the proposed stage model.");
+
+      expect(
+        cleanClaimSnippet('Authors challenge or contradict cited finding: "Replication yields null effect."'),
+      ).toBe("Replication yields null effect.");
+
+      expect(
+        cleanClaimSnippet('[1] “Our experiments fail to replicate earlier claims.” 2. “Additional context”'),
+      ).toBe("Our experiments fail to replicate earlier claims.");
     });
   });
 

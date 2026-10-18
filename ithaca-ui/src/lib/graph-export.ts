@@ -13,6 +13,8 @@ import Graph from "graphology";
 import type { Sigma } from "sigma";
 import { debug } from "./debug";
 import { jsPDF } from "jspdf";
+import { applyHemisphericLayout } from "./perspective-layout";
+import { cleanClaimSnippet } from "./api/citation-cleaner";
 
 // =============================================================================
 // TYPES
@@ -41,6 +43,7 @@ export interface ExportOptions {
   includeHeader?: boolean;
   includeFooter?: boolean;
   quality?: "compressed" | "standard" | "print"; // affects DPI/size
+  layoutMode?: "canvas" | "hemispheric";
 }
 
 // =============================================================================
@@ -50,11 +53,12 @@ export interface ExportOptions {
 const LEGEND_CONFIG = {
   edgeTypes: [
     { color: "#22c55e", label: "Supports", dashed: false },
-    { color: "#ef4444", label: "Refutes", dashed: true },
+    { color: "#f43f5e", label: "Refutes (⚔️)", dashed: false },
     { color: "#3b82f6", label: "Extends", dashed: false },
     { color: "#a1a1aa", label: "Cites", dashed: false },
   ],
-  nodeInfo: { label: "Citation Node" },
+  nodeInfo: { label: "Paper Node" },
+  contestedNodeInfo: { label: "Disputed Node (⚔️)" },
 };
 
 // =============================================================================
@@ -144,6 +148,25 @@ function getScaleForQuality(quality: ExportOptions["quality"]): number {
 }
 
 /**
+ * Safely check if dark mode is active (supports browser, SSR, and headless test runners)
+ */
+function isDarkTheme(): boolean {
+  if (typeof document === "undefined") return true;
+  return document.documentElement.classList.contains("dark");
+}
+
+/**
+ * Safely trigger file download via anchor element if in browser environment
+ */
+function triggerDownload(url: string, filename: string): void {
+  if (typeof document === "undefined") return;
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+}
+
+/**
  * Draw the header section with title and context
  */
 function drawHeader(
@@ -214,9 +237,9 @@ function drawLegend(
 ): { width: number; height: number } {
   const padding = 12 * scale;
   const itemHeight = 20 * scale;
-  const legendWidth = 140 * scale;
+  const legendWidth = 155 * scale;
   const legendHeight =
-    (LEGEND_CONFIG.edgeTypes.length + 2) * itemHeight + padding * 2;
+    (LEGEND_CONFIG.edgeTypes.length + 3) * itemHeight + padding * 2;
 
   // Legend background
   ctx.fillStyle = isDark
@@ -241,17 +264,22 @@ function drawLegend(
   LEGEND_CONFIG.edgeTypes.forEach((edge) => {
     // Line
     ctx.strokeStyle = edge.color;
-    ctx.lineWidth = 2 * scale;
-    if (edge.dashed) {
-      ctx.setLineDash([4 * scale, 2 * scale]);
-    } else {
-      ctx.setLineDash([]);
-    }
+    ctx.lineWidth = edge.color === "#f43f5e" ? 3 * scale : 2 * scale;
+    ctx.setLineDash([]);
     ctx.beginPath();
     ctx.moveTo(x + padding, currentY);
-    ctx.lineTo(x + padding + 20 * scale, currentY);
+    ctx.lineTo(x + padding + 14 * scale, currentY);
     ctx.stroke();
-    ctx.setLineDash([]);
+
+    // Arrowhead tip on legend line
+    const tipX = x + padding + 20 * scale;
+    ctx.fillStyle = edge.color;
+    ctx.beginPath();
+    ctx.moveTo(tipX, currentY);
+    ctx.lineTo(tipX - 5 * scale, currentY - 3 * scale);
+    ctx.lineTo(tipX - 5 * scale, currentY + 3 * scale);
+    ctx.closePath();
+    ctx.fill();
 
     // Label
     ctx.fillStyle = isDark ? BRAND.colors.text.dark : BRAND.colors.text.light;
@@ -260,16 +288,41 @@ function drawLegend(
     currentY += itemHeight;
   });
 
-  // Node indicator
+  // Standard Node indicator
   ctx.strokeStyle = isDark ? "#6b7280" : "#9ca3af";
   ctx.lineWidth = 2 * scale;
   ctx.beginPath();
-  ctx.arc(x + padding + 10 * scale, currentY, 6 * scale, 0, Math.PI * 2);
+  ctx.arc(x + padding + 10 * scale, currentY, 5 * scale, 0, Math.PI * 2);
   ctx.stroke();
 
   ctx.fillStyle = isDark ? BRAND.colors.text.dark : BRAND.colors.text.light;
   ctx.fillText(
     LEGEND_CONFIG.nodeInfo.label,
+    x + padding + 28 * scale,
+    currentY + 4 * scale,
+  );
+
+  currentY += itemHeight;
+
+  // Disputed Node indicator with aura
+  ctx.strokeStyle = "#f43f5e";
+  ctx.lineWidth = 1.5 * scale;
+  ctx.beginPath();
+  ctx.arc(x + padding + 10 * scale, currentY, 5 * scale, 0, Math.PI * 2);
+  ctx.fillStyle = "#f43f5e";
+  ctx.fill();
+  ctx.stroke();
+
+  // Aura ring
+  ctx.strokeStyle = "rgba(244, 63, 94, 0.45)";
+  ctx.lineWidth = 1.5 * scale;
+  ctx.beginPath();
+  ctx.arc(x + padding + 10 * scale, currentY, 8 * scale, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.fillStyle = isDark ? BRAND.colors.text.dark : BRAND.colors.text.light;
+  ctx.fillText(
+    LEGEND_CONFIG.contestedNodeInfo.label,
     x + padding + 28 * scale,
     currentY + 4 * scale,
   );
@@ -332,8 +385,707 @@ function drawFooter(
 }
 
 /**
- * Export Sigma canvas as PNG with full context (header, legend, footer)
- * Draws edges directly from graph data for reliability
+ * Draw directional arrow with offset from target node perimeter
+ */
+export function drawDirectionalArrow(
+  ctx: CanvasRenderingContext2D,
+  fromX: number,
+  fromY: number,
+  toX: number,
+  toY: number,
+  targetRadius: number,
+  color: string,
+  lineWidth: number,
+  isContradiction: boolean,
+  scale: number = 1,
+  isTargetControversial: boolean = false,
+): void {
+  const dx = toX - fromX;
+  const dy = toY - fromY;
+  const dist = Math.hypot(dx, dy);
+  if (dist < 1e-3) return;
+
+  const ux = dx / dist;
+  const uy = dy / dist;
+
+  // Offset endpoint so the arrowhead touches the target node perimeter cleanly,
+  // accounting for the outer luminous aura ring (radius + 8) if controversial.
+  const haloBuffer = isTargetControversial ? 10.5 : 2.5;
+  const offset = targetRadius + haloBuffer;
+  const endX = toX - ux * offset;
+  const endY = toY - uy * offset;
+
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lineWidth;
+  ctx.lineCap = "round";
+
+  if (isContradiction) {
+    // Solid neon crimson with luminous halo
+    ctx.shadowColor = "rgba(244, 63, 94, 0.75)";
+    ctx.shadowBlur = 8;
+    ctx.setLineDash([]);
+  } else {
+    ctx.setLineDash([]);
+  }
+
+  // Draw main line segment
+  ctx.beginPath();
+  ctx.moveTo(fromX, fromY);
+  ctx.lineTo(endX, endY);
+  ctx.stroke();
+
+  // Arrowhead geometry: flared dynamically relative to stroke width
+  const arrowWidth = isContradiction
+    ? Math.max(14, lineWidth * 3.0)
+    : Math.max(7.5, lineWidth * 2.2);
+  const arrowLength = isContradiction
+    ? Math.max(16, lineWidth * 3.4)
+    : Math.max(9.5, lineWidth * 2.5);
+
+  const baseX = endX - ux * arrowLength;
+  const baseY = endY - uy * arrowLength;
+
+  const nx = -uy;
+  const ny = ux;
+
+  const p1X = baseX + nx * (arrowWidth / 2);
+  const p1Y = baseY + ny * (arrowWidth / 2);
+  const p2X = baseX - nx * (arrowWidth / 2);
+  const p2Y = baseY - ny * (arrowWidth / 2);
+
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(endX, endY);
+  ctx.lineTo(p1X, p1Y);
+  ctx.lineTo(p2X, p2Y);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.restore();
+}
+
+export interface DebateCalloutItem {
+  id: string;
+  citingTitle: string;
+  citingYear?: number;
+  targetTitle: string;
+  targetYear?: number;
+  snippet: string;
+  confidence: number;
+  salience?: number;
+}
+
+/**
+ * Compute epistemic salience for ranking dialectic clashes:
+ * Salience = Confidence * (1 + DirectnessBonus) * log10(Citations + 10)
+ */
+export function computeEpistemicSalience(
+  clashOrConfidence:
+    | {
+        citingTitle: string;
+        targetTitle: string;
+        confidence: number;
+        snippet?: string;
+      }
+    | number,
+  sourceAttrsOrTier?:
+    | {
+        citations?: number;
+        title?: string;
+        label?: string;
+      }
+    | (1 | 2 | 3),
+  targetAttrsOrCitations?:
+    | {
+        title?: string;
+        label?: string;
+        authors?: string;
+      }
+    | number,
+): number {
+  if (typeof clashOrConfidence === "number") {
+    const confidence = clashOrConfidence;
+    const tier = typeof sourceAttrsOrTier === "number" ? sourceAttrsOrTier : undefined;
+    const citations = typeof targetAttrsOrCitations === "number" ? targetAttrsOrCitations : 0;
+    const directnessBonus = tier === 1 ? 1.0 : tier === 2 ? 0.5 : 0.0;
+    const impactMultiplier = Math.log10(Math.max(0, citations) + 10);
+    return confidence * (1 + directnessBonus) * impactMultiplier;
+  }
+
+  const clash = clashOrConfidence;
+  const sourceAttrs = typeof sourceAttrsOrTier === "object" ? sourceAttrsOrTier : undefined;
+  const targetAttrs = typeof targetAttrsOrCitations === "object" ? targetAttrsOrCitations : undefined;
+
+  const citingTitle = (sourceAttrs?.title || clash.citingTitle || "").toLowerCase();
+  const targetLabel = (targetAttrs?.label || targetAttrs?.title || clash.targetTitle || "").toLowerCase();
+  const surnameMatch = targetLabel.match(/^[a-z\-]+/i);
+  const targetSurname = surnameMatch ? surnameMatch[0].toLowerCase() : "";
+
+  let directnessBonus = 0;
+  if (
+    citingTitle.includes("comment on") ||
+    citingTitle.includes("rebuttal to") ||
+    citingTitle.includes("reply to") ||
+    citingTitle.includes("response to") ||
+    citingTitle.includes("failure to replicate") ||
+    citingTitle.includes("failures to replicate") ||
+    citingTitle.includes("failed to replicate") ||
+    citingTitle.includes("attempts to replicate") ||
+    (targetSurname.length >= 3 && citingTitle.includes(targetSurname))
+  ) {
+    directnessBonus = 1.0;
+  } else if (
+    clash.snippet &&
+    targetSurname.length >= 3 &&
+    clash.snippet.toLowerCase().includes(targetSurname)
+  ) {
+    directnessBonus = 0.5;
+  }
+
+  const citations = Number(sourceAttrs?.citations ?? 0);
+  const impactMultiplier = Math.log10(Math.max(0, citations) + 10);
+
+  return clash.confidence * (1 + directnessBonus) * impactMultiplier;
+}
+
+function cleanPaperTitle(title: string): string {
+  if (title.length > 34) {
+    return title.slice(0, 32).trim() + "…";
+  }
+  return title;
+}
+
+function truncateText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+): string {
+  if (ctx.measureText(text).width <= maxWidth) return text;
+  let len = text.length;
+  while (len > 3 && ctx.measureText(text.slice(0, len) + "…").width > maxWidth) {
+    len -= 2;
+  }
+  return text.slice(0, len) + "…";
+}
+
+/**
+ * Extract top dialectic clashes from the graph for the debate callout card
+ */
+export function getTopDebateClashes(
+  graph: Graph,
+  limit = 3,
+  includeHidden = false,
+): DebateCalloutItem[] {
+  const clashes: DebateCalloutItem[] = [];
+
+  graph.forEachEdge((edge, attrs, source, target) => {
+    if (!includeHidden && attrs.hidden) return;
+    const edgeType = attrs.edgeType || attrs.type;
+    if (edgeType !== "contradicts") return;
+
+    const sourceAttrs = graph.getNodeAttributes(source);
+    const targetAttrs = graph.getNodeAttributes(target);
+    if (!includeHidden && (sourceAttrs.hidden || targetAttrs.hidden)) return;
+
+    const citingTitle = String(sourceAttrs.label || sourceAttrs.title || source);
+    const targetTitle = String(targetAttrs.label || targetAttrs.title || target);
+    const confidence = Number(attrs.confidence ?? 90);
+
+    let snippet = String(attrs.snippet || "");
+    if (!snippet && Array.isArray(attrs.contexts) && attrs.contexts[0]) {
+      snippet = String(attrs.contexts[0]);
+    }
+    if (!snippet) {
+      snippet = "Contradicting empirical claims";
+    }
+
+    const salience = computeEpistemicSalience(
+      { citingTitle, targetTitle, confidence, snippet },
+      sourceAttrs,
+      targetAttrs,
+    );
+
+    clashes.push({
+      id: edge,
+      citingTitle: cleanPaperTitle(citingTitle),
+      citingYear: sourceAttrs.year,
+      targetTitle: cleanPaperTitle(targetTitle),
+      targetYear: targetAttrs.year,
+      snippet: cleanClaimSnippet(snippet),
+      confidence,
+      salience,
+    });
+  });
+
+  // Sort by epistemic salience descending (highest impact direct rebuttals first)
+  clashes.sort((a, b) => (b.salience ?? b.confidence) - (a.salience ?? a.confidence));
+  return clashes.slice(0, limit);
+}
+
+/**
+ * Format paper title with year, avoiding duplicate year if already present in label
+ */
+export function formatDebateLabelWithYear(title: string, year?: number): string {
+  if (!year) return title;
+  if (title.includes(String(year))) return title;
+  return `${title} (${year})`;
+}
+
+/**
+ * Draw the embedded Dialectic Debate Callout Card (passing the Cold Open Test)
+ */
+export function drawDebateCalloutCard(
+  ctx: CanvasRenderingContext2D,
+  clashes: DebateCalloutItem[],
+  x: number,
+  y: number,
+  width: number,
+  isDark: boolean,
+  scale: number,
+): { width: number; height: number } {
+  if (clashes.length === 0) return { width: 0, height: 0 };
+
+  const padding = 14 * scale;
+  const headerHeight = 24 * scale;
+  const rowHeight = 44 * scale;
+  const cardHeight = headerHeight + clashes.length * rowHeight + padding * 2;
+
+  ctx.save();
+  // Glassmorphic background with crimson accent border
+  ctx.fillStyle = isDark
+    ? "rgba(17, 24, 39, 0.94)"
+    : "rgba(255, 255, 255, 0.96)";
+  ctx.strokeStyle = "#f43f5e";
+  ctx.lineWidth = 1.5 * scale;
+  ctx.shadowColor = "rgba(244, 63, 94, 0.35)";
+  ctx.shadowBlur = 12 * scale;
+  ctx.beginPath();
+  ctx.roundRect(x, y, width, cardHeight, 10 * scale);
+  ctx.fill();
+  ctx.stroke();
+
+  // Reset shadow for crisp text
+  ctx.shadowBlur = 0;
+  ctx.shadowColor = "transparent";
+
+  // Header Title
+  ctx.fillStyle = "#f43f5e";
+  ctx.font = `bold ${10 * scale}px system-ui, -apple-system, sans-serif`;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+  ctx.fillText(
+    `⚔️ EMPIRICAL CONTROVERSIES (${clashes.length} Active Clashes)`,
+    x + padding,
+    y + padding,
+  );
+
+  let curY = y + padding + headerHeight;
+  clashes.forEach((clash, idx) => {
+    // Divider line between items
+    if (idx > 0) {
+      ctx.strokeStyle = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)";
+      ctx.lineWidth = 1 * scale;
+      ctx.beginPath();
+      ctx.moveTo(x + padding, curY - 6 * scale);
+      ctx.lineTo(x + width - padding, curY - 6 * scale);
+      ctx.stroke();
+    }
+
+    // Clash pair title
+    ctx.fillStyle = isDark ? "#f9fafb" : "#111827";
+    ctx.font = `bold ${10 * scale}px system-ui, -apple-system, sans-serif`;
+    const citingStr = formatDebateLabelWithYear(clash.citingTitle, clash.citingYear);
+    const targetStr = formatDebateLabelWithYear(clash.targetTitle, clash.targetYear);
+    const pairText = `${citingStr} ⚔️ ${targetStr}`;
+    const truncatedPair = truncateText(
+      ctx,
+      pairText,
+      width - padding * 2 - 45 * scale,
+    );
+    ctx.fillText(truncatedPair, x + padding, curY);
+
+    // Confidence badge
+    ctx.fillStyle = "#f43f5e";
+    ctx.font = `bold ${9 * scale}px system-ui, -apple-system, sans-serif`;
+    const confText = `${clash.confidence}%`;
+    const confWidth = ctx.measureText(confText).width;
+    ctx.fillText(confText, x + width - padding - confWidth, curY);
+
+    // Snippet quote
+    ctx.fillStyle = isDark ? "#9ca3af" : "#4b5563";
+    ctx.font = `italic ${9 * scale}px system-ui, -apple-system, sans-serif`;
+    const quoteText = `“${clash.snippet}”`;
+    const truncatedQuote = truncateText(ctx, quoteText, width - padding * 2);
+    ctx.fillText(truncatedQuote, x + padding, curY + 14 * scale);
+
+    curY += rowHeight;
+  });
+
+  ctx.restore();
+  return { width, height: cardHeight };
+}
+
+/**
+ * High-fidelity Canvas renderer shared by both PNG and PDF exports.
+ * Renders stratified edges, directional arrowheads, contested node halos,
+ * legend, debate callout card, header, and footer.
+ */
+export function renderGraphToExportCanvas(
+  graph: Graph,
+  sigma: Sigma | null,
+  options: {
+    exportWidth: number;
+    exportHeight: number;
+    graphWidth: number;
+    graphHeight: number;
+    headerHeight: number;
+    footerHeight: number;
+    scale: number;
+    isDark: boolean;
+    metadata: ExportMetadata;
+    includeHeader: boolean;
+    includeLegend: boolean;
+    includeFooter: boolean;
+    includeHidden: boolean;
+    layoutMode?: "canvas" | "hemispheric";
+  },
+): HTMLCanvasElement {
+  const {
+    exportWidth,
+    exportHeight,
+    graphWidth,
+    graphHeight,
+    headerHeight,
+    footerHeight,
+    scale,
+    isDark,
+    metadata,
+    includeHeader,
+    includeLegend,
+    includeFooter,
+    includeHidden,
+    layoutMode = "canvas",
+  } = options;
+
+  const graphData = graph.copy();
+  if (layoutMode === "hemispheric") {
+    applyHemisphericLayout(graphData);
+  }
+
+  const exportCanvas = document.createElement("canvas");
+  exportCanvas.width = exportWidth;
+  exportCanvas.height = exportHeight;
+
+  const ctx = exportCanvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("Failed to get canvas context");
+  }
+
+  const bgColor = isDark
+    ? BRAND.colors.background.dark
+    : BRAND.colors.background.light;
+
+  // 1. Fill background
+  ctx.fillStyle = bgColor;
+  ctx.fillRect(0, 0, exportWidth, exportHeight);
+
+  // 2. Draw header
+  if (includeHeader) {
+    drawHeader(ctx, metadata, exportWidth, isDark, scale);
+  }
+
+  // 3. Draw graph content in scaled coordinates
+  ctx.save();
+  ctx.translate(0, headerHeight);
+  ctx.scale(scale, scale);
+
+  const mapCoord = createGraphMapper(
+    graphData,
+    graphWidth,
+    graphHeight,
+    48,
+    includeHidden,
+  );
+
+  // Stratify edges into 3 passes
+  interface EdgeRenderItem {
+    edge: string;
+    source: string;
+    target: string;
+    sv: { x: number; y: number };
+    tv: { x: number; y: number };
+    targetRadius: number;
+    edgeType: string;
+    color: string;
+    size: number;
+    isTargetControversial: boolean;
+  }
+
+  const backgroundEdges: EdgeRenderItem[] = [];
+  const lineageEdges: EdgeRenderItem[] = [];
+  const contradictionEdges: EdgeRenderItem[] = [];
+
+  graphData.forEachEdge((edge, attributes, source, target) => {
+    if (!includeHidden && attributes.hidden) return;
+
+    const sourceAttrs = graphData.getNodeAttributes(source);
+    const targetAttrs = graphData.getNodeAttributes(target);
+    if (!includeHidden && (sourceAttrs.hidden || targetAttrs.hidden)) return;
+
+    const targetControversyScore = targetAttrs.controversyScore || 0;
+    const isTargetControversial = targetControversyScore >= 1;
+
+    const sv = mapCoord(sourceAttrs.x ?? 0, sourceAttrs.y ?? 0);
+    const tv = mapCoord(targetAttrs.x ?? 0, targetAttrs.y ?? 0);
+    const edgeType = attributes.edgeType || attributes.type || "cites";
+    const targetRadius = targetAttrs.size || 5;
+
+    let edgeColor = attributes.color;
+    if (edgeType === "supports") {
+      edgeColor = "#22c55e";
+    } else if (edgeType === "contradicts") {
+      edgeColor = "#f43f5e"; // Bright neon rose/crimson for refutations
+    } else if (edgeType === "extends") {
+      edgeColor = "#3b82f6";
+    } else {
+      edgeColor = isDark ? "#6b7280" : "#9ca3af";
+    }
+
+    const item: EdgeRenderItem = {
+      edge,
+      source,
+      target,
+      sv,
+      tv,
+      targetRadius,
+      edgeType,
+      color: edgeColor,
+      size: attributes.size || 1,
+      isTargetControversial,
+    };
+
+    if (edgeType === "contradicts") {
+      contradictionEdges.push(item);
+    } else if (edgeType === "supports" || edgeType === "extends") {
+      lineageEdges.push(item);
+    } else {
+      backgroundEdges.push(item);
+    }
+  });
+
+  // Pass 1: Background neutral citations (subdued hairline, 25% opacity)
+  backgroundEdges.forEach((item) => {
+    ctx.save();
+    ctx.globalAlpha = isDark ? 0.22 : 0.30;
+    drawDirectionalArrow(
+      ctx,
+      item.sv.x,
+      item.sv.y,
+      item.tv.x,
+      item.tv.y,
+      item.targetRadius,
+      item.color,
+      Math.max(0.7, item.size * 0.9),
+      false,
+      scale,
+      item.isTargetControversial,
+    );
+    ctx.restore();
+  });
+
+  // Pass 2: Lineage progression edges (supports, extends - 88% opacity, crisp 2.2px)
+  lineageEdges.forEach((item) => {
+    ctx.save();
+    ctx.globalAlpha = 0.88;
+    drawDirectionalArrow(
+      ctx,
+      item.sv.x,
+      item.sv.y,
+      item.tv.x,
+      item.tv.y,
+      item.targetRadius,
+      item.color,
+      Math.max(2.2, item.size * 1.8),
+      false,
+      scale,
+      item.isTargetControversial,
+    );
+    ctx.restore();
+  });
+
+  // Pass 3: Active dialectic refutations (contradicts - top z-index, solid, bold 3.8px with luminous halo)
+  contradictionEdges.forEach((item) => {
+    ctx.save();
+    ctx.globalAlpha = 1.0;
+    drawDirectionalArrow(
+      ctx,
+      item.sv.x,
+      item.sv.y,
+      item.tv.x,
+      item.tv.y,
+      item.targetRadius,
+      item.color,
+      Math.max(3.8, item.size * 2.6),
+      true,
+      scale,
+      item.isTargetControversial,
+    );
+    ctx.restore();
+  });
+
+  // 4. Draw nodes
+  graphData.forEachNode((node, attributes) => {
+    if (!includeHidden && attributes.hidden) return;
+
+    const pos = mapCoord(attributes.x ?? 0, attributes.y ?? 0);
+    const size = attributes.size || 5;
+    const controversyScore = attributes.controversyScore || 0;
+    const isControversial = controversyScore >= 1;
+    const isHighlighted = attributes.highlighted || isControversial;
+
+    // A. Contested Node Aura (Luminous dual halo rings)
+    if (isControversial) {
+      ctx.save();
+      // Outer faint halo
+      ctx.strokeStyle = "rgba(244, 63, 94, 0.35)";
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, size + 8, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Inner glowing ring
+      ctx.shadowColor = "rgba(244, 63, 94, 0.8)";
+      ctx.shadowBlur = 8;
+      ctx.strokeStyle = "#f43f5e";
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, size + 4, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // B. Node Core Disc
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, size, 0, Math.PI * 2);
+    ctx.fillStyle = isControversial ? "#f43f5e" : (attributes.color || "#999999");
+    ctx.fill();
+
+    // Subtle disc border
+    ctx.strokeStyle = isDark ? "#1f2937" : "#ffffff";
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    // C. Controversy Counter Badge (⚔️ N)
+    if (isControversial) {
+      const badgeText = `⚔️ ${controversyScore}`;
+      ctx.font = `bold 9px system-ui, -apple-system, sans-serif`;
+      const badgeTextWidth = ctx.measureText(badgeText).width;
+      const bPadding = 4;
+      const bWidth = badgeTextWidth + bPadding * 2;
+      const bHeight = 14;
+      const bX = pos.x + size * 0.65;
+      const bY = pos.y - size * 0.65 - bHeight / 2;
+
+      ctx.save();
+      ctx.fillStyle = "#ef4444";
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(bX, bY, bWidth, bHeight, 7);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = "#ffffff";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(badgeText, bX + bWidth / 2, bY + bHeight / 2);
+      ctx.restore();
+    }
+
+    // D. Node Label with theme-aware background pill
+    if (attributes.label) {
+      const label = attributes.label;
+      ctx.font = `11px system-ui, -apple-system, sans-serif`;
+      const textWidth = ctx.measureText(label).width;
+      const labelX = pos.x;
+      const labelY = pos.y - size - 9;
+
+      if (isHighlighted) {
+        const pillPadding = 6;
+        const pillHeight = 18;
+        const pillBgColor = isDark ? "#1f2937" : "#ffffff";
+        const pillBorderColor = isControversial
+          ? "rgba(244, 63, 94, 0.7)"
+          : isDark
+            ? "#374151"
+            : "#e5e7eb";
+
+        ctx.fillStyle = pillBgColor;
+        ctx.strokeStyle = pillBorderColor;
+        ctx.lineWidth = isControversial ? 1.5 : 1;
+        ctx.beginPath();
+        ctx.roundRect(
+          labelX - textWidth / 2 - pillPadding,
+          labelY - pillHeight / 2 - 2,
+          textWidth + pillPadding * 2,
+          pillHeight,
+          pillHeight / 2,
+        );
+        ctx.fill();
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = isDark ? "#f9fafb" : "#1f2937";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(label, labelX, labelY);
+    }
+  });
+
+  ctx.restore();
+
+  // 5. Draw Legend (bottom-left)
+  if (includeLegend) {
+    const legendX = 16 * scale;
+    const legendY = headerHeight + graphHeight * scale - 210 * scale;
+    drawLegend(ctx, legendX, legendY, isDark, scale);
+  }
+
+  // 6. Draw Dialectic Debate Callout Card (bottom-right)
+  const clashes = getTopDebateClashes(graphData, 3, includeHidden);
+  if (clashes.length > 0) {
+    const calloutWidth = Math.min(420 * scale, exportWidth * 0.48);
+    const calloutX = exportWidth - calloutWidth - 16 * scale;
+    const headerH = 24 * scale;
+    const rowH = 44 * scale;
+    const pad = 14 * scale;
+    const estimatedCardHeight = headerH + clashes.length * rowH + pad * 2;
+    const calloutY =
+      headerHeight + graphHeight * scale - estimatedCardHeight - 16 * scale;
+
+    drawDebateCalloutCard(
+      ctx,
+      clashes,
+      calloutX,
+      calloutY,
+      calloutWidth,
+      isDark,
+      scale,
+    );
+  }
+
+  // 7. Draw Footer
+  if (includeFooter) {
+    drawFooter(ctx, metadata, exportWidth, exportHeight, isDark, scale);
+  }
+
+  return exportCanvas;
+}
+
+/**
+ * Export Sigma canvas as PNG with full context (header, legend, footer, debate callout)
+ * Draws high-contrast stratified edges and directional arrowheads directly from graph data
  */
 export async function exportAsPNG(
   sigma: Sigma,
@@ -351,13 +1103,9 @@ export async function exportAsPNG(
   } = options;
 
   const scale = getScaleForQuality(quality);
-  const isDark = document.documentElement.classList.contains("dark");
-  const bgColor = isDark
-    ? BRAND.colors.background.dark
-    : BRAND.colors.background.light;
+  const isDark = isDarkTheme();
 
   try {
-    // Get canvas dimensions from Sigma
     const { width: sigmaWidth, height: sigmaHeight } = sigma.getDimensions();
     const graphWidth = sigmaWidth;
     const graphHeight = sigmaHeight;
@@ -367,171 +1115,27 @@ export async function exportAsPNG(
     const exportWidth = graphWidth * scale;
     const exportHeight = graphHeight * scale + headerHeight + footerHeight;
 
-    // Create export canvas
-    const exportCanvas = document.createElement("canvas");
-    exportCanvas.width = exportWidth;
-    exportCanvas.height = exportHeight;
-
-    const ctx = exportCanvas.getContext("2d");
-    if (!ctx) {
-      throw new Error("Failed to get canvas context");
-    }
-
-    // Fill background
-    ctx.fillStyle = bgColor;
-    ctx.fillRect(0, 0, exportWidth, exportHeight);
-
-    // Draw header
-    if (includeHeader) {
-      drawHeader(ctx, metadata, exportWidth, isDark, scale);
-    }
-
-    // Draw graph content
-    ctx.save();
-    ctx.translate(0, headerHeight);
-    ctx.scale(scale, scale);
-
-    // Get the graph from sigma if not provided
     const graphData = graph || sigma.getGraph();
-
-    if (graphData) {
-      // Create coordinate mapper that normalizes graph positions
-      // into the graphWidth × graphHeight pixel area (before scale)
-      const mapCoord = createGraphMapper(
-        graphData,
-        graphWidth,
-        graphHeight,
-        40,
-        includeHidden,
-      );
-
-      // Draw edges
-      graphData.forEachEdge((edge, attributes, source, target) => {
-        if (!includeHidden && attributes.hidden) return;
-
-        const sourceAttrs = graphData.getNodeAttributes(source);
-        const targetAttrs = graphData.getNodeAttributes(target);
-
-        if (!includeHidden && (sourceAttrs.hidden || targetAttrs.hidden))
-          return;
-
-        const sv = mapCoord(sourceAttrs.x ?? 0, sourceAttrs.y ?? 0);
-        const tv = mapCoord(targetAttrs.x ?? 0, targetAttrs.y ?? 0);
-
-        // Get edge color and type
-        const edgeType = attributes.edgeType || attributes.type || "default";
-        let edgeColor = attributes.color || "#999999";
-
-        // Ensure edge colors are visible in both themes
-        if (edgeType === "supports") {
-          edgeColor = "#22c55e"; // green
-        } else if (edgeType === "contradicts") {
-          edgeColor = "#ef4444"; // red
-        } else if (edgeType === "extends") {
-          edgeColor = "#3b82f6"; // blue
-        } else if (edgeType === "cites") {
-          edgeColor = "#a1a1aa"; // neutral zinc
-        } else {
-          // Default edge color - make it visible in both themes
-          edgeColor = isDark ? "#6b7280" : "#9ca3af";
-        }
-
-        ctx.strokeStyle = edgeColor;
-        ctx.lineWidth = (attributes.size || 1) * 1.5;
-        ctx.globalAlpha = edgeType === "cites" ? 0.5 : 0.7;
-
-        // Dashed line for contradicts/refutes
-        if (edgeType === "contradicts") {
-          ctx.setLineDash([6, 3]);
-        } else {
-          ctx.setLineDash([]);
-        }
-
-        ctx.beginPath();
-        ctx.moveTo(sv.x, sv.y);
-        ctx.lineTo(tv.x, tv.y);
-        ctx.stroke();
-      });
-
-      ctx.setLineDash([]);
-      ctx.globalAlpha = 1;
-
-      // Draw nodes
-      graphData.forEachNode((node, attributes) => {
-        if (!includeHidden && attributes.hidden) return;
-
-        const pos = mapCoord(attributes.x ?? 0, attributes.y ?? 0);
-        const size = attributes.size || 5;
-        const isHighlighted =
-          attributes.highlighted || attributes.controversyScore > 0;
-
-        // Draw node circle
-        ctx.beginPath();
-        ctx.arc(pos.x, pos.y, size, 0, Math.PI * 2);
-        ctx.fillStyle = attributes.color || "#999999";
-        ctx.fill();
-
-        // Draw label with theme-aware background for highlighted nodes
-        if (attributes.label) {
-          const label = attributes.label;
-          ctx.font = `11px system-ui, -apple-system, sans-serif`;
-          const textWidth = ctx.measureText(label).width;
-          const labelX = pos.x;
-          const labelY = pos.y - size - 8;
-
-          if (isHighlighted) {
-            // Draw pill background - THEME AWARE
-            const pillPadding = 6;
-            const pillHeight = 18;
-            const pillBgColor = isDark ? "#1f2937" : "#ffffff";
-            const pillBorderColor = isDark ? "#374151" : "#e5e7eb";
-
-            ctx.fillStyle = pillBgColor;
-            ctx.strokeStyle = pillBorderColor;
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.roundRect(
-              labelX - textWidth / 2 - pillPadding,
-              labelY - pillHeight / 2 - 2,
-              textWidth + pillPadding * 2,
-              pillHeight,
-              pillHeight / 2,
-            );
-            ctx.fill();
-            ctx.stroke();
-          }
-
-          // Draw label text - THEME AWARE
-          ctx.fillStyle = isDark ? "#f9fafb" : "#1f2937";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillText(label, labelX, labelY);
-        }
-      });
-    } else {
-      // Fallback: try to capture canvas layers
-      const layers = sigma.getCanvases();
-      ["edges", "nodes", "edgeLabels", "labels", "hovers"].forEach((layer) => {
-        const layerCanvas = (layers as any)[layer] as HTMLCanvasElement;
-        if (layerCanvas) {
-          ctx.drawImage(layerCanvas, 0, 0);
-        }
-      });
+    if (!graphData) {
+      throw new Error("No graph data available for PNG export");
     }
 
-    ctx.restore();
-
-    // Draw legend (positioned inside graph area, bottom-left)
-    if (includeLegend) {
-      const legendX = 16 * scale;
-      const legendY = headerHeight + graphHeight * scale - 180 * scale;
-      drawLegend(ctx, legendX, legendY, isDark, scale);
-    }
-
-    // Draw footer
-    if (includeFooter) {
-      drawFooter(ctx, metadata, exportWidth, exportHeight, isDark, scale);
-    }
+    const exportCanvas = renderGraphToExportCanvas(graphData, sigma, {
+      exportWidth,
+      exportHeight,
+      graphWidth,
+      graphHeight,
+      headerHeight,
+      footerHeight,
+      scale,
+      isDark,
+      metadata,
+      includeHeader,
+      includeLegend,
+      includeFooter,
+      includeHidden,
+      layoutMode: options.layoutMode,
+    });
 
     // Convert to blob
     const blob = await new Promise<Blob>((resolve, reject) => {
@@ -547,11 +1151,10 @@ export async function exportAsPNG(
 
     // Create download
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
+    triggerDownload(url, filename);
+    if (typeof URL.revokeObjectURL === "function") {
+      URL.revokeObjectURL(url);
+    }
 
     debug.graph(
       `Exported PNG: ${filename} (${quality} quality, ${Math.round(blob.size / 1024)}KB)`,
@@ -576,25 +1179,92 @@ function generateSVGLegend(x: number, y: number, isDark: boolean): string {
 
   let legend = `
   <g transform="translate(${x}, ${y})">
-    <rect width="140" height="120" rx="8" fill="${bgColor}" stroke="${borderColor}" stroke-width="1"/>
+    <rect width="155" height="150" rx="8" fill="${bgColor}" stroke="${borderColor}" stroke-width="1"/>
     <text x="12" y="20" font-size="9" font-weight="bold" fill="${mutedColor}" font-family="system-ui, sans-serif">LEGEND</text>
 `;
 
   let itemY = 40;
   LEGEND_CONFIG.edgeTypes.forEach((edge) => {
-    const dashArray = edge.dashed ? 'stroke-dasharray="4 2"' : "";
-    legend += `    <line x1="12" y1="${itemY}" x2="32" y2="${itemY}" stroke="${edge.color}" stroke-width="2" ${dashArray}/>
-    <text x="40" y="${itemY + 4}" font-size="11" fill="${textColor}" font-family="system-ui, sans-serif">${edge.label}</text>
+    const markerId =
+      edge.color === "#22c55e"
+        ? "arrow-supports"
+        : edge.color === "#f43f5e"
+          ? "arrow-contradicts"
+          : edge.color === "#3b82f6"
+            ? "arrow-extends"
+            : "arrow-cites";
+    const strokeW = edge.color === "#f43f5e" ? "3" : "2";
+
+    legend += `    <line x1="12" y1="${itemY}" x2="26" y2="${itemY}" stroke="${edge.color}" stroke-width="${strokeW}" marker-end="url(#${markerId})"/>
+    <text x="36" y="${itemY + 4}" font-size="11" fill="${textColor}" font-family="system-ui, sans-serif">${escapeXml(edge.label)}</text>
 `;
     itemY += 20;
   });
 
-  // Node indicator
-  legend += `    <circle cx="22" cy="${itemY}" r="6" fill="none" stroke="${mutedColor}" stroke-width="2"/>
-    <text x="40" y="${itemY + 4}" font-size="11" fill="${textColor}" font-family="system-ui, sans-serif">${LEGEND_CONFIG.nodeInfo.label}</text>
+  // Standard Node
+  legend += `    <circle cx="18" cy="${itemY}" r="5" fill="none" stroke="${mutedColor}" stroke-width="2"/>
+    <text x="36" y="${itemY + 4}" font-size="11" fill="${textColor}" font-family="system-ui, sans-serif">${escapeXml(LEGEND_CONFIG.nodeInfo.label)}</text>
+`;
+  itemY += 20;
+
+  // Disputed Node
+  legend += `    <circle cx="18" cy="${itemY}" r="5" fill="#f43f5e" stroke="#f43f5e" stroke-width="1.5"/>
+    <circle cx="18" cy="${itemY}" r="8" fill="none" stroke="rgba(244, 63, 94, 0.45)" stroke-width="1.5"/>
+    <text x="36" y="${itemY + 4}" font-size="11" fill="${textColor}" font-family="system-ui, sans-serif">${escapeXml(LEGEND_CONFIG.contestedNodeInfo.label)}</text>
   </g>
 `;
   return legend;
+}
+
+/**
+ * Generate SVG Debate Callout Card markup
+ */
+function generateSVGDebateCallout(
+  clashes: DebateCalloutItem[],
+  x: number,
+  y: number,
+  width: number,
+  isDark: boolean,
+): string {
+  if (clashes.length === 0) return "";
+  const headerHeight = 24;
+  const rowHeight = 44;
+  const padding = 14;
+  const height = headerHeight + clashes.length * rowHeight + padding * 2;
+  const bgColor = isDark
+    ? "rgba(17, 24, 39, 0.95)"
+    : "rgba(255, 255, 255, 0.96)";
+  const textColor = isDark ? "#f9fafb" : "#111827";
+  const mutedColor = isDark ? "#9ca3af" : "#4b5563";
+
+  let out = `
+  <g id="debate-callout" transform="translate(${x}, ${y})">
+    <rect width="${width}" height="${height}" rx="10" fill="${bgColor}" stroke="#f43f5e" stroke-width="1.5"/>
+    <text x="${padding}" y="${padding + 12}" font-size="10" font-weight="bold" fill="#f43f5e" font-family="system-ui, sans-serif">⚔️ EMPIRICAL CONTROVERSIES (${clashes.length} Active Clashes)</text>
+`;
+
+  let curY = padding + headerHeight;
+  clashes.forEach((clash, idx) => {
+    if (idx > 0) {
+      out += `    <line x1="${padding}" y1="${curY - 6}" x2="${width - padding}" y2="${curY - 6}" stroke="${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}" stroke-width="1"/>\n`;
+    }
+    const citingStr = formatDebateLabelWithYear(clash.citingTitle, clash.citingYear);
+    const targetStr = formatDebateLabelWithYear(clash.targetTitle, clash.targetYear);
+    const pairText = `${citingStr} ⚔️ ${targetStr}`;
+    const truncatedPair =
+      pairText.length > 40 ? pairText.slice(0, 38) + "…" : pairText;
+    const truncatedQuote =
+      clash.snippet.length > 55 ? clash.snippet.slice(0, 53) + "…" : clash.snippet;
+
+    out += `    <text x="${padding}" y="${curY + 10}" font-size="10" font-weight="bold" fill="${textColor}" font-family="system-ui, sans-serif">${escapeXml(truncatedPair)}</text>
+    <text x="${width - padding - 30}" y="${curY + 10}" font-size="9" font-weight="bold" fill="#f43f5e" font-family="system-ui, sans-serif">${clash.confidence}%</text>
+    <text x="${padding}" y="${curY + 24}" font-size="9" font-style="italic" fill="${mutedColor}" font-family="system-ui, sans-serif">“${escapeXml(truncatedQuote)}”</text>
+`;
+    curY += rowHeight;
+  });
+
+  out += `  </g>\n`;
+  return out;
 }
 
 /**
@@ -660,7 +1330,7 @@ function generateSVGFooter(
 }
 
 /**
- * Export Sigma canvas as SVG with full context (header, legend, footer)
+ * Export Sigma canvas as SVG with full context (header, legend, footer, debate callout)
  * Text is selectable and searchable
  */
 export async function exportAsSVG(
@@ -675,12 +1345,12 @@ export async function exportAsSVG(
     includeLegend = true,
     includeHeader = true,
     includeFooter = true,
+    layoutMode = "canvas",
   } = options;
 
-  const isDark = document.documentElement.classList.contains("dark");
+  const isDark = isDarkTheme();
 
   try {
-    const camera = sigma.getCamera();
     const { width, height } = sigma.getDimensions();
 
     const headerHeight = includeHeader ? 80 : 0;
@@ -692,7 +1362,13 @@ export async function exportAsSVG(
       : BRAND.colors.background.light;
     const textColor = isDark ? "#f9fafb" : "#1f2937";
 
-    // Start SVG with metadata
+    // Clone graph to allow layout transformations without mutating live canvas
+    const graphData = graph.copy();
+    if (layoutMode === "hemispheric") {
+      applyHemisphericLayout(graphData);
+    }
+
+    // Start SVG with metadata and arrow marker definitions
     let svg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${totalHeight}" viewBox="0 0 ${width} ${totalHeight}">
   <title>${escapeXml(metadata.title)}</title>
@@ -706,6 +1382,28 @@ export async function exportAsSVG(
       </rdf:Description>
     </rdf:RDF>
   </metadata>
+
+  <defs>
+    <marker id="arrow-contradicts" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 1.2 L 10 5 L 0 8.8 z" fill="#f43f5e" />
+    </marker>
+    <marker id="arrow-supports" viewBox="0 0 10 10" refX="7.5" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill="#22c55e" />
+    </marker>
+    <marker id="arrow-extends" viewBox="0 0 10 10" refX="7.5" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill="#3b82f6" />
+    </marker>
+    <marker id="arrow-cites" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#a1a1aa" opacity="0.6" />
+    </marker>
+    <filter id="crimson-glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
   
   <!-- Background -->
   <rect width="100%" height="100%" fill="${bgColor}"/>
@@ -723,98 +1421,178 @@ export async function exportAsSVG(
 `;
 
     // Create coordinate mapper for the graph area
-    const mapCoord = createGraphMapper(graph, width, height, 40, includeHidden);
+    const mapCoord = createGraphMapper(graphData, width, height, 48, includeHidden);
 
-    // Draw edges
-    graph.forEachEdge((edge, attributes, source, target) => {
+    // Stratify edges into 3 passes
+    interface SvgEdgeItem {
+      sx: number;
+      sy: number;
+      tx: number;
+      ty: number;
+      color: string;
+      strokeWidth: number;
+      opacity: string;
+      markerId: string;
+      filter?: string;
+    }
+
+    const bgEdges: SvgEdgeItem[] = [];
+    const linEdges: SvgEdgeItem[] = [];
+    const conEdges: SvgEdgeItem[] = [];
+
+    graphData.forEachEdge((edge, attributes, source, target) => {
       if (!includeHidden && attributes.hidden) return;
 
-      const sourceNode = graph.getNodeAttributes(source);
-      const targetNode = graph.getNodeAttributes(target);
-
+      const sourceNode = graphData.getNodeAttributes(source);
+      const targetNode = graphData.getNodeAttributes(target);
       if (!includeHidden && (sourceNode.hidden || targetNode.hidden)) return;
 
       const sv = mapCoord(sourceNode.x ?? 0, sourceNode.y ?? 0);
       const tv = mapCoord(targetNode.x ?? 0, targetNode.y ?? 0);
 
-      // Offset for header
       const sx = sv.x;
       const sy = sv.y + headerHeight;
-      const tx = tv.x;
-      const ty = tv.y + headerHeight;
+      const rawTx = tv.x;
+      const rawTy = tv.y + headerHeight;
 
       const edgeType = attributes.edgeType || attributes.type || "default";
+      const targetRadius = targetNode.size || 5;
+      const isTargetControversial = (targetNode.controversyScore || 0) >= 1;
 
-      // Determine edge color based on type
-      let edgeColor: string;
-      if (edgeType === "supports") {
-        edgeColor = "#22c55e"; // green
-      } else if (edgeType === "contradicts") {
-        edgeColor = "#ef4444"; // red
-      } else if (edgeType === "extends") {
-        edgeColor = "#3b82f6"; // blue
-      } else if (edgeType === "cites") {
-        edgeColor = "#a1a1aa"; // neutral zinc
-      } else {
-        // Default edge color - theme aware
-        edgeColor = isDark ? "#6b7280" : "#9ca3af";
+      // Compute vector offset so arrowhead stops cleanly outside target node & halo buffer
+      const dx = rawTx - sx;
+      const dy = rawTy - sy;
+      const dist = Math.hypot(dx, dy);
+      let tx = rawTx;
+      let ty = rawTy;
+
+      if (dist > 1) {
+        const offset = targetRadius + (isTargetControversial ? 10.5 : 2.5);
+        tx = rawTx - (dx / dist) * offset;
+        ty = rawTy - (dy / dist) * offset;
       }
 
-      const dashArray =
-        edgeType === "contradicts" ? 'stroke-dasharray="6 3"' : "";
-      const strokeWidth = (attributes.size || 1) * 1.5;
+      let edgeColor = attributes.color;
+      let strokeWidth = 1.2;
+      let opacity = "0.85";
+      let markerId = "arrow-cites";
+      let filter: string | undefined = undefined;
 
-      svg += `    <line x1="${sx}" y1="${sy}" x2="${tx}" y2="${ty}" 
-        stroke="${edgeColor}" stroke-width="${strokeWidth}" opacity="0.7" ${dashArray}/>
-`;
+      if (edgeType === "supports") {
+        edgeColor = "#22c55e";
+        strokeWidth = Math.max(2.2, (attributes.size || 1) * 1.8);
+        opacity = "0.88";
+        markerId = "arrow-supports";
+        linEdges.push({ sx, sy, tx, ty, color: edgeColor, strokeWidth, opacity, markerId });
+      } else if (edgeType === "contradicts") {
+        edgeColor = "#f43f5e";
+        strokeWidth = Math.max(3.8, (attributes.size || 1) * 2.6);
+        opacity = "1.0";
+        markerId = "arrow-contradicts";
+        filter = "url(#crimson-glow)";
+        conEdges.push({ sx, sy, tx, ty, color: edgeColor, strokeWidth, opacity, markerId, filter });
+      } else if (edgeType === "extends") {
+        edgeColor = "#3b82f6";
+        strokeWidth = Math.max(2.2, (attributes.size || 1) * 1.6);
+        opacity = "0.85";
+        markerId = "arrow-extends";
+        linEdges.push({ sx, sy, tx, ty, color: edgeColor, strokeWidth, opacity, markerId });
+      } else {
+        edgeColor = isDark ? "#6b7280" : "#9ca3af";
+        strokeWidth = Math.max(0.7, (attributes.size || 1) * 0.9);
+        opacity = isDark ? "0.22" : "0.30";
+        markerId = "arrow-cites";
+        bgEdges.push({ sx, sy, tx, ty, color: edgeColor, strokeWidth, opacity, markerId });
+      }
+    });
+
+    // Render SVG Edges in 3 passes
+    [...bgEdges, ...linEdges, ...conEdges].forEach((e) => {
+      const filterAttr = e.filter ? ` filter="${e.filter}"` : "";
+      svg += `    <line x1="${e.sx}" y1="${e.sy}" x2="${e.tx}" y2="${e.ty}" 
+        stroke="${e.color}" stroke-width="${e.strokeWidth}" opacity="${e.opacity}" marker-end="url(#${e.markerId})"${filterAttr}/>\n`;
     });
 
     // Draw nodes
-    graph.forEachNode((node, attributes) => {
+    graphData.forEachNode((node, attributes) => {
       if (!includeHidden && attributes.hidden) return;
 
       const pos = mapCoord(attributes.x ?? 0, attributes.y ?? 0);
       const cx = pos.x;
       const cy = pos.y + headerHeight;
       const size = attributes.size || 5;
-      const isHighlighted =
-        attributes.highlighted || attributes.controversyScore > 0;
+      const controversyScore = attributes.controversyScore || 0;
+      const isControversial = controversyScore >= 1;
+      const isHighlighted = attributes.highlighted || isControversial;
 
+      // Halo for disputed nodes
+      if (isControversial) {
+        svg += `    <circle cx="${cx}" cy="${cy}" r="${size + 7}" fill="none" stroke="rgba(244, 63, 94, 0.35)" stroke-width="1.8"/>\n`;
+        svg += `    <circle cx="${cx}" cy="${cy}" r="${size + 4}" fill="none" stroke="#f43f5e" stroke-width="2" filter="url(#crimson-glow)"/>\n`;
+      }
+
+      // Main node circle
+      const nodeFill = isControversial ? "#f43f5e" : (attributes.color || "#999");
       svg += `    <circle cx="${cx}" cy="${cy}" r="${size}" 
-        fill="${attributes.color || "#999"}" data-id="${escapeXml(node)}"/>
-`;
+        fill="${nodeFill}" stroke="${isDark ? "#1f2937" : "#ffffff"}" stroke-width="1.2" data-id="${escapeXml(node)}"/>\n`;
 
-      // Add label (selectable text) with theme-aware background for highlighted nodes
+      // Controversy Badge ⚔️ N
+      if (isControversial) {
+        const badgeText = `⚔️ ${controversyScore}`;
+        const bWidth = badgeText.length * 6 + 10;
+        const bHeight = 14;
+        const bX = cx + size * 0.65;
+        const bY = cy - size * 0.65 - bHeight / 2;
+
+        svg += `    <rect x="${bX}" y="${bY}" width="${bWidth}" height="${bHeight}" rx="7" fill="#ef4444" stroke="#ffffff" stroke-width="1"/>
+    <text x="${bX + bWidth / 2}" y="${bY + 10}" text-anchor="middle" font-size="9" font-weight="bold" fill="#ffffff" font-family="system-ui, sans-serif">${badgeText}</text>\n`;
+      }
+
+      // Add label
       if (attributes.label) {
-        const labelY = cy - size - 8;
+        const labelY = cy - size - 9;
 
         if (isHighlighted) {
-          // Draw pill background - THEME AWARE
           const pillBgColor = isDark ? "#1f2937" : "#ffffff";
-          const pillBorderColor = isDark ? "#374151" : "#e5e7eb";
-          const textWidth = attributes.label.length * 6.5; // approximate
+          const pillBorderColor = isControversial
+            ? "rgba(244, 63, 94, 0.7)"
+            : isDark
+              ? "#374151"
+              : "#e5e7eb";
+          const textWidth = attributes.label.length * 6.5;
           const pillPadding = 6;
           const pillHeight = 18;
 
           svg += `    <rect x="${cx - textWidth / 2 - pillPadding}" y="${labelY - pillHeight / 2 - 2}" 
             width="${textWidth + pillPadding * 2}" height="${pillHeight}" rx="${pillHeight / 2}"
-            fill="${pillBgColor}" stroke="${pillBorderColor}" stroke-width="1"/>
-`;
+            fill="${pillBgColor}" stroke="${pillBorderColor}" stroke-width="${isControversial ? 1.5 : 1}"/>\n`;
         }
 
         svg += `    <text x="${cx}" y="${labelY}" 
           text-anchor="middle" font-size="11" fill="${textColor}" font-family="system-ui, sans-serif" 
-          style="pointer-events: all; cursor: default;">${escapeXml(attributes.label)}</text>
-`;
+          style="pointer-events: all; cursor: default;">${escapeXml(attributes.label)}</text>\n`;
       }
     });
 
-    svg += `  </g>
-`;
+    svg += `  </g>\n`;
 
-    // Add legend
+    // Add legend (bottom-left)
     if (includeLegend) {
-      svg += generateSVGLegend(16, headerHeight + height - 140, isDark);
+      svg += generateSVGLegend(16, headerHeight + height - 170, isDark);
+    }
+
+    // Add Dialectic Debate Callout Card (bottom-right)
+    const clashes = getTopDebateClashes(graphData, 3, includeHidden);
+    if (clashes.length > 0) {
+      const calloutWidth = Math.min(420, width * 0.48);
+      const calloutX = width - calloutWidth - 16;
+      const headerH = 24;
+      const rowH = 44;
+      const pad = 14;
+      const estCardH = headerH + clashes.length * rowH + pad * 2;
+      const calloutY = headerHeight + height - estCardH - 16;
+
+      svg += generateSVGDebateCallout(clashes, calloutX, calloutY, calloutWidth, isDark);
     }
 
     // Add footer
@@ -827,11 +1605,10 @@ export async function exportAsSVG(
     // Create download
     const blob = new Blob([svg], { type: "image/svg+xml" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
+    triggerDownload(url, filename);
+    if (typeof URL.revokeObjectURL === "function") {
+      URL.revokeObjectURL(url);
+    }
 
     debug.graph(`Exported SVG: ${filename}`);
     return url;
@@ -916,11 +1693,10 @@ export async function exportAsGraphML(
     // Create download
     const blob = new Blob([graphml], { type: "application/xml" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
+    triggerDownload(url, filename);
+    if (typeof URL.revokeObjectURL === "function") {
+      URL.revokeObjectURL(url);
+    }
 
     debug.graph(`Exported GraphML: ${filename}`);
     return url;
@@ -959,11 +1735,10 @@ export async function exportAsJSON(
     // Create download
     const blob = new Blob([json], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
+    triggerDownload(url, filename);
+    if (typeof URL.revokeObjectURL === "function") {
+      URL.revokeObjectURL(url);
+    }
 
     debug.graph(`Exported JSON: ${filename}`);
     return url;
@@ -1002,18 +1777,12 @@ export async function exportAsCSV(
     // Download nodes
     const nodesBlob = new Blob([nodesCsv], { type: "text/csv" });
     const nodesUrl = URL.createObjectURL(nodesBlob);
-    const nodesLink = document.createElement("a");
-    nodesLink.href = nodesUrl;
-    nodesLink.download = `${filename}_nodes.csv`;
-    nodesLink.click();
+    triggerDownload(nodesUrl, `${filename}_nodes.csv`);
 
     // Download edges
     const edgesBlob = new Blob([edgesCsv], { type: "text/csv" });
     const edgesUrl = URL.createObjectURL(edgesBlob);
-    const edgesLink = document.createElement("a");
-    edgesLink.href = edgesUrl;
-    edgesLink.download = `${filename}_edges.csv`;
-    edgesLink.click();
+    triggerDownload(edgesUrl, `${filename}_edges.csv`);
 
     debug.graph(`Exported CSV: ${filename}_nodes.csv, ${filename}_edges.csv`);
     return { nodesUrl, edgesUrl };
@@ -1058,7 +1827,7 @@ export async function exportAsPDF(
     includeFooter = true,
   } = options;
 
-  const isDark = document.documentElement.classList.contains("dark");
+  const isDark = isDarkTheme();
 
   try {
     // First export as PNG to get the graph image
@@ -1074,118 +1843,27 @@ export async function exportAsPDF(
     const exportWidth = graphWidth * scale;
     const exportHeight = graphHeight * scale + headerHeight + footerHeight;
 
-    // Create export canvas (same as PNG)
-    const exportCanvas = document.createElement("canvas");
-    exportCanvas.width = exportWidth;
-    exportCanvas.height = exportHeight;
-
-    const ctx = exportCanvas.getContext("2d");
-    if (!ctx) {
-      throw new Error("Failed to get canvas context");
-    }
-
-    const bgColor = isDark
-      ? BRAND.colors.background.dark
-      : BRAND.colors.background.light;
-
-    // Fill background
-    ctx.fillStyle = bgColor;
-    ctx.fillRect(0, 0, exportWidth, exportHeight);
-
-    // Draw header
-    if (includeHeader) {
-      drawHeader(ctx, metadata, exportWidth, isDark, scale);
-    }
-
-    // Draw graph content
-    ctx.save();
-    ctx.translate(0, headerHeight);
-    ctx.scale(scale, scale);
-
     const graphData = graph || sigma.getGraph();
-
-    if (graphData) {
-      const mapCoord = createGraphMapper(
-        graphData,
-        graphWidth,
-        graphHeight,
-        40,
-      );
-
-      // Draw edges
-      graphData.forEachEdge((edge, attributes, source, target) => {
-        const sourceAttrs = graphData.getNodeAttributes(source);
-        const targetAttrs = graphData.getNodeAttributes(target);
-
-        if (attributes.hidden || sourceAttrs.hidden || targetAttrs.hidden)
-          return;
-
-        const sv = mapCoord(sourceAttrs.x ?? 0, sourceAttrs.y ?? 0);
-        const tv = mapCoord(targetAttrs.x ?? 0, targetAttrs.y ?? 0);
-
-        const edgeType = attributes.edgeType || attributes.type || "default";
-        let edgeColor = attributes.color || "#999999";
-
-        if (edgeType === "supports") edgeColor = "#22c55e";
-        else if (edgeType === "contradicts") edgeColor = "#ef4444";
-        else if (edgeType === "extends") edgeColor = "#3b82f6";
-        else edgeColor = isDark ? "#6b7280" : "#9ca3af";
-
-        ctx.strokeStyle = edgeColor;
-        ctx.lineWidth = (attributes.size || 1) * 1.5;
-        ctx.globalAlpha = 0.7;
-
-        if (edgeType === "contradicts") {
-          ctx.setLineDash([6, 3]);
-        } else {
-          ctx.setLineDash([]);
-        }
-
-        ctx.beginPath();
-        ctx.moveTo(sv.x, sv.y);
-        ctx.lineTo(tv.x, tv.y);
-        ctx.stroke();
-      });
-
-      ctx.setLineDash([]);
-      ctx.globalAlpha = 1;
-
-      // Draw nodes
-      graphData.forEachNode((node, attributes) => {
-        if (attributes.hidden) return;
-
-        const pos = mapCoord(attributes.x ?? 0, attributes.y ?? 0);
-        const size = attributes.size || 5;
-
-        ctx.beginPath();
-        ctx.arc(pos.x, pos.y, size, 0, Math.PI * 2);
-        ctx.fillStyle = attributes.color || "#999999";
-        ctx.fill();
-
-        // Draw label
-        if (attributes.label) {
-          ctx.font = `11px system-ui, -apple-system, sans-serif`;
-          ctx.fillStyle = isDark ? "#f9fafb" : "#1f2937";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillText(attributes.label, pos.x, pos.y - size - 8);
-        }
-      });
+    if (!graphData) {
+      throw new Error("No graph data available for PDF export");
     }
 
-    ctx.restore();
-
-    // Draw legend
-    if (includeLegend) {
-      const legendX = 16 * scale;
-      const legendY = headerHeight + graphHeight * scale - 180 * scale;
-      drawLegend(ctx, legendX, legendY, isDark, scale);
-    }
-
-    // Draw footer
-    if (includeFooter) {
-      drawFooter(ctx, metadata, exportWidth, exportHeight, isDark, scale);
-    }
+    const exportCanvas = renderGraphToExportCanvas(graphData, sigma, {
+      exportWidth,
+      exportHeight,
+      graphWidth,
+      graphHeight,
+      headerHeight,
+      footerHeight,
+      scale,
+      isDark,
+      metadata,
+      includeHeader,
+      includeLegend,
+      includeFooter,
+      includeHidden: options.includeHidden ?? false,
+      layoutMode: options.layoutMode,
+    });
 
     // Create PDF
     // Determine orientation based on aspect ratio
@@ -1248,11 +1926,10 @@ export async function exportAsDebateReport(
   const markdown = renderDebateReportMarkdown(report);
   const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
+  triggerDownload(url, filename);
+  if (typeof URL.revokeObjectURL === "function") {
+    URL.revokeObjectURL(url);
+  }
   debug.graph(`Exported Debate Report: ${filename}`);
   return url;
 }

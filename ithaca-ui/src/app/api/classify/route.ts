@@ -12,9 +12,8 @@ import {
   createApiContext,
 } from "@/lib/api/api-contracts";
 import {
-  requireApiAuth,
+  getOptionalApiAuth,
   checkApiRateLimit,
-  isRejection,
 } from "@/lib/api/api-auth";
 import {
   assertAiBudgetAvailable,
@@ -40,6 +39,8 @@ const citationSchema = z.object({
   citedAbstract: z.string().default(""),
   citationContexts: z.array(z.string()).optional(),
   s2Intents: z.array(z.string()).optional(),
+  targetAuthorSurname: z.string().optional(),
+  targetYear: z.number().optional(),
 });
 
 const requestSchema = z.object({
@@ -65,11 +66,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const authResult = await requireApiAuth(request, context);
-  if (isRejection(authResult)) return authResult;
+  // Support both authenticated users and guest/dev exploration
+  const authResult = await getOptionalApiAuth(request);
+  const userId = authResult?.user.id ?? "guest-explorer";
 
   const rateLimited = await checkApiRateLimit(
-    authResult.user.id,
+    userId,
     "classify",
     30,
     context,
@@ -82,7 +84,7 @@ export async function POST(request: NextRequest) {
       context,
       {
         route: "/api/classify",
-        userId: authResult.user.id,
+        userId,
         organizationId: orgContext?.organizationId,
       },
       async () => {

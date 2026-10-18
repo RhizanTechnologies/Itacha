@@ -77,6 +77,34 @@ export async function requireApiAuth(
 }
 
 /**
+ * Optional session check. Returns AuthResult if authenticated, or null if unauthenticated.
+ */
+export async function getOptionalApiAuth(
+  request: NextRequest,
+): Promise<AuthResult | null> {
+  try {
+    const session = await auth.api.getSession({
+      headers: request.headers,
+    });
+
+    if (!session?.user?.id) {
+      return null;
+    }
+
+    return {
+      session: { userId: session.user.id },
+      user: {
+        id: session.user.id,
+        email: session.user.email,
+        name: session.user.name,
+      },
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Database-backed rate limiter. Uses a per-user per-endpoint counter
  * with a 1-minute sliding window. Works correctly on serverless
  * because the state lives in Postgres, not in-memory.

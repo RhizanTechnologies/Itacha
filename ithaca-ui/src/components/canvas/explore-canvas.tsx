@@ -45,6 +45,7 @@ import { SaveGraphDialog } from "@/components/canvas/save-graph-dialog";
 import { NodeDragControl } from "@/components/canvas/node-drag-control";
 import { PaperCountControl } from "@/components/canvas/paper-count-control";
 import { RelationshipFocusControl } from "@/components/canvas/relationship-focus-control";
+import { PerspectiveControl } from "@/components/canvas/perspective-control";
 import { BattlefieldToggle } from "@/components/canvas/battlefield-toggle";
 import { SchoolsViewControl } from "@/components/canvas/schools-view-control";
 import { InstitutionalArchiveToggle } from "@/components/canvas/institutional-archive-toggle";
@@ -53,6 +54,7 @@ import {
   createThemeAwareHoverDrawer,
 } from "@/components/canvas/canvas-utils";
 import { GraphLoader } from "@/components/canvas/graph-loader";
+import { ActiveDebatesDock } from "@/components/canvas/active-debates-dock";
 import { ZoomIndicator } from "@/components/canvas/zoom-indicator";
 import { EdgeEvidencePopover } from "@/components/canvas/edge-evidence-popover";
 import { HydrationStatusPill } from "@/components/canvas/hydration-status-pill";
@@ -181,10 +183,29 @@ export function ExploreCanvas() {
     }
   }, [tutorial]);
 
-  // Dispute count across the graph
+  // Dispute count across the graph (direct from loaded graph edges)
   const disputeCount = useMemo(() => {
+    const graph = refs.graphRef.current;
+    if (graph) {
+      let count = 0;
+      graph.forEachEdge((_e, attrs) => {
+        if (
+          !attrs.hidden &&
+          (attrs.edgeType === "contradicts" || attrs.type === "contradicts")
+        ) {
+          count++;
+        }
+      });
+      if (count > 0) return count;
+    }
     return state.schoolsOfThought.reduce((acc, s) => acc + s.disputeCount, 0);
-  }, [state.schoolsOfThought]);
+  }, [state.schoolsOfThought, state.refreshTrigger, refs.graphRef]);
+
+  // Upstream foundational roots count
+  const upstreamCount = useMemo(() => {
+    return state.visiblePapers.filter((p: any) => p.lineageRole === "upstream")
+      .length;
+  }, [state.visiblePapers]);
 
   // Memoize the theme-aware hover drawer
   const themeAwareHoverDrawer = useMemo(
@@ -275,6 +296,8 @@ export function ExploreCanvas() {
         abstract: attrs.abstract,
         aiSummary: attrs.aiSummary,
         status: attrs.status,
+        originalPublicationYear: attrs.originalPublicationYear,
+        isReissue: attrs.isReissue,
       };
       graphAPI.getEvidence(nodeId).then((evidence) => {
         handleNodeClick(paperData, evidence);
@@ -620,7 +643,7 @@ export function ExploreCanvas() {
                 </div>
               </div>
             )}
-            {state.battlefieldMode && (
+            {state.perspective === "battlefield" && (
               <div className="animate-in slide-in-from-top-2 fade-in duration-300">
                 <div className="flex items-center gap-2.5 rounded-full border border-red-400/30 bg-red-600/90 px-4 py-1.5 text-white shadow-lg backdrop-blur-md">
                   <Swords className="h-3.5 w-3.5 animate-pulse" />
@@ -630,7 +653,7 @@ export function ExploreCanvas() {
                   <span className="text-[11px] opacity-85">
                     {disputeCount > 0
                       ? `${disputeCount} controversies active`
-                      : "Refutations highlighted"}
+                      : "Debate crucible (0% upstream noise)"}
                   </span>
                   <div className="mx-0.5 h-3.5 w-px bg-white/20" />
                   <button
@@ -643,10 +666,53 @@ export function ExploreCanvas() {
                   </button>
                   <div className="mx-0.5 h-3.5 w-px bg-white/20" />
                   <button
-                    onClick={() => actions.setBattlefieldMode(false)}
+                    onClick={() => actions.setPerspective("synthesis")}
                     className="rounded px-1.5 py-0.5 text-[11px] font-bold transition-colors hover:bg-white/20"
+                    title="Show full 360° synthesis"
                   >
-                    Exit
+                    360° View
+                  </button>
+                </div>
+              </div>
+            )}
+            {state.perspective === "foundations" && (
+              <div className="animate-in slide-in-from-top-2 fade-in duration-300">
+                <div className="flex items-center gap-2.5 rounded-full border border-amber-400/30 bg-amber-600/90 px-4 py-1.5 text-white shadow-lg backdrop-blur-md">
+                  <span className="text-xs font-bold tracking-wide uppercase">
+                    🏛️ Lineage & Foundations
+                  </span>
+                  <span className="text-[11px] opacity-85">
+                    {upstreamCount > 0
+                      ? `${upstreamCount} foundational roots`
+                      : "Seminal ancestry"}
+                  </span>
+                  <div className="mx-0.5 h-3.5 w-px bg-white/20" />
+                  <button
+                    onClick={() => actions.setPerspective("battlefield")}
+                    className="rounded px-1.5 py-0.5 text-[11px] font-bold transition-colors hover:bg-white/20"
+                    title="Return to Battlefield"
+                  >
+                    Battlefield
+                  </button>
+                </div>
+              </div>
+            )}
+            {state.perspective === "synthesis" && (
+              <div className="animate-in slide-in-from-top-2 fade-in duration-300">
+                <div className="flex items-center gap-2.5 rounded-full border border-indigo-400/30 bg-indigo-600/90 px-4 py-1.5 text-white shadow-lg backdrop-blur-md">
+                  <span className="text-xs font-bold tracking-wide uppercase">
+                    🌐 360° Synthesis
+                  </span>
+                  <span className="text-[11px] opacity-85">
+                    West: Roots · Center: Claim · East: Debates
+                  </span>
+                  <div className="mx-0.5 h-3.5 w-px bg-white/20" />
+                  <button
+                    onClick={() => actions.setPerspective("battlefield")}
+                    className="rounded px-1.5 py-0.5 text-[11px] font-bold transition-colors hover:bg-white/20"
+                    title="Focus on Battlefield"
+                  >
+                    Battlefield
                   </button>
                 </div>
               </div>
@@ -707,12 +773,17 @@ export function ExploreCanvas() {
 
           {/* Bottom-center: mode tabs + selection panel */}
           <BottomCenterZone>
-            {/* Relationship mode tabs — always visible */}
-            <RelationshipFocusControl
-              value={state.relationshipFocus}
-              onChange={(focus) => actions.setRelationshipFocus(focus)}
-              extra={<BattlefieldToggle disputeCount={disputeCount} />}
-            />
+            {/* Perspective & Relationship mode tabs — always visible */}
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <PerspectiveControl
+                disputeCount={disputeCount}
+                upstreamCount={upstreamCount}
+              />
+              <RelationshipFocusControl
+                value={state.relationshipFocus}
+                onChange={(focus) => actions.setRelationshipFocus(focus)}
+              />
+            </div>
             <SelectionPanel
               selectedNodes={state.selectedNodes}
               nodeLabels={state.nodeLabels}
@@ -733,30 +804,38 @@ export function ExploreCanvas() {
             />
           </BottomCenterZone>
 
-          {/* Bottom-right: save + share (desktop only) */}
+          {/* Bottom-right: active debates dock + save + share (desktop only) */}
           {!isMobile && (
-            <BottomRightZone>
-              <button
-                onClick={() => actions.setSaveDialogOpen(true)}
-                className="bg-card/90 border-border hover:bg-muted flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium shadow-sm backdrop-blur transition-colors"
-                title="Save graph to dashboard"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+            <BottomRightZone className="flex flex-col items-end gap-2.5">
+              <ActiveDebatesDock
+                graph={refs.graphRef.current}
+                sigma={refs.sigmaRef.current}
+                onEdgeClick={handleEdgeClick}
+                onOpenDebateMatrix={() => actions.setDebateMatrixOpen(true)}
+              />
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => actions.setSaveDialogOpen(true)}
+                  className="bg-card/90 border-border hover:bg-muted flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium shadow-sm backdrop-blur transition-colors"
+                  title="Save graph to dashboard"
                 >
-                  <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
-                </svg>
-                Save
-              </button>
-              <ShareButton onClick={() => actions.setShareOpen(true)} />
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
+                  </svg>
+                  Save
+                </button>
+                <ShareButton onClick={() => actions.setShareOpen(true)} />
+              </div>
             </BottomRightZone>
           )}
         </OverlayManager>

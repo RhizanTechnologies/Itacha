@@ -28,42 +28,23 @@ import {
   getWork,
   getWorksBatch,
   getCitingWorks,
+  getDebateCitingWorks,
   getReferencedWorks,
   reconstructAbstract,
   autocompleteConcepts,
   getWorksByConcept,
 } from "./openalex-client";
 import { batchGetCitationContexts } from "./semantic-scholar-client";
+import {
+  synthesizeCitationContexts,
+  extractFirstAuthorSurname,
+} from "./citation-context-synthesizer";
 import { COLORS } from "@/lib/constants";
-// Classification is done via API route (server-side) since LLM keys can't be
-// exposed in the browser bundle. We call /api/classify from here.
-type ClassificationInput = {
-  citingId: string;
-  citedId: string;
-  citingTitle: string;
-  citingAbstract: string;
-  citedTitle: string;
-  citedAbstract: string;
-  citationContexts?: string[];
-  s2Intents?: string[];
-};
-
-type ClassificationResult = {
-  citingId: string;
-  citedId: string;
-  edgeType: "supports" | "contradicts" | "extends" | "cites" | "unknown";
-  confidence: number;
-  snippet?: string;
-  provider?: string;
-  signalSource?:
-    | "llm+contexts"
-    | "llm+abstracts"
-    | "llm+titles"
-    | "heuristic"
-    | "user-correction"
-    | "default";
-  contexts?: string[];
-};
+import { classifyBatchLocally } from "./local-classifier";
+import {
+  type ClassificationInput,
+  type ClassificationResult,
+} from "./citation-classifier";
 
 // =============================================================================
 // CONSTANTS
@@ -146,6 +127,7 @@ function workToPaperNode(work: OpenAlexWork, clusterIndex = 0): PaperNode {
     y: 0,
     size,
     color: CLUSTER_COLORS[cluster],
+    lineageRole: "downstream",
   };
 }
 
@@ -187,30 +169,16 @@ async function classifyViaAPI(
 
     if (!response.ok) {
       console.warn(
-        `[classify] API returned ${response.status}, using defaults`,
+        `[classify] API returned ${response.status}, using sovereign local intent engine`,
       );
-      return inputs.map((i) => ({
-        citingId: i.citingId,
-        citedId: i.citedId,
-        edgeType: "cites" as const,
-        confidence: 0.5,
-        snippet: "Citation relationship — API error.",
-        signalSource: "default" as const,
-      }));
+      return classifyBatchLocally(inputs);
     }
 
     const data = await response.json();
     return data.results as ClassificationResult[];
   } catch (err) {
-    console.warn("[classify] API unreachable, using default edge types", err);
-    return inputs.map((i) => ({
-      citingId: i.citingId,
-      citedId: i.citedId,
-      edgeType: "cites" as const,
-      confidence: 0.5,
-      snippet: "Citation relationship — could not reach classifier.",
-      signalSource: "default" as const,
-    }));
+    console.warn("[classify] API unreachable, falling back to sovereign local intent engine", err);
+    return classifyBatchLocally(inputs);
   }
 }
 
@@ -223,6 +191,7 @@ async function classifyViaAPI(
  */
 async function classifyEdges(
   edges: { sourceNode: PaperNode; targetNode: PaperNode }[],
+  options?: { centerNode?: PaperNode },
 ): Promise<EdgeData[]> {
   if (edges.length === 0) return [];
 
@@ -235,13 +204,16 @@ async function classifyEdges(
       citedDoi: e.targetNode.doi!,
       citingId: e.sourceNode.id,
       citedId: e.targetNode.id,
+      citingTitle: e.sourceNode.title,
     }));
 
   let contextMap = new Map<string, { contexts: string[]; intents: string[] }>();
 
   if (s2Pairs.length > 0) {
     try {
-      contextMap = await batchGetCitationContexts(s2Pairs);
+      contextMap = await batchGetCitationContexts(s2Pairs, {
+        targetDoi: options?.centerNode?.doi,
+      });
       if (contextMap.size > 0) {
         console.log(
           `[classifyEdges] Enriched ${contextMap.size}/${edges.length} edges with S2 citation contexts`,
@@ -253,6 +225,41 @@ async function classifyEdges(
         err,
       );
     }
+  }
+
+  // Synthesize citation contexts for edges where S2 has no contexts
+  let synthesizedCount = 0;
+  for (const { sourceNode, targetNode } of edges) {
+    const key = `${sourceNode.id}→${targetNode.id}`;
+    const existing = contextMap.get(key);
+
+    if (!existing || existing.contexts.length === 0) {
+      const surname = extractFirstAuthorSurname(
+        targetNode.authors,
+        targetNode.label,
+      );
+      const synth = synthesizeCitationContexts({
+        citingTitle: sourceNode.title,
+        citingAbstract: sourceNode.abstract,
+        targetAuthorSurname: surname,
+        targetYear: targetNode.year,
+        targetTitle: targetNode.title,
+      });
+
+      if (synth.contexts.length > 0) {
+        contextMap.set(key, {
+          contexts: synth.contexts,
+          intents: synth.intents,
+        });
+        synthesizedCount++;
+      }
+    }
+  }
+
+  if (synthesizedCount > 0) {
+    console.log(
+      `[classifyEdges] Synthesized grounded citation contexts for ${synthesizedCount}/${edges.length} edges directly from title/abstract`,
+    );
   }
 
   // Build classification inputs, injecting S2 contexts where available
@@ -270,6 +277,11 @@ async function classifyEdges(
         citedAbstract: targetNode.abstract ?? "",
         citationContexts: s2Context?.contexts,
         s2Intents: s2Context?.intents,
+        targetAuthorSurname: extractFirstAuthorSurname(
+          targetNode.authors,
+          targetNode.label,
+        ),
+        targetYear: targetNode.year,
       };
     },
   );
@@ -279,7 +291,7 @@ async function classifyEdges(
 
   // Map to EdgeData — carry the real snippet, signal source, and contexts
   // Also inject S2 contexts from our local fetch for cached results that may not include them
-  return classifications.map((c, idx) => {
+  return classifications.map((c) => {
     const key = `${c.citingId}→${c.citedId}`;
     const s2Context = contextMap.get(key);
     const contexts = c.contexts ?? s2Context?.contexts;
@@ -296,6 +308,7 @@ async function classifyEdges(
       signalSource: c.signalSource ?? "default",
       contexts,
       provider: c.provider,
+      directnessTier: c.directnessTier,
     };
   });
 }
@@ -392,31 +405,45 @@ export class OpenAlexProvider implements IGraphProvider {
     const centerWork = await getWork(paperId);
     const centerNode = workToPaperNode(centerWork);
     centerNode.size = Math.max(centerNode.size, 18); // Make center paper prominent
+    centerNode.lineageRole = "anchor";
     this.nodeCache.set(centerNode.id, centerNode);
 
     const nodes: PaperNode[] = [centerNode];
     const nodeIds = new Set<string>([centerNode.id]);
     const edgePairs: { sourceNode: PaperNode; targetNode: PaperNode }[] = [];
 
-    // 2. Fetch papers citing this one (incoming citations)
-    const totalRelated = Math.max(0, (paperCount ?? 25) - 1);
-    const citingLimit =
-      totalRelated === 0 ? 0 : Math.max(1, Math.floor(totalRelated / 2));
-    const referenceLimit =
-      totalRelated === 0 ? 0 : Math.max(1, totalRelated - citingLimit);
+    // Extract primary author surname for targeted debate & critique retrieval
+    let authorSurname: string | undefined;
+    if (centerWork.authorships && centerWork.authorships.length > 0) {
+      const firstAuthor = centerWork.authorships[0].author.display_name;
+      if (firstAuthor) {
+        const parts = firstAuthor.trim().split(/\s+/);
+        authorSurname = parts[parts.length - 1]?.replace(/[^a-zA-Z-]/g, "");
+      }
+    }
 
-    const [citingResponse, referencedWorks] = await Promise.all([
+    // 2. Fetch papers citing this one (incoming citations) with Multi-Strata Epistemic Sampling
+    // Prioritize forward debate works (~80%) over upstream background references (capped at ~20%)
+    const totalRelated = Math.max(0, (paperCount ?? 25) - 1);
+    const referenceLimit =
+      totalRelated === 0
+        ? 0
+        : Math.min(5, Math.max(1, Math.floor(totalRelated * 0.2)));
+    const citingLimit = Math.max(0, totalRelated - referenceLimit);
+
+    const [citingWorks, referencedWorks] = await Promise.all([
       citingLimit > 0
-        ? getCitingWorks(paperId, { perPage: citingLimit })
-        : Promise.resolve({ results: [] }),
+        ? getDebateCitingWorks(paperId, { authorSurname, limit: citingLimit })
+        : Promise.resolve([]),
       referenceLimit > 0
         ? getReferencedWorks(paperId, referenceLimit)
         : Promise.resolve([]),
     ]);
 
     // 3. Process citing papers (they cite the center paper)
-    for (const work of citingResponse.results) {
+    for (const work of citingWorks) {
       const node = workToPaperNode(work);
+      node.lineageRole = "downstream";
       if (!nodeIds.has(node.id)) {
         nodes.push(node);
         nodeIds.add(node.id);
@@ -425,9 +452,24 @@ export class OpenAlexProvider implements IGraphProvider {
       }
     }
 
+    // Detect Edition Reissue Temporal Paradox:
+    // If citing works are older than the anchor paper (Y_citing < Y_anchor - 1),
+    // the anchor is a reissue/reprint/translation of an older canonical work (e.g. Piaget 2005 reissue).
+    const preAnchorYears = citingWorks
+      .map((w) => w.publication_year)
+      .filter((y): y is number => typeof y === "number" && y < centerNode.year - 1);
+
+    if (preAnchorYears.length > 0) {
+      const earliestCitingYear = Math.min(...preAnchorYears);
+      centerNode.isReissue = true;
+      centerNode.originalPublicationYear = earliestCitingYear;
+      this.nodeCache.set(centerNode.id, centerNode);
+    }
+
     // 4. Process referenced papers (center paper cites them)
     for (const work of referencedWorks) {
       const node = workToPaperNode(work);
+      node.lineageRole = "upstream";
       if (!nodeIds.has(node.id)) {
         nodes.push(node);
         nodeIds.add(node.id);
@@ -444,7 +486,7 @@ export class OpenAlexProvider implements IGraphProvider {
       edgePairs.length > 0
     ) {
       try {
-        edges = await classifyEdges(edgePairs);
+        edges = await classifyEdges(edgePairs, { centerNode });
       } catch (error) {
         console.warn(
           "[OpenAlexProvider] Edge classification failed, using defaults:",
@@ -458,6 +500,17 @@ export class OpenAlexProvider implements IGraphProvider {
       edges = edgePairs.map(({ sourceNode, targetNode }) =>
         createDefaultEdge(sourceNode.id, targetNode.id),
       );
+    }
+
+    // Enrich edges with explicit direction relative to center paper
+    for (const edge of edges) {
+      if (edge.target === centerNode.id) {
+        edge.direction = "inbound";
+      } else if (edge.source === centerNode.id) {
+        edge.direction = "outbound";
+      } else {
+        edge.direction = "lateral";
+      }
     }
 
     // 6. Update support/refute counts on nodes
@@ -640,11 +693,22 @@ export class OpenAlexProvider implements IGraphProvider {
 
     try {
       if (direction === "in") {
-        // Papers citing this one
-        console.log(`[expandNode] Fetching papers citing ${nodeId}...`);
-        const response = await getCitingWorks(nodeId, { perPage: 10 });
-        works = response.results;
-        console.log(`[expandNode] Found ${works.length} citing papers`);
+        // Papers citing this one (using Multi-Strata Epistemic Sampling)
+        console.log(`[expandNode] Fetching debate papers citing ${nodeId}...`);
+        const existingNode = this.nodeCache.get(nodeId);
+        let authorSurname: string | undefined;
+        if (existingNode?.authors) {
+          const first = existingNode.authors.split(",")[0]?.trim();
+          const parts = first?.split(/\s+/);
+          authorSurname = parts
+            ? parts[parts.length - 1]?.replace(/[^a-zA-Z-]/g, "")
+            : undefined;
+        }
+        works = await getDebateCitingWorks(nodeId, {
+          authorSurname,
+          limit: 10,
+        });
+        console.log(`[expandNode] Found ${works.length} citing debate papers`);
       } else {
         // Papers this one references
         console.log(`[expandNode] Fetching papers referenced by ${nodeId}...`);
@@ -686,7 +750,9 @@ export class OpenAlexProvider implements IGraphProvider {
       edgePairs.length > 0
     ) {
       try {
-        edges = await classifyEdges(edgePairs);
+        edges = await classifyEdges(edgePairs, {
+          centerNode: existingNode,
+        });
       } catch {
         edges = edgePairs.map(({ sourceNode, targetNode }) =>
           createDefaultEdge(sourceNode.id, targetNode.id),
@@ -941,7 +1007,24 @@ export class OpenAlexProvider implements IGraphProvider {
         citedDoi: e.targetNode.doi!,
         citingId: e.sourceNode.id,
         citedId: e.targetNode.id,
+        citingTitle: e.sourceNode.title,
       }));
+
+    // Find candidate primary target DOI
+    const targetCounts = new Map<string, number>();
+    for (const p of s2Pairs) {
+      if (p.citedDoi) {
+        targetCounts.set(p.citedDoi, (targetCounts.get(p.citedDoi) || 0) + 1);
+      }
+    }
+    let topTargetDoi: string | undefined;
+    let maxCount = 0;
+    for (const [doi, count] of targetCounts.entries()) {
+      if (count > maxCount) {
+        maxCount = count;
+        topTargetDoi = doi;
+      }
+    }
 
     let contextMap = new Map<
       string,
@@ -949,12 +1032,41 @@ export class OpenAlexProvider implements IGraphProvider {
     >();
     if (s2Pairs.length > 0) {
       try {
-        contextMap = await batchGetCitationContexts(s2Pairs);
+        contextMap = await batchGetCitationContexts(s2Pairs, {
+          targetDoi: topTargetDoi,
+        });
       } catch (err) {
         console.warn(
           "[streamClassify] S2 context fetch failed, proceeding without:",
           err,
         );
+      }
+    }
+
+    // Synthesize citation contexts for edges where S2 has no contexts
+    for (const { sourceNode, targetNode } of pairs) {
+      const key = `${sourceNode.id}→${targetNode.id}`;
+      const existing = contextMap.get(key);
+
+      if (!existing || existing.contexts.length === 0) {
+        const surname = extractFirstAuthorSurname(
+          targetNode.authors,
+          targetNode.label,
+        );
+        const synth = synthesizeCitationContexts({
+          citingTitle: sourceNode.title,
+          citingAbstract: sourceNode.abstract,
+          targetAuthorSurname: surname,
+          targetYear: targetNode.year,
+          targetTitle: targetNode.title,
+        });
+
+        if (synth.contexts.length > 0) {
+          contextMap.set(key, {
+            contexts: synth.contexts,
+            intents: synth.intents,
+          });
+        }
       }
     }
 
@@ -971,6 +1083,11 @@ export class OpenAlexProvider implements IGraphProvider {
           citedAbstract: targetNode.abstract ?? "",
           citationContexts: s2Context?.contexts,
           s2Intents: s2Context?.intents,
+          targetAuthorSurname: extractFirstAuthorSurname(
+            targetNode.authors,
+            targetNode.label,
+          ),
+          targetYear: targetNode.year,
         };
       },
     );
@@ -1056,8 +1173,45 @@ export class OpenAlexProvider implements IGraphProvider {
       }
     } catch (err) {
       if (signal?.aborted) return;
-      console.warn("[streamClassify] Error during streaming:", err);
-      onError?.(err instanceof Error ? err : new Error(String(err)));
+      console.warn(
+        "[streamClassify] Streaming API unreachable or failed, falling back to sovereign local engine:",
+        err,
+      );
+      try {
+        const localResults = classifyBatchLocally(inputs);
+        const mappedEdges: EdgeData[] = localResults.map((c) => {
+          const key = `${c.citingId}→${c.citedId}`;
+          const s2Context = contextMap.get(key);
+          const contexts = c.contexts ?? s2Context?.contexts;
+          return {
+            id: `${c.citingId}-${c.citedId}`,
+            source: c.citingId,
+            target: c.citedId,
+            edgeType: c.edgeType,
+            confidence: Math.round(c.confidence * 100),
+            size: 1 + c.confidence,
+            color: EDGE_COLORS[c.edgeType] ?? EDGE_COLORS.unknown,
+            snippet: c.snippet,
+            signalSource: c.signalSource ?? "ithaca-local-moat",
+            contexts,
+            provider: c.provider,
+          };
+        });
+
+        if (mappedEdges.length > 0) {
+          onChunk(mappedEdges);
+        }
+        onDone?.({
+          total: inputs.length,
+          cached: 0,
+          classified: inputs.length,
+          failed: 0,
+        });
+      } catch (localErr) {
+        onError?.(
+          localErr instanceof Error ? localErr : new Error(String(localErr)),
+        );
+      }
     }
   }
 
