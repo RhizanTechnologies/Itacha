@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Swords, ChevronDown, ChevronUp, Table, ArrowUpRight } from "lucide-react";
 import type Graph from "graphology";
 import type { Sigma } from "sigma";
@@ -49,6 +49,26 @@ export function ActiveDebatesDock({
   className,
 }: ActiveDebatesDockProps) {
   const [isExpanded, setIsExpanded] = useState(true);
+  const [graphVersion, setGraphVersion] = useState(0);
+
+  useEffect(() => {
+    if (!graph) return;
+    const handleGraphChange = () => {
+      setGraphVersion((v) => v + 1);
+    };
+
+    graph.on("edgeAdded", handleGraphChange);
+    graph.on("edgeDropped", handleGraphChange);
+    graph.on("edgeAttributesUpdated", handleGraphChange);
+    graph.on("cleared", handleGraphChange);
+
+    return () => {
+      graph.removeListener("edgeAdded", handleGraphChange);
+      graph.removeListener("edgeDropped", handleGraphChange);
+      graph.removeListener("edgeAttributesUpdated", handleGraphChange);
+      graph.removeListener("cleared", handleGraphChange);
+    };
+  }, [graph]);
 
   // Extract all active disputes from the graph
   const disputes: ActiveDisputeItem[] = useMemo(() => {
@@ -130,7 +150,7 @@ export function ActiveDebatesDock({
     return items.sort(
       (a, b) => (b.salience ?? b.confidence) - (a.salience ?? a.confidence),
     );
-  }, [graph]);
+  }, [graph, graphVersion]);
 
   if (disputes.length === 0) {
     return null;
