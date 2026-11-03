@@ -19,6 +19,13 @@ interface GraphStats {
   edgeCount: number;
 }
 
+export interface DialecticCounts {
+  supports: number;
+  contradicts: number;
+  extends: number;
+  cites: number;
+}
+
 interface DataRanges {
   minYear: number;
   maxYear: number;
@@ -74,6 +81,7 @@ interface CanvasStoreState {
 
   // Graph Data
   graphStats: GraphStats;
+  dialecticCounts: DialecticCounts;
   dataRanges: DataRanges;
   filterStats: FilterStats;
   filters: FilterState;
@@ -151,6 +159,7 @@ interface CanvasStoreActions {
 
   // Graph Data
   setGraphStats: (stats: GraphStats) => void;
+  setDialecticCounts: (counts: DialecticCounts) => void;
   setDataRanges: (ranges: DataRanges) => void;
   setFilterStats: (stats: FilterStats) => void;
   setFilters: (filters: FilterState) => void;
@@ -242,6 +251,7 @@ const initialState: CanvasStoreState = {
   },
 
   graphStats: { nodeCount: 0, edgeCount: 0 },
+  dialecticCounts: { supports: 0, contradicts: 0, extends: 0, cites: 0 },
   dataRanges: {
     minYear: FILTERS.MIN_YEAR,
     maxYear: FILTERS.MAX_YEAR,
@@ -351,7 +361,22 @@ export const useCanvasStore = create<CanvasStoreState & CanvasStoreActions>()(
 
     // Graph Data
     setGraphStats: (stats) => set({ graphStats: stats }),
-    setDataRanges: (ranges) => set({ dataRanges: ranges }),
+    setDialecticCounts: (counts) => set({ dialecticCounts: counts }),
+    setDataRanges: (ranges) =>
+      set((state) => ({
+        dataRanges: ranges,
+        filters: {
+          ...state.filters,
+          yearRange: [
+            Math.min(ranges.minYear, state.filters.yearRange[0]),
+            Math.max(ranges.maxYear, state.filters.yearRange[1]),
+          ],
+          citationRange: [
+            state.filters.citationRange[0],
+            Math.max(ranges.maxCitations, state.filters.citationRange[1]),
+          ],
+        },
+      })),
     setFilterStats: (stats) => set({ filterStats: stats }),
     setFilters: (filters) => set({ filters }),
     setPaperCount: (count) => set({ paperCount: count }),

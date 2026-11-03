@@ -1,15 +1,23 @@
+import { redirect } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { OrganizationAdminPanel } from "@/components/admin/organization-admin-panel";
 import { AuditExportButton } from "@/components/admin/audit-export-button";
-import { requireOrganizationContext } from "@/lib/organization-context";
+import { getOrganizationContext } from "@/lib/organization-context";
 import { hasOrganizationPermission } from "@/lib/tenancy-policy";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 export default async function OrganizationAdminPage() {
-  const context = await requireOrganizationContext("audit:read");
+  const context = await getOrganizationContext();
+  if (!context) {
+    redirect("/signin?callbackUrl=%2Fadmin");
+  }
+
+  if (!hasOrganizationPermission(context.role, "audit:read")) {
+    redirect("/dashboard");
+  }
   const canManageMembers = hasOrganizationPermission(
     context.role,
     "members:manage",

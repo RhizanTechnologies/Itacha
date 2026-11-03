@@ -371,16 +371,50 @@ export function GraphLegend() {
   return (
     <div className="bg-card/90 border-border rounded-lg border p-3 shadow-lg backdrop-blur">
       <h4 className="text-muted-foreground mb-2 text-[10px] font-bold tracking-wider uppercase">
-        Legend
+        Dialectic Edges
       </h4>
       <div className="space-y-1.5">
         <LegendItem color="bg-supports" label="Supports" dashed={false} />
         <LegendItem color="bg-contradicts" label="Refutes" dashed={true} />
         <LegendItem color="bg-extends" label="Extends" dashed={false} />
         <LegendItem color="bg-zinc-400" label="Cites" dashed={false} />
-        <div className="flex items-center gap-2 pt-1">
-          <div className="border-muted-foreground/50 h-4 w-4 rounded-full border-2" />
-          <span className="text-muted-foreground text-xs">Citation Node</span>
+      </div>
+
+      <div className="border-border my-2.5 border-t" />
+
+      <h4 className="text-muted-foreground mb-2 text-[10px] font-bold tracking-wider uppercase">
+        Node Metrics Scale
+      </h4>
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <div className="border-muted-foreground/60 flex h-5 w-5 items-center justify-center rounded-full border-2 bg-muted/40">
+            <div className="h-2 w-2 rounded-full bg-primary" />
+          </div>
+          <span className="text-muted-foreground text-xs">
+            Landmark Work (&gt;500 cites)
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="border-muted-foreground/50 flex h-3.5 w-3.5 items-center justify-center rounded-full border bg-muted/30">
+            <div className="h-1.5 w-1.5 rounded-full bg-primary/70" />
+          </div>
+          <span className="text-muted-foreground text-xs">
+            Established Work (50–500 cites)
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="border-muted-foreground/40 h-2.5 w-2.5 rounded-full border bg-muted/20" />
+          <span className="text-muted-foreground text-xs">
+            Specialized Work (&lt;50 cites)
+          </span>
+        </div>
+        <div className="flex items-center gap-2 pt-0.5">
+          <div className="relative flex h-4 w-4 items-center justify-center rounded-full border-2 border-red-500 bg-red-500/20 shadow-[0_0_8px_rgba(239,68,68,0.5)]">
+            <div className="h-1.5 w-1.5 rounded-full bg-red-500" />
+          </div>
+          <span className="text-muted-foreground text-xs">
+            Contested Core (≥3 Refutations)
+          </span>
         </div>
       </div>
     </div>

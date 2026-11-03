@@ -90,8 +90,9 @@ function workToPaperNode(work: OpenAlexWork, clusterIndex = 0): PaperNode {
   const venue = work.primary_location?.source?.display_name ?? undefined;
   const abstract = reconstructAbstract(work.abstract_inverted_index);
 
-  // Size based on citation count (log scale, clamped)
-  const size = Math.min(Math.max(Math.log10(citations + 1) * 6 + 6, 8), 35);
+  // Size based on citation count (tiered logarithmic scale for commanding visual hierarchy)
+  const logCits = Math.log10(citations + 1);
+  const size = Math.min(Math.max(logCits * 6.5 + 7, 8), 36);
 
   // Cluster assignment from top-level concept
   const topConcept = work.concepts?.[0];
@@ -120,7 +121,7 @@ function workToPaperNode(work: OpenAlexWork, clusterIndex = 0): PaperNode {
     supports: 0,
     refutes: 0,
     abstract: abstract || undefined,
-    isHighImpact: citations > 100,
+    isHighImpact: citations >= 500,
     status: "solid",
     cluster,
     x: 0,
@@ -877,10 +878,31 @@ export class OpenAlexProvider implements IGraphProvider {
     const incomingEdges = this.edgeCache.filter((e) => e.target === paperId);
     const outgoingEdges = this.edgeCache.filter((e) => e.source === paperId);
 
+    const getDialecticWeight = (edgeType?: string) => {
+      if (edgeType === "contradicts") return 3;
+      if (edgeType === "supports") return 2;
+      if (edgeType === "extends") return 1;
+      return 0;
+    };
+
+    const sortedIncoming = [...incomingEdges].sort((a, b) => {
+      const weightDiff =
+        getDialecticWeight(b.edgeType) - getDialecticWeight(a.edgeType);
+      if (weightDiff !== 0) return weightDiff;
+      return (b.confidence ?? 0) - (a.confidence ?? 0);
+    });
+
+    const sortedOutgoing = [...outgoingEdges].sort((a, b) => {
+      const weightDiff =
+        getDialecticWeight(b.edgeType) - getDialecticWeight(a.edgeType);
+      if (weightDiff !== 0) return weightDiff;
+      return (b.confidence ?? 0) - (a.confidence ?? 0);
+    });
+
     const evidence: EvidenceItem[] = [];
 
-    // Incoming edges first (papers citing THIS paper)
-    for (const edge of incomingEdges.slice(0, 5)) {
+    // Incoming edges first (papers citing THIS paper) — up to 20
+    for (const edge of sortedIncoming.slice(0, 20)) {
       const otherNode = this.nodeCache.get(edge.source);
       if (!otherNode) continue;
 
@@ -888,6 +910,10 @@ export class OpenAlexProvider implements IGraphProvider {
         edge.signalSource === "llm+contexts"
           ? ("Discussion" as const)
           : undefined;
+
+      const rawConf = edge.confidence ?? 50;
+      const confidence =
+        rawConf <= 1 ? Math.round(rawConf * 100) : Math.round(rawConf);
 
       evidence.push({
         id: `ev-${edge.id}`,
@@ -907,8 +933,8 @@ export class OpenAlexProvider implements IGraphProvider {
                 : edge.edgeType === "unknown"
                   ? "cites"
                   : "extends",
-        confidence: edge.confidence,
-        snippet: `Cited by authors: ${edge.snippet || "No classification explanation available."}`,
+        confidence,
+        snippet: edge.snippet || "Citation relationship evaluated by AI.",
         source: edge.provider,
         context: contextFromSignal,
         signalSource: edge.signalSource,
@@ -916,10 +942,10 @@ export class OpenAlexProvider implements IGraphProvider {
       });
     }
 
-    // Outgoing edges (papers THIS paper cites) — fill remaining slots up to 5
-    const remainingSlots = 5 - evidence.length;
+    // Outgoing edges (papers THIS paper cites) — fill remaining slots up to 25
+    const remainingSlots = 25 - evidence.length;
     if (remainingSlots > 0) {
-      for (const edge of outgoingEdges.slice(0, remainingSlots)) {
+      for (const edge of sortedOutgoing.slice(0, remainingSlots)) {
         const otherNode = this.nodeCache.get(edge.target);
         if (!otherNode) continue;
 
@@ -927,6 +953,10 @@ export class OpenAlexProvider implements IGraphProvider {
           edge.signalSource === "llm+contexts"
             ? ("Discussion" as const)
             : undefined;
+
+        const rawConf = edge.confidence ?? 50;
+        const confidence =
+          rawConf <= 1 ? Math.round(rawConf * 100) : Math.round(rawConf);
 
         evidence.push({
           id: `ev-${edge.id}`,
@@ -946,8 +976,8 @@ export class OpenAlexProvider implements IGraphProvider {
                   : edge.edgeType === "unknown"
                     ? "cites"
                     : "extends",
-          confidence: edge.confidence,
-          snippet: `This paper's authors: ${edge.snippet || "No classification explanation available."}`,
+          confidence,
+          snippet: edge.snippet || "Citation relationship evaluated by AI.",
           source: edge.provider,
           context: contextFromSignal,
           signalSource: edge.signalSource,
@@ -1158,6 +1188,22 @@ export class OpenAlexProvider implements IGraphProvider {
                 });
 
                 if (mappedEdges.length > 0) {
+                  // Synchronize edgeCache with streamed classifications
+                  for (const edge of mappedEdges) {
+                    const idx = this.edgeCache.findIndex(
+                      (e) =>
+                        e.id === edge.id ||
+                        (e.source === edge.source && e.target === edge.target),
+                    );
+                    if (idx >= 0) {
+                      this.edgeCache[idx] = {
+                        ...this.edgeCache[idx],
+                        ...edge,
+                      };
+                    } else {
+                      this.edgeCache.push(edge);
+                    }
+                  }
                   onChunk(mappedEdges);
                 }
               } else if (currentEvent === "done") {
@@ -1199,6 +1245,21 @@ export class OpenAlexProvider implements IGraphProvider {
         });
 
         if (mappedEdges.length > 0) {
+          for (const edge of mappedEdges) {
+            const idx = this.edgeCache.findIndex(
+              (e) =>
+                e.id === edge.id ||
+                (e.source === edge.source && e.target === edge.target),
+            );
+            if (idx >= 0) {
+              this.edgeCache[idx] = {
+                ...this.edgeCache[idx],
+                ...edge,
+              };
+            } else {
+              this.edgeCache.push(edge);
+            }
+          }
           onChunk(mappedEdges);
         }
         onDone?.({

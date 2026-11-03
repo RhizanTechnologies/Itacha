@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+import { useCanvasStore } from "@/stores/canvas-store";
+
 export type RelationshipFocusType =
   "all" | "supports" | "contradicts" | "extends" | "cites";
 
@@ -17,6 +19,13 @@ interface RelationshipFocusControlProps {
   onChange: (value: RelationshipFocusType) => void;
   className?: string;
   extra?: React.ReactNode;
+  counts?: {
+    all: number;
+    supports: number;
+    contradicts: number;
+    extends: number;
+    cites: number;
+  };
 }
 
 const OPTIONS: {
@@ -72,7 +81,15 @@ export function RelationshipFocusControl({
   onChange,
   className,
   extra,
+  counts: propCounts,
 }: RelationshipFocusControlProps) {
+  const storeCounts = useCanvasStore((s) => s.dialecticCounts);
+  const totalEdges = useCanvasStore((s) => s.graphStats.edgeCount);
+  const counts = propCounts || {
+    all: totalEdges,
+    ...storeCounts,
+  };
+
   return (
     <div
       className={cn(
@@ -84,6 +101,7 @@ export function RelationshipFocusControl({
         {OPTIONS.map((opt) => {
           const isActive = value === opt.value;
           const Icon = opt.icon;
+          const count = counts?.[opt.value];
           return (
             <button
               key={opt.value}
@@ -98,6 +116,18 @@ export function RelationshipFocusControl({
             >
               <Icon className="h-3.5 w-3.5" />
               <span>{opt.shortLabel}</span>
+              {typeof count === "number" && counts.all > 0 && (
+                <span
+                  className={cn(
+                    "ml-0.5 rounded-full px-1.5 py-0.2 text-[10px] font-bold tabular-nums",
+                    isActive
+                      ? "bg-white/20 text-white"
+                      : "bg-muted text-muted-foreground",
+                  )}
+                >
+                  {count}
+                </span>
+              )}
             </button>
           );
         })}

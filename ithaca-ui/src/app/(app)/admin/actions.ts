@@ -161,6 +161,8 @@ export async function getOrganizationAdminData(): Promise<{
   assignableRoles: OrganizationRole[];
   productAnalyticsEnabled: boolean;
   plan: OrganizationPlanAdminSummary;
+  currentUserRole: OrganizationRole;
+  currentUserId: string;
 }> {
   const context = await requireOrganizationContext("audit:read");
   assertOrganizationPermission(context.role, "members:manage");
@@ -238,6 +240,8 @@ export async function getOrganizationAdminData(): Promise<{
     })),
     assignableRoles: assignableInvitationRoles(context.role),
     productAnalyticsEnabled,
+    currentUserRole: context.role,
+    currentUserId: context.userId,
     plan: {
       plan: context.organization.plan,
       label: entitlements.label,
@@ -575,6 +579,17 @@ export async function updateOrganizationMemberRole(input: {
   );
   if (!target) throw new Error("Member not found");
 
+  if (target.role === "OWNER" && context.role !== "OWNER") {
+    throw new Error("Only organization owners can modify an owner's role");
+  }
+  if (
+    target.role === "ADMIN" &&
+    context.role !== "OWNER" &&
+    target.userId !== context.userId
+  ) {
+    throw new Error("Only organization owners can modify an administrator's role");
+  }
+
   assertOwnerSafeguard(memberships, target.userId, input.role);
 
   await prisma.membership.updateMany({
@@ -607,6 +622,17 @@ export async function removeOrganizationMember(
   if (!target) throw new Error("Member not found");
   if (target.userId === context.userId) {
     throw new Error("You cannot remove yourself from the organization");
+  }
+
+  if (target.role === "OWNER" && context.role !== "OWNER") {
+    throw new Error("Only organization owners can remove an owner");
+  }
+  if (
+    target.role === "ADMIN" &&
+    context.role !== "OWNER" &&
+    target.userId !== context.userId
+  ) {
+    throw new Error("Only organization owners can remove an administrator");
   }
 
   assertOwnerSafeguard(memberships, target.userId);

@@ -8,7 +8,7 @@ FROM base AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY prisma ./prisma
-RUN npm ci
+RUN npm ci || npm install
 
 # 2. Build the application
 FROM base AS builder
@@ -22,6 +22,7 @@ ENV BETTER_AUTH_SECRET="build_placeholder_secret_must_be_at_least_32_chars_long"
 ENV BETTER_AUTH_URL="http://localhost:3000"
 ENV NEXT_PUBLIC_APP_URL="http://localhost:3000"
 ENV OPENALEX_EMAIL="engineering@rhizan.com"
+ENV NEXT_PUBLIC_OPENALEX_EMAIL="engineering@rhizan.com"
 RUN npx prisma generate
 RUN npm run build
 

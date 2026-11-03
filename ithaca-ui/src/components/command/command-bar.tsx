@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   CommandDialog,
   CommandEmpty,
@@ -48,6 +49,7 @@ export function CommandBar({
   onAction,
   hideTrigger = false,
 }: CommandBarProps) {
+  const router = useRouter();
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
   const setOpen = onOpenChange ?? setInternalOpen;
@@ -166,19 +168,38 @@ export function CommandBar({
 
   const handleSelectPaper = useCallback(
     (paperId: string) => {
-      onSelectPaper?.(paperId);
+      if (onSelectPaper) {
+        onSelectPaper(paperId);
+      } else {
+        router.push(`/explore?paper=${encodeURIComponent(paperId)}`);
+      }
       setOpen(false);
       setSearch("");
     },
-    [onSelectPaper],
+    [onSelectPaper, router, setOpen],
   );
 
   const handleAction = useCallback(
     (action: string) => {
-      onAction?.(action);
+      if (onAction) {
+        onAction(action);
+      } else {
+        if (action === "shortcuts") {
+          window.dispatchEvent(new Event("open-shortcuts-help"));
+        } else if (action === "settings") {
+          router.push("/dashboard?tab=settings");
+        } else if (
+          action === "reset-view" ||
+          action === "open-filters" ||
+          action === "export" ||
+          action === "toggle-physics"
+        ) {
+          router.push("/explore");
+        }
+      }
       setOpen(false);
     },
-    [onAction],
+    [onAction, router, setOpen],
   );
 
   return (

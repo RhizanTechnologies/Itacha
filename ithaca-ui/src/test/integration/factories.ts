@@ -51,6 +51,7 @@ export async function createTestOrganization(input?: {
   name?: string;
   plan?: OrganizationPlan;
   maxMembers?: number;
+  maxAiRequests?: number;
   allowedEmailDomains?: string[];
   billingCustomerId?: string;
   subscriptionStatus?: string;
@@ -71,6 +72,9 @@ export async function createTestOrganization(input?: {
       ...quotas,
       ...(input?.maxMembers !== undefined
         ? { maxMembers: input.maxMembers }
+        : {}),
+      ...(input?.maxAiRequests !== undefined
+        ? { maxAiRequests: input.maxAiRequests }
         : {}),
     },
   });

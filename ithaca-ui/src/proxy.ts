@@ -61,11 +61,34 @@ export async function proxy(request: NextRequest) {
   const nextResponse = () =>
     NextResponse.next({ request: { headers: requestHeaders } });
 
+  const sessionToken =
+    request.cookies.get("ithaca.session_token")?.value ||
+    request.cookies.get("__Secure-ithaca.session_token")?.value;
+
+  // Fast edge exit: unauthenticated user accessing protected route without token cookie
+  if (isProtectedRoute && !sessionToken) {
+    const signInUrl = new URL("/signin", request.url);
+    signInUrl.searchParams.set(
+      "callbackUrl",
+      `${pathname}${request.nextUrl.search}`,
+    );
+    return NextResponse.redirect(signInUrl);
+  }
+
   try {
-    const session = await auth.api.getSession({ headers: request.headers });
+    const session = sessionToken
+      ? await auth.api.getSession({ headers: request.headers })
+      : null;
 
     if (isAuthRoute && session) {
-      return NextResponse.redirect(new URL("/explore", request.url));
+      const callbackUrl = request.nextUrl.searchParams.get("callbackUrl");
+      const destination =
+        callbackUrl &&
+        callbackUrl.startsWith("/") &&
+        !callbackUrl.startsWith("//")
+          ? callbackUrl
+          : "/explore";
+      return NextResponse.redirect(new URL(destination, request.url));
     }
 
     if (isProtectedRoute && !session) {

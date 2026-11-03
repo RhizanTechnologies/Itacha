@@ -222,7 +222,10 @@ describe.runIf(run)("secondary API routes", () => {
 
   it("returns 429 when summarize exceeds the AI budget", async () => {
     const user = await createTestUser();
-    const org = await createTestOrganization({ plan: "SOLO" });
+    const org = await createTestOrganization({
+      plan: "SOLO",
+      maxAiRequests: 2000,
+    });
     await createTestMembership({ user, organization: org, role: "OWNER" });
     setMockSession(user);
     setMockOrganizationCookie(org.id);

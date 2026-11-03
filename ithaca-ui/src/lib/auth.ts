@@ -1,6 +1,7 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { genericOAuth } from "better-auth/plugins";
+import { createAuthMiddleware, APIError } from "better-auth/api";
 import { prisma } from "./prisma";
 import { env } from "./env";
 import { sendPasswordResetEmail, sendVerificationEmail } from "./email";
@@ -20,6 +21,25 @@ const shouldRequireVerification =
     ? env.REQUIRE_EMAIL_VERIFICATION === "true"
     : env.NODE_ENV === "production";
 
+export function validatePasswordComplexity(password: string): void {
+  if (password.length < 8) {
+    throw new APIError("BAD_REQUEST", {
+      message: "Password must be at least 8 characters long.",
+    });
+  }
+  const hasUpper = /[A-Z]/.test(password);
+  const hasLower = /[a-z]/.test(password);
+  const hasDigit = /[0-9]/.test(password);
+  const hasSpecial = /[^A-Za-z0-9]/.test(password);
+  const criteriaMet = [hasUpper, hasLower, hasDigit, hasSpecial].filter(Boolean).length;
+  if (criteriaMet < 3) {
+    throw new APIError("BAD_REQUEST", {
+      message:
+        "Password must contain at least 3 of the following: uppercase letter, lowercase letter, number, special symbol.",
+    });
+  }
+}
+
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
@@ -38,6 +58,60 @@ export const auth = betterAuth({
                 authorizationUrl: "https://orcid.org/oauth/authorize",
                 tokenUrl: "https://orcid.org/oauth/token",
                 scopes: ["/authenticate"],
+                getUserInfo: async (tokens) => {
+                  const raw = (tokens.raw || {}) as Record<string, any>;
+                  const orcid =
+                    typeof raw.orcid === "string"
+                      ? raw.orcid
+                      : typeof raw.sub === "string"
+                        ? raw.sub
+                        : "";
+                  const name =
+                    typeof raw.name === "string" && raw.name.trim()
+                      ? raw.name.trim()
+                      : "ORCID Researcher";
+
+                  let email: string | null = null;
+                  if (orcid && tokens.accessToken) {
+                    try {
+                      const res = await fetch(
+                        `https://pub.orcid.org/v3.0/${orcid}/email`,
+                        {
+                          headers: {
+                            Accept: "application/json",
+                            Authorization: `Bearer ${tokens.accessToken}`,
+                          },
+                        },
+                      );
+                      if (res.ok) {
+                        const data = (await res.json()) as any;
+                        const emails = data?.email;
+                        if (
+                          Array.isArray(emails) &&
+                          emails.length > 0 &&
+                          emails[0]?.email
+                        ) {
+                          email = String(emails[0].email).toLowerCase().trim();
+                        }
+                      }
+                    } catch {
+                      // Fall back if public email is not configured on ORCID profile
+                    }
+                  }
+
+                  const finalEmail =
+                    email ||
+                    (orcid
+                      ? `${orcid}@orcid.org`
+                      : `orcid-${Date.now()}@orcid.org`);
+
+                  return {
+                    id: orcid || "orcid-user",
+                    name,
+                    email: finalEmail,
+                    emailVerified: true,
+                  };
+                },
               },
             ],
           }),
@@ -97,6 +171,14 @@ export const auth = betterAuth({
     },
   },
 
+  // Account Linking
+  account: {
+    accountLinking: {
+      enabled: true,
+      trustedProviders: ["google", "orcid"],
+    },
+  },
+
   // Security Settings
   advanced: {
     cookiePrefix: "ithaca",
@@ -104,10 +186,47 @@ export const auth = betterAuth({
       enabled: false,
     },
     useSecureCookies:
-      env.NODE_ENV === "production" &&
       process.env.NEXT_PUBLIC_E2E !== "1" &&
-      env.BETTER_AUTH_URL.startsWith("https://"),
+      (env.BETTER_AUTH_URL.startsWith("https://") ||
+        process.env.COOKIE_SECURE === "true" ||
+        process.env.HTTPS === "true"),
+    trustedProxyHeaders: true,
     generateId: () => crypto.randomUUID(),
+  },
+
+  // Hooks for Password Complexity & Security Enforcement
+  hooks: {
+    before: createAuthMiddleware(async (ctx) => {
+      if (
+        ctx.path === "/sign-up/email" ||
+        ctx.path === "/reset-password" ||
+        ctx.path === "/change-password"
+      ) {
+        const body = (ctx.body || {}) as Record<string, any>;
+        const candidatePassword = body.password || body.newPassword;
+        if (typeof candidatePassword === "string") {
+          validatePasswordComplexity(candidatePassword);
+        }
+      }
+    }),
+  },
+
+  // Database Lifecycle Hooks
+  databaseHooks: {
+    account: {
+      create: {
+        after: async (account) => {
+          if (account.providerId === "orcid" && account.accountId) {
+            await prisma.user
+              .update({
+                where: { id: account.userId },
+                data: { orcidId: account.accountId },
+              })
+              .catch(() => {});
+          }
+        },
+      },
+    },
   },
 
   // Rate Limiting — strictly active in production, disabled for local development and automated testing

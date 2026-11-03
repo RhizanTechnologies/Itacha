@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback, memo } from "react";
 import { useLoadGraph, useSigma, useRegisterEvents } from "@react-sigma/core";
+import { useTheme } from "next-themes";
 import Graph from "graphology";
 import * as graphApiModule from "@/lib/api/graph-api";
 import type { PaperNode, EdgeData } from "@/lib/api/graph-api";
@@ -119,6 +120,8 @@ export const GraphLoader = memo(function GraphLoader({
   const loadGraph = useLoadGraph();
   const sigma = useSigma();
   const registerEvents = useRegisterEvents();
+  const { resolvedTheme, theme } = useTheme();
+  const isDark = (resolvedTheme || theme) === "dark";
   // hoveredNode state hoisted to parent
   const [hoveredEdges, setHoveredEdges] = useState<Set<string>>(new Set());
   const graphRef = useRef<Graph | null>(null);
@@ -133,17 +136,41 @@ export const GraphLoader = memo(function GraphLoader({
   const schoolsRef = useRef<SchoolOfThought[]>([]);
   const metaEdgesRef = useRef<MetaEdge[]>([]);
 
-  // Load graph data from API
+  // Load graph data from API using live sigma Graphology instance
   const {
     saveGraph,
     loadGraph: loadSessionGraph,
     clearSession,
-  } = useGraphSession(graphRef.current);
+  } = useGraphSession(sigma.getGraph());
 
   // Track previous refresh trigger to detect manual refresh
   const prevRefreshRef = useRef(refreshTrigger);
   const relationshipFocusRef = useRef(relationshipFocus);
   relationshipFocusRef.current = relationshipFocus;
+
+  // Sync dialectic distribution metrics to global store
+  const syncDialecticCounts = useCallback((graph: Graph) => {
+    let supports = 0;
+    let contradicts = 0;
+    let extendsCount = 0;
+    let cites = 0;
+
+    graph.forEachEdge((_e, attrs) => {
+      if (attrs.hidden) return;
+      const type = attrs.edgeType;
+      if (type === "supports") supports++;
+      else if (type === "contradicts") contradicts++;
+      else if (type === "extends") extendsCount++;
+      else cites++;
+    });
+
+    useCanvasStore.getState().setDialecticCounts({
+      supports,
+      contradicts,
+      extends: extendsCount,
+      cites,
+    });
+  }, []);
 
   // Ref to track and abort background streaming classification
   const hydrationAbortRef = useRef<AbortController | null>(null);
@@ -232,11 +259,42 @@ export const GraphLoader = memo(function GraphLoader({
                   );
                 }
               }
+
+              // Update target node dialectic stats live (supports & refutes)
+              if (graph.hasNode(edge.target)) {
+                let sCount = 0;
+                let rCount = 0;
+                graph.inEdges(edge.target).forEach((inEdgeKey) => {
+                  const type = graph.getEdgeAttribute(inEdgeKey, "edgeType");
+                  if (type === "supports") sCount++;
+                  if (type === "contradicts") rCount++;
+                });
+                graph.setNodeAttribute(edge.target, "supports", sCount);
+                graph.setNodeAttribute(edge.target, "refutes", rCount);
+
+                // If currently viewed in PaperInspector, live-update store
+                const currentSelected = useCanvasStore.getState().selectedPaper;
+                if (
+                  currentSelected &&
+                  (currentSelected.id === edge.target ||
+                    currentSelected.id ===
+                      (graph.getNodeAttribute(edge.target, "paperId") as string))
+                ) {
+                  useCanvasStore.setState({
+                    selectedPaper: {
+                      ...currentSelected,
+                      supports: sCount,
+                      refutes: rCount,
+                    },
+                  });
+                }
+              }
             }
             newlyHydrated++;
           });
 
           sigma.refresh();
+          syncDialecticCounts(graph);
 
           const prev = useCanvasStore.getState().hydrationState;
           useCanvasStore.getState().setHydrationState({
@@ -247,6 +305,7 @@ export const GraphLoader = memo(function GraphLoader({
           });
         },
         onDone: (stats) => {
+          saveGraph();
           useCanvasStore.getState().setHydrationState({
             isHydrating: false,
             cachedCount: stats?.cached ?? 0,
@@ -261,7 +320,7 @@ export const GraphLoader = memo(function GraphLoader({
         },
       });
     },
-    [sigma],
+    [sigma, syncDialecticCounts, saveGraph],
   );
 
   useEffect(() => {
@@ -687,6 +746,9 @@ export const GraphLoader = memo(function GraphLoader({
         const isSelected = selectedSet.has(node);
         const isOnPath = isPathActive && highlightedPath!.nodeIds.has(node);
 
+        const clusterPalette = isDark ? COLORS.CLUSTERS_DARK : COLORS.CLUSTERS_LIGHT;
+        const edgeTokens = isDark ? COLORS.EDGES.DARK : COLORS.EDGES.LIGHT;
+
         // Selection ring colors: source = emerald, target = blue
         let color: string;
         if (isSelected && selectedNodes[0] === node) {
@@ -698,14 +760,14 @@ export const GraphLoader = memo(function GraphLoader({
           const hasControversy = (attrs.controversyScore || 0) > 0;
           const hasSupports = (attrs.supports || 0) > 0;
           if (hasControversy) {
-            color = COLORS.CONTRADICTS; // 🔴 Bold Red
+            color = edgeTokens.CONTRADICTS; // 🔴 Bold Red
           } else if (hasSupports) {
-            color = COLORS.SUPPORTS; // 🟢 Bold Green
+            color = edgeTokens.SUPPORTS; // 🟢 Bold Green
           } else {
             // Non-contested node: fade to ~15% opacity
             const raw =
               attrs.originalColor ||
-              COLORS.CLUSTERS[attrs.cluster] ||
+              clusterPalette[attrs.cluster] ||
               "#94a3b8";
             const hex = raw.startsWith("#") ? raw.slice(0, 7) : "#94a3b8";
             color = `${hex}26`;
@@ -719,20 +781,20 @@ export const GraphLoader = memo(function GraphLoader({
           } else {
             const raw =
               attrs.originalColor ||
-              COLORS.CLUSTERS[attrs.cluster] ||
+              clusterPalette[attrs.cluster] ||
               "#94a3b8";
             const hex = raw.startsWith("#") ? raw.slice(0, 7) : "#94a3b8";
             color = `${hex}26`;
           }
         } else if (attrs.controversyScore > 0) {
-          color = COLORS.CONTRADICTS;
+          color = edgeTokens.CONTRADICTS;
         } else if (isGhost) {
           color = `${attrs.color}${COLORS.GHOST_ALPHA}`;
         } else {
           color =
             attrs.originalColor ||
-            COLORS.CLUSTERS[attrs.cluster] ||
-            COLORS.CLUSTERS[0];
+            clusterPalette[attrs.cluster] ||
+            clusterPalette[0];
         }
 
         // Dim nodes not on the active path (subtle, keep context visible)
@@ -740,8 +802,18 @@ export const GraphLoader = memo(function GraphLoader({
           color = `${color}70`; // 44% opacity — light dim, not a blackout
         }
 
+        const citations = typeof attrs.citations === "number" ? attrs.citations : 0;
+        let citationBoost = 0;
+        if (citations >= 1000) {
+          citationBoost = 6;
+        } else if (citations >= 200) {
+          citationBoost = 3;
+        } else if (citations >= 50) {
+          citationBoost = 1.5;
+        }
+
         const baseSize =
-          attrs.originalSize || attrs.size || GRAPH.DEFAULT_NODE_SIZE;
+          (attrs.originalSize || attrs.size || GRAPH.DEFAULT_NODE_SIZE) + citationBoost;
         // Slightly enlarge selected nodes for emphasis
         let size = isSelected ? Math.max(baseSize * 1.3, 14) : baseSize;
 
@@ -787,6 +859,7 @@ export const GraphLoader = memo(function GraphLoader({
       });
 
       // Batch edge updates
+      const edgeTokens = isDark ? COLORS.EDGES.DARK : COLORS.EDGES.LIGHT;
       graph.updateEachEdgeAttributes((_edge, attrs, source, target) => {
         const edgeKey = _edge;
         const isHidden = effectiveHiddenEdges.has(edgeKey);
@@ -795,14 +868,14 @@ export const GraphLoader = memo(function GraphLoader({
           return {
             ...attrs,
             hidden: true,
-            color: "rgba(100, 100, 100, 0.05)",
+            color: isDark ? "rgba(100, 100, 100, 0.05)" : "rgba(150, 150, 150, 0.05)",
             size: 0.1,
           };
         }
 
         const isOnPath = isPathActive && highlightedPath!.edgeIds.has(edgeKey);
-        let edgeColor = attrs.originalColor || "#e5e7eb";
-        let edgeSize = attrs.originalSize || 1;
+        let edgeColor = attrs.originalColor || edgeTokens.CITES;
+        let edgeSize = attrs.originalSize || (isDark ? 0.9 : 1.0);
 
         // Confidence-based opacity scaling:
         // High confidence (80-100%) → full opacity
@@ -815,18 +888,18 @@ export const GraphLoader = memo(function GraphLoader({
 
         if (battlefieldMode && !isPathActive) {
           if (edgeType === "contradicts") {
-            edgeColor = COLORS.CONTRADICTS; // 🔴 #ef4444
+            edgeColor = edgeTokens.CONTRADICTS; // 🔴
             edgeSize = Math.max(edgeSize * 3, 3.5);
           } else if (edgeType === "supports") {
-            edgeColor = COLORS.SUPPORTS; // 🟢 #10b981
+            edgeColor = edgeTokens.SUPPORTS; // 🟢
             edgeSize = Math.max(edgeSize * 2.2, 2.5);
           } else if (edgeType === "extends") {
-            edgeColor = "#3b82f6"; // 🔵 electric blue
+            edgeColor = edgeTokens.EXTENDS; // 🔵
             edgeSize = Math.max(edgeSize * 2.0, 2.2);
           } else {
-            // Dim neutral cites edges to 5% opacity and hairline width
-            edgeColor = "rgba(160, 160, 160, 0.05)";
-            edgeSize = 0.2;
+            // Dim neutral cites edges
+            edgeColor = isDark ? "rgba(160, 160, 160, 0.08)" : "rgba(100, 116, 139, 0.12)";
+            edgeSize = 0.4;
           }
         } else if (sovereignFilterActive && !isPathActive) {
           const sourceAttrs = graph.hasNode(source)
@@ -845,36 +918,33 @@ export const GraphLoader = memo(function GraphLoader({
             edgeColor = "#059669"; // Highlight connections to sovereign Ethiopian literature
             edgeSize = Math.max(edgeSize * 1.5, 1.8);
           } else {
-            edgeColor = "rgba(160, 160, 160, 0.05)";
-            edgeSize = 0.2;
+            edgeColor = isDark ? "rgba(160, 160, 160, 0.08)" : "rgba(100, 116, 139, 0.12)";
+            edgeSize = 0.4;
           }
         } else if (!isPathActive) {
           if (edgeType === "contradicts") {
-            edgeColor = "#f43f5e";
+            edgeColor = edgeTokens.CONTRADICTS;
             edgeSize = Math.max(edgeSize * 2.5, 3.4);
           } else if (edgeType === "supports") {
-            edgeColor = COLORS.SUPPORTS;
+            edgeColor = edgeTokens.SUPPORTS;
             edgeSize = Math.max(edgeSize * 1.5, 2.0);
           } else if (edgeType === "extends") {
-            edgeColor = COLORS.EXTENDS;
+            edgeColor = edgeTokens.EXTENDS;
             edgeSize = Math.max(edgeSize * 1.4, 1.8);
           } else if (isCites) {
-            // "cites" edges: subtle neutral line — visible but doesn't compete with classified edges
-            const alpha = Math.round(0.35 * 255)
-              .toString(16)
-              .padStart(2, "0");
-            edgeColor = `${edgeColor.slice(0, 7)}${alpha}`;
-            edgeSize = Math.max(edgeSize * 0.6, 0.4);
+            // "cites" edges: visible, crisp neutral slate line in light theme, luminous in dark
+            edgeColor = isDark ? "rgba(71, 85, 105, 0.6)" : "rgba(100, 116, 139, 0.7)";
+            edgeSize = isDark ? Math.max(edgeSize * 0.8, 0.8) : Math.max(edgeSize * 0.9, 0.95);
           } else if (confidence != null && confidence < 80) {
-            // Scale opacity: 0% confidence → 35% opacity, 80% → 100% opacity
-            const opacity = 0.35 + (confidence / 80) * 0.65;
+            // Scale opacity: 0% confidence → 45% opacity, 80% → 100% opacity
+            const opacity = 0.45 + (confidence / 80) * 0.55;
             const alpha = Math.round(opacity * 255)
               .toString(16)
               .padStart(2, "0");
             edgeColor = `${edgeColor.slice(0, 7)}${alpha}`;
             // Slightly thinner for low confidence
             if (confidence < 50) {
-              edgeSize = Math.max(edgeSize * 0.75, 0.4);
+              edgeSize = Math.max(edgeSize * 0.8, 0.6);
             }
           }
         }
@@ -968,6 +1038,7 @@ export const GraphLoader = memo(function GraphLoader({
     battlefieldMode,
     perspective,
     sovereignFilterActive,
+    isDark,
   ]);
 
   // Switch perspective layout when user toggles perspective
@@ -1230,9 +1301,38 @@ export const GraphLoader = memo(function GraphLoader({
       },
       addGraphData: (nodes: PaperNode[], edges: EdgeData[], clear = false) => {
         const graph = sigma.getGraph();
-        if (clear) graph.clear();
+        if (clear) {
+          graph.clear();
+          rawNodesRef.current = [];
+          rawEdgesRef.current = [];
+        }
 
         let addedCount = 0;
+
+        // Keep raw data refs in sync so filter ranges, schools unpack, and search bounds stay accurate
+        nodes.forEach((node: PaperNode) => {
+          if (!rawNodesRef.current.some((n) => n.id === node.id)) {
+            rawNodesRef.current.push(node);
+          }
+        });
+        edges.forEach((edge: EdgeData) => {
+          if (!rawEdgesRef.current.some((e) => e.id === edge.id)) {
+            rawEdgesRef.current.push(edge);
+          }
+        });
+
+        // Dynamically recompute data ranges
+        if (rawNodesRef.current.length > 0) {
+          const years = rawNodesRef.current
+            .map((n) => n.year)
+            .filter((y): y is number => typeof y === "number");
+          const citations = rawNodesRef.current.map((n) => n.citations || 0);
+          onDataRangesChange?.({
+            minYear: years.length ? Math.min(...years) : 1900,
+            maxYear: years.length ? Math.max(...years) : 2026,
+            maxCitations: citations.length ? Math.max(...citations) : 1000,
+          });
+        }
 
         nodes.forEach((node: PaperNode) => {
           if (!graph.hasNode(node.id)) {
@@ -1272,6 +1372,8 @@ export const GraphLoader = memo(function GraphLoader({
             nodeCount: graph.order,
             edgeCount: graph.size,
           });
+          syncDialecticCounts(graph);
+          saveGraph();
           sigma.refresh();
 
           // If clearing, reset camera potentially?
@@ -1287,7 +1389,15 @@ export const GraphLoader = memo(function GraphLoader({
     };
 
     onRegisterInteractionApi(api);
-  }, [sigma, onRegisterInteractionApi, onStatsChange, startHydration]);
+  }, [
+    sigma,
+    onRegisterInteractionApi,
+    onStatsChange,
+    onDataRangesChange,
+    syncDialecticCounts,
+    saveGraph,
+    startHydration,
+  ]);
 
   // Set up event handlers
   useEffect(() => {
@@ -1338,13 +1448,34 @@ export const GraphLoader = memo(function GraphLoader({
 
         const graph = sigma.getGraph();
 
-        // Build evidence from currently visible edges (incoming citations only)
+        const getDialecticWeight = (edgeType?: string) => {
+          if (edgeType === "contradicts") return 3;
+          if (edgeType === "supports") return 2;
+          if (edgeType === "extends") return 1;
+          return 0;
+        };
+
         const incomingEdges = graph
           .edges(event.node)
-          .filter((edge) => graph.target(edge) === event.node);
+          .filter((edge) => graph.target(edge) === event.node)
+          .sort((a, b) => {
+            const aAttrs = graph.getEdgeAttributes(a) as {
+              edgeType?: string;
+              confidence?: number;
+            };
+            const bAttrs = graph.getEdgeAttributes(b) as {
+              edgeType?: string;
+              confidence?: number;
+            };
+            const weightDiff =
+              getDialecticWeight(bAttrs.edgeType) -
+              getDialecticWeight(aAttrs.edgeType);
+            if (weightDiff !== 0) return weightDiff;
+            return (bAttrs.confidence ?? 0) - (aAttrs.confidence ?? 0);
+          });
 
         const evidence: EvidenceItem[] = incomingEdges
-          .slice(0, 5)
+          .slice(0, 25)
           .map((edge) => {
             const edgeAttrs = graph.getEdgeAttributes(edge) as {
               edgeType?:
@@ -1378,9 +1509,12 @@ export const GraphLoader = memo(function GraphLoader({
                 year: sourceAttrs.year || 2024,
               },
               relation,
-              confidence: Math.round(edgeAttrs.confidence ?? 20),
+              confidence:
+                (edgeAttrs.confidence ?? 50) <= 1
+                  ? Math.round((edgeAttrs.confidence ?? 50) * 100)
+                  : Math.round(edgeAttrs.confidence ?? 50),
               snippet:
-                edgeAttrs.snippet || "No classification explanation available.",
+                edgeAttrs.snippet || "Citation relationship evaluated by AI.",
               source: edgeAttrs.provider,
               signalSource:
                 edgeAttrs.signalSource as EvidenceItem["signalSource"],

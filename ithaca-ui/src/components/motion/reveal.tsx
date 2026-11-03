@@ -28,7 +28,7 @@ export function Reveal({
   delay = 0,
   y = 14,
   once = true,
-  amount = 0.5, // CHANGED: 0.35 → 0.5 (less aggressive scroll tracking)
+  amount = 0.1,
 }: RevealProps) {
   const shouldReduceMotion = useReducedMotion();
 
@@ -40,7 +40,7 @@ export function Reveal({
       viewport={{
         once,
         amount,
-        margin: "0px 0px -80px 0px", // ADDED: Optimize scroll event timing
+        margin: "0px 0px -20px 0px",
       }}
       transition={
         shouldReduceMotion
@@ -58,7 +58,7 @@ export function Reveal({
           ? undefined
           : ({
               willChange: "transform, opacity",
-              contain: "layout style paint",
+              contain: "layout style",
             } as React.CSSProperties)
       }
     >

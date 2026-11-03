@@ -222,6 +222,17 @@ export function EdgeEvidencePopover({
     }
   };
 
+  useEffect(() => {
+    if (!evidence) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [evidence, onClose]);
+
   // Helper to highlight keywords
   const highlightText = (text: string, type: EdgeEvidence["edgeType"]) => {
     const config = EDGE_CONFIG[type];
@@ -278,8 +289,8 @@ export function EdgeEvidencePopover({
         data-testid="edge-evidence-popover"
         className={`bg-card/95 fixed z-50 w-96 border backdrop-blur ${config.borderColor} animate-in zoom-in-95 fade-in flex max-h-[85vh] flex-col overflow-hidden rounded-xl shadow-2xl duration-200`}
         style={{
-          left: Math.min(position.x, window.innerWidth - 400),
-          top: Math.min(position.y, window.innerHeight - 500),
+          left: Math.max(16, Math.min(position.x, (typeof window !== "undefined" ? window.innerWidth : 1200) - 420)),
+          top: Math.max(16, Math.min(position.y, (typeof window !== "undefined" ? window.innerHeight : 800) - 620)),
         }}
       >
         <div className="flex justify-end p-2 pb-0">

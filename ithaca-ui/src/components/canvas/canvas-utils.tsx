@@ -47,14 +47,120 @@ export function NewArgumentToast({
 }
 
 // =============================================================================
-// THEME-AWARE NODE HOVER DRAWER
+// =============================================================================
+// THEME-AWARE NODE LABEL & HOVER DRAWERS
 // =============================================================================
 
 /**
- * Custom hover drawer that uses theme-aware colors.
- * Based on Sigma's drawDiscNodeHover but with configurable background colors.
+ * Custom node label drawer with:
+ * 1. High contrast typography in both light (#0f172a) and dark (#f8fafc) modes with legibility stroke.
+ * 2. Visual orbital halos/rings around seminal and high-impact papers (> 500 or > 1,000 citations).
+ * 3. Citation count metric badges rendered directly beside paper labels (e.g. "★ 14.2k cit.").
+ */
+export function createThemeAwareNodeLabelDrawer(isDark: boolean) {
+  return function drawNodeLabel(
+    context: CanvasRenderingContext2D,
+    data: {
+      x: number;
+      y: number;
+      size: number;
+      label?: string | null;
+      color?: string;
+      citations?: number;
+      isHighImpact?: boolean;
+      [key: string]: unknown;
+    },
+    settings: {
+      labelSize: number;
+      labelFont: string;
+      labelWeight: string;
+      labelColor: { color?: string; attribute?: string };
+    },
+  ) {
+    if (!data.label) return;
+
+    const citations = typeof data.citations === "number" ? data.citations : 0;
+    const isSeminal = citations >= 1000 || data.isHighImpact;
+
+    // 1. Orbital Ring / Halo for High-Impact & Seminal Landmark Papers
+    if (citations >= 200 || isSeminal) {
+      context.save();
+      context.beginPath();
+      const ringRadius = data.size + (isSeminal ? 5 : 3.5);
+      context.arc(data.x, data.y, ringRadius, 0, Math.PI * 2);
+      context.strokeStyle = isSeminal
+        ? isDark
+          ? "rgba(245, 158, 11, 0.75)"
+          : "rgba(217, 119, 6, 0.85)" // Amber / gold halo
+        : isDark
+          ? "rgba(99, 102, 241, 0.55)"
+          : "rgba(79, 70, 229, 0.65)"; // Indigo orbit
+      context.lineWidth = isSeminal ? 2 : 1.5;
+      if (isSeminal) {
+        context.setLineDash([4, 3]);
+      }
+      context.stroke();
+      context.restore();
+    }
+
+    // 2. High-contrast typography for the label
+    const size = settings.labelSize;
+    const font = settings.labelFont;
+    const weight = settings.labelWeight;
+
+    // Format citation text: e.g. "★ 14.2k cit." or "★ 420 cit."
+    let citText = "";
+    if (citations > 0) {
+      const formattedCount =
+        citations >= 1000
+          ? `${(citations / 1000).toFixed(citations >= 10000 ? 0 : 1)}k`
+          : `${citations}`;
+      citText = isSeminal
+        ? `★ ${formattedCount} cit.`
+        : `${formattedCount} cit.`;
+    }
+
+    const primaryColor = isDark ? "#f8fafc" : "#0f172a";
+    const secondaryColor = isDark ? "#94a3b8" : "#64748b";
+    const xPos = data.x + data.size + 4;
+    const yPos = data.y + size / 3;
+
+    // Draw subtle text shadow/backing for guaranteed legibility across edge lines
+    context.save();
+    context.font = `${weight} ${size}px ${font}`;
+    context.strokeStyle = isDark
+      ? "rgba(11, 12, 16, 0.85)"
+      : "rgba(246, 247, 248, 0.9)";
+    context.lineWidth = 3;
+    context.lineJoin = "round";
+    context.strokeText(data.label, xPos, yPos);
+
+    context.fillStyle = primaryColor;
+    context.fillText(data.label, xPos, yPos);
+
+    // If citations present, draw the citation metric pill/tag next to the author (year)
+    if (citText) {
+      const labelWidth = context.measureText(data.label).width;
+      const citX = xPos + labelWidth + 6;
+      context.font = `600 ${Math.max(size - 2, 9)}px ${font}`;
+      context.fillStyle = isSeminal
+        ? isDark
+          ? "#fbbf24"
+          : "#d97706" // Gold/amber for landmark
+        : secondaryColor;
+      context.fillText(citText, citX, yPos);
+    }
+    context.restore();
+  };
+}
+
+/**
+ * Custom hover drawer that uses theme-aware colors and displays citation count badge.
+ * Based on Sigma's drawDiscNodeHover with configurable theme styling.
  */
 export function createThemeAwareHoverDrawer(isDark: boolean) {
+  const nodeLabelDrawer = createThemeAwareNodeLabelDrawer(isDark);
+
   return function drawNodeHover(
     context: CanvasRenderingContext2D,
     data: {
@@ -63,6 +169,8 @@ export function createThemeAwareHoverDrawer(isDark: boolean) {
       size: number;
       label?: string | null;
       color?: string;
+      citations?: number;
+      isHighImpact?: boolean;
       [key: string]: unknown;
     },
     settings: {
@@ -79,21 +187,24 @@ export function createThemeAwareHoverDrawer(isDark: boolean) {
     context.font = `${weight} ${size}px ${font}`;
 
     // Theme-aware colors
-    const bgColor = isDark ? "#1f2937" : "#ffffff";
-    const shadowColor = isDark ? "rgba(0,0,0,0.5)" : "#000";
+    const bgColor = isDark ? "#1e293b" : "#ffffff";
+    const shadowColor = isDark ? "rgba(0,0,0,0.6)" : "rgba(0,0,0,0.15)";
 
     // Draw the label background with theme-aware colors
     context.fillStyle = bgColor;
     context.shadowOffsetX = 0;
-    context.shadowOffsetY = 0;
+    context.shadowOffsetY = 1;
     context.shadowBlur = 8;
     context.shadowColor = shadowColor;
 
-    const PADDING = 2;
+    const PADDING = 3;
 
     if (typeof data.label === "string") {
-      const textWidth = context.measureText(data.label).width;
-      const boxWidth = Math.round(textWidth + 5);
+      const citations = typeof data.citations === "number" ? data.citations : 0;
+      const citSuffix = citations > 0 ? `  ★ ${citations.toLocaleString()} cit.` : "";
+      const fullLabel = `${data.label}${citSuffix}`;
+      const textWidth = context.measureText(fullLabel).width;
+      const boxWidth = Math.round(textWidth + 8);
       const boxHeight = Math.round(size + 2 * PADDING);
       const radius = Math.max(data.size, size / 2) + PADDING;
 
@@ -122,11 +233,7 @@ export function createThemeAwareHoverDrawer(isDark: boolean) {
     context.shadowOffsetY = 0;
     context.shadowBlur = 0;
 
-    // Draw the label with Sigma's default label drawer
-    drawDiscNodeLabel(
-      context,
-      data as Parameters<typeof drawDiscNodeLabel>[1],
-      settings as Parameters<typeof drawDiscNodeLabel>[2],
-    );
+    // Draw the node label using our theme-aware drawer
+    nodeLabelDrawer(context, data, settings);
   };
 }

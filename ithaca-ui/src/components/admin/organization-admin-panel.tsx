@@ -78,6 +78,8 @@ export function OrganizationAdminPanel() {
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [inviteEmailSent, setInviteEmailSent] = useState(false);
   const [productAnalyticsEnabled, setProductAnalyticsEnabled] = useState(true);
+  const [currentUserRole, setCurrentUserRole] = useState<OrganizationRole>("ADMIN");
+  const [currentUserId, setCurrentUserId] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
@@ -91,6 +93,8 @@ export function OrganizationAdminPanel() {
       setInvitations(data.invitations);
       setAssignableRoles(data.assignableRoles);
       setProductAnalyticsEnabled(data.productAnalyticsEnabled);
+      setCurrentUserRole(data.currentUserRole);
+      setCurrentUserId(data.currentUserId);
       setPlan(data.plan);
       setSelectedPlan(data.plan.plan);
       setDomainsDraft(data.plan.allowedEmailDomains.join("\n"));
@@ -493,62 +497,112 @@ export function OrganizationAdminPanel() {
           <CardTitle>Members and roles</CardTitle>
         </CardHeader>
         <CardContent className="divide-y">
-          {members.map((member) => (
-            <div
-              key={member.id}
-              className="flex flex-col gap-3 py-3 md:flex-row md:items-center md:justify-between"
-            >
-              <div>
-                <p className="font-medium">{member.name}</p>
-                <p className="text-muted-foreground text-sm">{member.email}</p>
+          {members.map((member) => {
+            const isCurrentUser = member.userId === currentUserId;
+            const isOwnerTarget = member.role === "OWNER";
+            const isAdminTarget = member.role === "ADMIN";
+
+            // Role management capabilities:
+            // - OWNER can manage all roles except the last owner safeguard.
+            // - ADMIN can only modify MEMBER and VIEWER roles (cannot demote or remove OWNER or other ADMINs).
+            const canManageThisMember =
+              currentUserRole === "OWNER" ||
+              (!isOwnerTarget && (!isAdminTarget || isCurrentUser));
+
+            return (
+              <div
+                key={member.id}
+                className="flex flex-col gap-3 py-3 md:flex-row md:items-center md:justify-between"
+              >
+                <div>
+                  <p className="font-medium">{member.name}</p>
+                  <p className="text-muted-foreground text-sm">{member.email}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {!member.emailVerified && (
+                    <Badge variant="outline">Unverified</Badge>
+                  )}
+                  {canManageThisMember ? (
+                    <Select
+                      value={member.role}
+                      onValueChange={(value) =>
+                        startTransition(async () => {
+                          try {
+                            setError(null);
+                            await updateOrganizationMemberRole({
+                              membershipId: member.id,
+                              role: value as OrganizationRole,
+                            });
+                            await load();
+                          } catch (roleError) {
+                            setError(
+                              roleError instanceof Error
+                                ? roleError.message
+                                : "Failed to update member role",
+                            );
+                          }
+                        })
+                      }
+                    >
+                      <SelectTrigger className="w-[140px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[member.role, ...assignableRoles]
+                          .filter(
+                            (option, index, array) =>
+                              array.indexOf(option) === index,
+                          )
+                          .map((option) => (
+                            <SelectItem key={option} value={option}>
+                              {option}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <div className="flex h-10 w-[140px] items-center px-2">
+                      <Badge
+                        variant={member.role === "OWNER" ? "default" : "secondary"}
+                        className="font-mono text-xs"
+                      >
+                        {member.role}
+                      </Badge>
+                    </div>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    disabled={!canManageThisMember || isCurrentUser || isPending}
+                    title={
+                      isCurrentUser
+                        ? "You cannot remove yourself"
+                        : !canManageThisMember
+                          ? "Only organization owners can modify this member"
+                          : "Remove member"
+                    }
+                    onClick={() =>
+                      startTransition(async () => {
+                        try {
+                          setError(null);
+                          await removeOrganizationMember(member.id);
+                          await load();
+                        } catch (removeError) {
+                          setError(
+                            removeError instanceof Error
+                              ? removeError.message
+                              : "Failed to remove member",
+                          );
+                        }
+                      })
+                    }
+                  >
+                    <UserMinus className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                {!member.emailVerified && (
-                  <Badge variant="outline">Unverified</Badge>
-                )}
-                <Select
-                  value={member.role}
-                  onValueChange={(value) =>
-                    startTransition(async () => {
-                      await updateOrganizationMemberRole({
-                        membershipId: member.id,
-                        role: value as OrganizationRole,
-                      });
-                      await load();
-                    })
-                  }
-                >
-                  <SelectTrigger className="w-[140px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[member.role, ...assignableRoles]
-                      .filter(
-                        (option, index, array) =>
-                          array.indexOf(option) === index,
-                      )
-                      .map((option) => (
-                        <SelectItem key={option} value={option}>
-                          {option}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() =>
-                    startTransition(async () => {
-                      await removeOrganizationMember(member.id);
-                      await load();
-                    })
-                  }
-                >
-                  <UserMinus className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </CardContent>
       </Card>
     </div>

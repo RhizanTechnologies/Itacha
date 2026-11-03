@@ -13,6 +13,8 @@ import {
 import { cn } from "@/lib/utils";
 import { GraphLegend } from "@/components/filters/global-filters";
 
+import { useCanvasStore, type DialecticCounts } from "@/stores/canvas-store";
+
 // =============================================================================
 // CANVAS FOOTER - Unified bottom-left zone component
 // =============================================================================
@@ -22,6 +24,7 @@ interface CanvasFooterProps {
   nodeCount: number;
   edgeCount: number;
   status?: "live" | "loading" | "error";
+  dialecticCounts?: DialecticCounts;
 
   // Actions
   onKeyboardHelpClick: () => void;
@@ -38,12 +41,15 @@ export function CanvasFooter({
   nodeCount,
   edgeCount,
   status = "live",
+  dialecticCounts,
   onKeyboardHelpClick,
   onTutorialClick,
   onTutorialRestart,
   hasSeenTutorial,
 }: CanvasFooterProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const storeCounts = useCanvasStore((s) => s.dialecticCounts);
+  const activeDialectic = dialecticCounts || storeCounts;
 
   return (
     <div className="flex flex-col gap-2">
@@ -109,6 +115,52 @@ export function CanvasFooter({
             {edgeCount.toLocaleString()} edges
           </span>
         </div>
+
+        {/* Dialectic Distribution Metrics HUD */}
+        {edgeCount > 0 && (
+          <>
+            <div className="bg-border h-4 w-px" />
+            <div
+              data-testid="canvas-dialectic-hud"
+              className="flex items-center gap-2 text-xs"
+              title={`Dialectic Breakdown: ${activeDialectic.supports} Supports, ${activeDialectic.contradicts} Refutes, ${activeDialectic.extends} Extends, ${activeDialectic.cites} Cites`}
+            >
+              <div
+                className="flex items-center gap-1 font-medium text-emerald-600 dark:text-emerald-400"
+                title="Empirical Confirmations (Supports)"
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                <span className="tabular-nums">{activeDialectic.supports}</span>
+              </div>
+              <div
+                className="flex items-center gap-1 font-medium text-red-600 dark:text-red-400"
+                title="Active Controversies / Refutations"
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                <span className="tabular-nums">{activeDialectic.contradicts}</span>
+              </div>
+              <div
+                className="flex items-center gap-1 font-medium text-blue-600 dark:text-blue-400"
+                title="Conceptual Extensions"
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+                <span className="tabular-nums">{activeDialectic.extends}</span>
+              </div>
+              <div className="hidden items-center gap-1 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase lg:flex">
+                <span className="rounded bg-muted px-1.5 py-0.5 tabular-nums">
+                  {Math.round(
+                    ((activeDialectic.supports +
+                      activeDialectic.contradicts +
+                      activeDialectic.extends) /
+                      edgeCount) *
+                      100,
+                  )}
+                  % dialectic
+                </span>
+              </div>
+            </div>
+          </>
+        )}
 
         {/* Separator */}
         <div className="bg-border h-4 w-px" />

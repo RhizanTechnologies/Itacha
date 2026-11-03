@@ -61,6 +61,15 @@ export function DebateMatrixDialog({
 
   // Generate matrix
   const matrix: DebateMatrix = useMemo(() => {
+    if (!open && !nodes && !edges) {
+      return {
+        title: "",
+        rows: [],
+        totalDisputes: 0,
+        totalConfirmations: 0,
+        generatedAt: "",
+      };
+    }
     const title = topic ? `Debate Matrix: ${topic}` : "Academic Debate Matrix";
     if (graph) {
       return generateDebateMatrixFromGraph(graph, { title, topic });
@@ -69,7 +78,7 @@ export function DebateMatrixDialog({
       title,
       topic,
     });
-  }, [graph, nodes, edges, topic]);
+  }, [graph, nodes, edges, topic, open]);
 
   // Filter rows
   const filteredRows = useMemo(() => {
@@ -83,6 +92,8 @@ export function DebateMatrixDialog({
       return (
         row.citingPaper.toLowerCase().includes(q) ||
         row.targetPaper.toLowerCase().includes(q) ||
+        (row.citingAuthors && row.citingAuthors.toLowerCase().includes(q)) ||
+        (row.targetAuthors && row.targetAuthors.toLowerCase().includes(q)) ||
         row.coreClaimOrSnippet.toLowerCase().includes(q) ||
         row.methodologyOrContext.toLowerCase().includes(q)
       );

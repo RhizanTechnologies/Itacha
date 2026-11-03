@@ -63,9 +63,15 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Support both authenticated users and guest/dev exploration
   const authResult = await getOptionalApiAuth(request);
-  const userId = authResult?.user.id ?? "guest-explorer";
+  if (!authResult) {
+    return apiError(
+      "AUTHENTICATION_REQUIRED",
+      "Authentication required",
+      context,
+    );
+  }
+  const userId = authResult.user.id;
 
   const rateLimited = await checkApiRateLimit(
     userId,

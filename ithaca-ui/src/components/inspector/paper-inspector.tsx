@@ -96,6 +96,7 @@ export const PaperInspector = memo(function PaperInspector({
 }: PaperInspectorProps) {
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
+  const [relationFilter, setRelationFilter] = useState<string>("all");
 
   // Fetch AI summary on-demand when paper opens
   useEffect(() => {
@@ -140,7 +141,33 @@ export const PaperInspector = memo(function PaperInspector({
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   const copyToClipboard = useCallback((text: string, field: string) => {
-    navigator.clipboard.writeText(text);
+    let success = false;
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).catch(() => {});
+        success = true;
+      }
+    } catch {
+      // Fallback below
+    }
+
+    if (!success) {
+      try {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-999999px";
+        textArea.style.top = "-999999px";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+      } catch (err) {
+        console.error("Failed to copy:", err);
+      }
+    }
+
     setCopiedField(field);
     setTimeout(() => setCopiedField(null), 2000);
   }, []);
@@ -365,6 +392,62 @@ export const PaperInspector = memo(function PaperInspector({
 
           {/* Evidence Tab — Table Layout */}
           <TabsContent value="evidence" className="mt-0">
+            {/* Filter chips bar */}
+            {evidence.length > 0 && (
+              <div className="border-border/40 bg-muted/10 flex flex-wrap items-center gap-1.5 border-b px-6 py-2">
+                {[
+                  { key: "all", label: "All", count: evidence.length },
+                  {
+                    key: "supports",
+                    label: "Supports",
+                    count: evidence.filter((e) => e.relation === "supports")
+                      .length,
+                    activeClass:
+                      "bg-supports/15 text-supports border-supports/30",
+                  },
+                  {
+                    key: "refutes",
+                    label: "Refutes",
+                    count: evidence.filter((e) => e.relation === "refutes")
+                      .length,
+                    activeClass:
+                      "bg-contradicts/15 text-contradicts border-contradicts/30",
+                  },
+                  {
+                    key: "extends",
+                    label: "Extends",
+                    count: evidence.filter((e) => e.relation === "extends")
+                      .length,
+                    activeClass: "bg-extends/15 text-extends border-extends/30",
+                  },
+                  {
+                    key: "cites",
+                    label: "Cites",
+                    count: evidence.filter((e) => e.relation === "cites")
+                      .length,
+                    activeClass: "bg-muted text-foreground border-border",
+                  },
+                ].map((f) => {
+                  const isActive = relationFilter === f.key;
+                  return (
+                    <button
+                      key={f.key}
+                      onClick={() => setRelationFilter(f.key)}
+                      className={cn(
+                        "rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-colors",
+                        isActive
+                          ? f.activeClass ||
+                              "border-primary/40 bg-primary/10 text-primary"
+                          : "border-border/40 text-muted-foreground hover:bg-muted/50 hover:text-foreground bg-transparent",
+                      )}
+                    >
+                      {f.label} ({f.count})
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
             {/* Table Header */}
             <div className="border-border/40 bg-muted/30 grid grid-cols-[1fr_90px_70px] gap-2 border-b px-6 py-2.5">
               <span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
@@ -382,7 +465,24 @@ export const PaperInspector = memo(function PaperInspector({
             {evidence.length > 0 ? (
               <div className="divide-border/30 divide-y">
                 {[...evidence]
-                  .sort((a, b) => b.confidence - a.confidence)
+                  .filter((item) =>
+                    relationFilter === "all"
+                      ? true
+                      : item.relation === relationFilter,
+                  )
+                  .sort((a, b) => {
+                    const weight = (r: string) =>
+                      r === "refutes"
+                        ? 3
+                        : r === "supports"
+                          ? 2
+                          : r === "extends"
+                            ? 1
+                            : 0;
+                    const diff = weight(b.relation) - weight(a.relation);
+                    if (diff !== 0) return diff;
+                    return b.confidence - a.confidence;
+                  })
                   .map((item) => (
                     <EvidenceRow key={item.id} item={item} />
                   ))}
@@ -711,7 +811,9 @@ function EvidenceRow({ item }: { item: EvidenceItem }) {
                           ? "👨‍🔬 Community Calibrated"
                           : item.signalSource === "ithaca-local-moat"
                             ? "⚡ Sovereign AI (0 FX)"
-                            : "Default"}
+                            : item.source
+                              ? `LLM (${item.source})`
+                              : "AI Classified"}
               </span>
             )}
             {item.source && (
@@ -734,17 +836,25 @@ function EvidenceRow({ item }: { item: EvidenceItem }) {
       </div>
 
       {/* Confidence Bar */}
-      <div className="flex flex-col items-end gap-1 pt-0.5">
-        <span className={`font-mono text-sm font-bold ${config.color}`}>
-          {item.confidence}%
-        </span>
-        <div className="bg-muted h-1.5 w-full overflow-hidden rounded-full">
-          <div
-            className={`h-full rounded-full ${config.barColor} transition-all duration-300`}
-            style={{ width: `${item.confidence}%` }}
-          />
-        </div>
-      </div>
+      {(() => {
+        const displayConfidence =
+          item.confidence <= 1
+            ? Math.round(item.confidence * 100)
+            : Math.round(item.confidence);
+        return (
+          <div className="flex flex-col items-end gap-1 pt-0.5">
+            <span className={`font-mono text-sm font-bold ${config.color}`}>
+              {displayConfidence}%
+            </span>
+            <div className="bg-muted h-1.5 w-full overflow-hidden rounded-full">
+              <div
+                className={`h-full rounded-full ${config.barColor} transition-all duration-300`}
+                style={{ width: `${displayConfidence}%` }}
+              />
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

@@ -135,7 +135,10 @@ describe.runIf(run)("API contracts", () => {
 
   it("returns a structured error when the AI budget is exceeded", async () => {
     const user = await createTestUser();
-    const org = await createTestOrganization({ plan: "SOLO" });
+    const org = await createTestOrganization({
+      plan: "SOLO",
+      maxAiRequests: 2000,
+    });
     await createTestMembership({ user, organization: org, role: "OWNER" });
     setMockSession(user);
     setMockOrganizationCookie(org.id);

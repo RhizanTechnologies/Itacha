@@ -42,6 +42,10 @@ export interface ILLMProvider {
   readonly name: string;
   readonly model: string;
   chat(messages: LLMMessage[], jsonMode?: boolean): Promise<LLMResponse>;
+  streamChat?(
+    messages: LLMMessage[],
+    signal?: AbortSignal,
+  ): AsyncIterable<string>;
   isAvailable(): boolean;
 }
 
@@ -184,6 +188,84 @@ class GeminiProvider implements ILLMProvider {
       provider: this.name,
     };
   }
+
+  async *streamChat(
+    messages: LLMMessage[],
+    signal?: AbortSignal,
+  ): AsyncIterable<string> {
+    if (!this.rateLimiter.canProceed()) {
+      throw new Error("Gemini rate limit reached");
+    }
+
+    const systemInstruction = messages.find((m) => m.role === "system");
+    const userMessages = messages.filter((m) => m.role !== "system");
+
+    const body: Record<string, unknown> = {
+      contents: userMessages.map((m) => ({
+        role: m.role === "assistant" ? "model" : "user",
+        parts: [{ text: m.content }],
+      })),
+      generationConfig: {
+        temperature: 0.3,
+        maxOutputTokens: 2048,
+      },
+    };
+
+    if (systemInstruction) {
+      body.systemInstruction = {
+        parts: [{ text: systemInstruction.content }],
+      };
+    }
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:streamGenerateContent?alt=sse&key=${this.apiKey}`;
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal,
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      if (response.status === 429) {
+        throw new Error("Gemini rate limit reached");
+      }
+      throw new Error(`Gemini API error (${response.status}): ${error}`);
+    }
+
+    if (!response.body) return;
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    try {
+      while (true) {
+        if (signal?.aborted) break;
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || !trimmed.startsWith("data: ")) continue;
+          try {
+            const data = JSON.parse(trimmed.slice(6));
+            const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (text) yield text;
+          } catch {
+            // Ignore partial SSE chunk
+          }
+        }
+      }
+      this.rateLimiter.record();
+    } finally {
+      reader.releaseLock();
+    }
+  }
 }
 
 // =============================================================================
@@ -304,6 +386,112 @@ class GroqProvider implements ILLMProvider {
 
     throw new Error(lastError || "All Groq candidate models failed");
   }
+
+  async *streamChat(
+    messages: LLMMessage[],
+    signal?: AbortSignal,
+  ): AsyncIterable<string> {
+    if (!this.rateLimiter.canProceed()) {
+      throw new Error("Groq rate limit reached");
+    }
+
+    let lastError = "";
+
+    for (const candidate of this.candidateModels) {
+      const body: Record<string, unknown> = {
+        model: candidate,
+        messages,
+        temperature: 0.3,
+        max_tokens: 2048,
+        stream: true,
+      };
+
+      try {
+        const response = await fetch(
+          "https://api.groq.com/openai/v1/chat/completions",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${this.apiKey}`,
+            },
+            body: JSON.stringify(body),
+            signal,
+          },
+        );
+
+        if (!response.ok) {
+          const error = await response.text();
+          if (response.status === 429) {
+            throw new Error(`Groq rate limit reached: ${error}`);
+          }
+          lastError = `Groq API error (${response.status}): ${error}`;
+          if (
+            response.status === 404 ||
+            error.includes("does not exist") ||
+            error.includes("model_not_found")
+          ) {
+            continue;
+          }
+          throw new Error(lastError);
+        }
+
+        if (!response.body) continue;
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let yieldedAny = false;
+
+        try {
+          while (true) {
+            if (signal?.aborted) break;
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop() ?? "";
+
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (!trimmed || trimmed.startsWith(":")) continue;
+              if (trimmed === "data: [DONE]") {
+                this.rateLimiter.record();
+                return;
+              }
+              if (trimmed.startsWith("data: ")) {
+                try {
+                  const json = JSON.parse(trimmed.slice(6));
+                  const delta = json.choices?.[0]?.delta?.content;
+                  if (delta) {
+                    yieldedAny = true;
+                    yield delta;
+                  }
+                } catch {
+                  // Partial chunk
+                }
+              }
+            }
+          }
+          this.rateLimiter.record();
+          if (yieldedAny) return;
+        } finally {
+          reader.releaseLock();
+        }
+      } catch (err) {
+        if (signal?.aborted) return;
+        if (
+          err instanceof Error &&
+          err.message.includes("rate limit reached")
+        ) {
+          throw err;
+        }
+        lastError = err instanceof Error ? err.message : String(err);
+      }
+    }
+
+    throw new Error(lastError || "All Groq candidate models failed to stream");
+  }
 }
 
 // =============================================================================
@@ -380,6 +568,85 @@ class AnthropicProvider implements ILLMProvider {
       provider: this.name,
     };
   }
+
+  async *streamChat(
+    messages: LLMMessage[],
+    signal?: AbortSignal,
+  ): AsyncIterable<string> {
+    if (!this.rateLimiter.canProceed()) {
+      throw new Error("Anthropic rate limit reached");
+    }
+
+    const systemInstruction =
+      messages.find((m) => m.role === "system")?.content || "";
+    const userMessages = messages
+      .filter((m) => m.role !== "system")
+      .map((m) => ({
+        role: m.role === "assistant" ? ("assistant" as const) : ("user" as const),
+        content: m.content,
+      }));
+
+    const body: Record<string, unknown> = {
+      model: this.model,
+      system: systemInstruction,
+      messages: userMessages,
+      max_tokens: 2048,
+      temperature: 0.3,
+      stream: true,
+    };
+
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": this.apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify(body),
+      signal,
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      if (response.status === 429) {
+        throw new Error("Anthropic rate limit reached");
+      }
+      throw new Error(`Anthropic API error (${response.status}): ${error}`);
+    }
+
+    if (!response.body) return;
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    try {
+      while (true) {
+        if (signal?.aborted) break;
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || !trimmed.startsWith("data: ")) continue;
+          try {
+            const data = JSON.parse(trimmed.slice(6));
+            if (data.type === "content_block_delta" && data.delta?.text) {
+              yield data.delta.text;
+            }
+          } catch {
+            // Partial
+          }
+        }
+      }
+      this.rateLimiter.record();
+    } finally {
+      reader.releaseLock();
+    }
+  }
 }
 
 // =============================================================================
@@ -445,6 +712,79 @@ class OpenAIProvider implements ILLMProvider {
       model: this.model,
       provider: this.name,
     };
+  }
+
+  async *streamChat(
+    messages: LLMMessage[],
+    signal?: AbortSignal,
+  ): AsyncIterable<string> {
+    if (!this.rateLimiter.canProceed()) {
+      throw new Error("OpenAI rate limit reached");
+    }
+
+    const body: Record<string, unknown> = {
+      model: this.model,
+      messages,
+      temperature: 0.3,
+      max_tokens: 2048,
+      stream: true,
+    };
+
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.apiKey}`,
+      },
+      body: JSON.stringify(body),
+      signal,
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      if (response.status === 429) {
+        throw new Error("OpenAI rate limit reached");
+      }
+      throw new Error(`OpenAI API error (${response.status}): ${error}`);
+    }
+
+    if (!response.body) return;
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    try {
+      while (true) {
+        if (signal?.aborted) break;
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || trimmed.startsWith(":")) continue;
+          if (trimmed === "data: [DONE]") {
+            this.rateLimiter.record();
+            return;
+          }
+          if (trimmed.startsWith("data: ")) {
+            try {
+              const json = JSON.parse(trimmed.slice(6));
+              const delta = json.choices?.[0]?.delta?.content;
+              if (delta) yield delta;
+            } catch {
+              // Partial
+            }
+          }
+        }
+      }
+      this.rateLimiter.record();
+    } finally {
+      reader.releaseLock();
+    }
   }
 }
 
@@ -653,6 +993,19 @@ export class LocalMoatProvider implements ILLMProvider {
       "citation trends, or scientific debates between the works shown on your canvas."
     );
   }
+
+  async *streamChat(
+    messages: LLMMessage[],
+    signal?: AbortSignal,
+  ): AsyncIterable<string> {
+    const res = await this.chat(messages, false);
+    const words = res.content.split(/(?<=\s+)/);
+    for (const word of words) {
+      if (signal?.aborted) return;
+      yield word;
+      await new Promise((r) => setTimeout(r, 15));
+    }
+  }
 }
 
 // =============================================================================
@@ -694,6 +1047,54 @@ export class LLMRouter {
     }
 
     throw new Error(`All LLM providers exhausted:\n${errors.join("\n")}`);
+  }
+
+  /**
+   * Try streaming from providers in order.
+   * If a provider fails to start streaming or rate limits, falls back to the next.
+   */
+  async *streamChat(
+    messages: LLMMessage[],
+    signal?: AbortSignal,
+  ): AsyncIterable<{ token: string; provider: string; model: string }> {
+    const errors: string[] = [];
+
+    for (const provider of this.providers) {
+      if (!provider.isAvailable()) {
+        errors.push(`${provider.name}: rate limit reached (skipped)`);
+        continue;
+      }
+
+      let yieldedAny = false;
+      try {
+        if (provider.streamChat) {
+          for await (const token of provider.streamChat(messages, signal)) {
+            yieldedAny = true;
+            yield { token, provider: provider.name, model: provider.model };
+          }
+          return;
+        } else {
+          const res = await provider.chat(messages);
+          yield { token: res.content, provider: provider.name, model: res.model };
+          return;
+        }
+      } catch (error) {
+        if (signal?.aborted) return;
+        const msg = error instanceof Error ? error.message : "Unknown error";
+        console.warn(
+          `[LLM Router] Provider "${provider.name}" stream failed: ${msg}. Trying next provider in chain...`,
+        );
+        errors.push(`${provider.name}: ${msg}`);
+        if (yieldedAny) {
+          return;
+        }
+        continue;
+      }
+    }
+
+    throw new Error(
+      `All LLM streaming providers exhausted:\n${errors.join("\n")}`,
+    );
   }
 
   /** Check if at least one provider is configured and available */

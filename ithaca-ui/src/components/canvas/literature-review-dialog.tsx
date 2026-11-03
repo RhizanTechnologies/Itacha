@@ -99,7 +99,7 @@ export function LiteratureReviewDialog({
       });
     });
     return result;
-  }, [nodes, graph]);
+  }, [nodes, graph, open]);
 
   // Extract edges from graphology Graph if edges not passed directly
   const extractedEdges: SynthesizeEdgeInput[] = useMemo(() => {
@@ -125,7 +125,7 @@ export function LiteratureReviewDialog({
       });
     });
     return result;
-  }, [edges, graph]);
+  }, [edges, graph, open]);
 
   // Synthesis fetcher
   const handleSynthesize = useCallback(async () => {
@@ -209,7 +209,7 @@ export function LiteratureReviewDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[85vh] max-w-4xl flex-col gap-0 overflow-hidden p-0">
+      <DialogContent className="flex max-h-[85vh] w-full sm:max-w-3xl md:max-w-4xl lg:max-w-5xl flex-col gap-0 overflow-hidden p-0">
         {/* Header */}
         <DialogHeader className="border-border/80 border-b p-6 pb-4">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -374,34 +374,40 @@ export function LiteratureReviewDialog({
               onValueChange={setActiveTab}
               className="flex h-full flex-col gap-4"
             >
-              <TabsList className="bg-muted/60 grid h-9 w-full grid-cols-4 p-1">
+              <TabsList className="bg-muted/60 grid h-9.5 w-full grid-cols-4 p-1">
                 <TabsTrigger
                   value="lineage"
-                  className="gap-1.5 text-xs data-[state=active]:font-semibold"
+                  className="gap-1.5 px-2 text-xs data-[state=active]:font-semibold"
                 >
-                  <Compass className="h-3.5 w-3.5 text-indigo-500" />
-                  <span className="truncate">1. Foundational Lineage</span>
+                  <Compass className="h-3.5 w-3.5 shrink-0 text-indigo-500" />
+                  <span className="truncate">
+                    <span className="font-bold">1.</span> Lineage
+                  </span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="frictions"
-                  className="gap-1.5 text-xs data-[state=active]:font-semibold"
+                  className="gap-1.5 px-2 text-xs data-[state=active]:font-semibold"
                 >
-                  <Swords className="h-3.5 w-3.5 text-red-500" />
-                  <span className="truncate">2. Points of Friction</span>
+                  <Swords className="h-3.5 w-3.5 shrink-0 text-red-500" />
+                  <span className="truncate">
+                    <span className="font-bold">2.</span> Friction
+                  </span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="horizons"
-                  className="gap-1.5 text-xs data-[state=active]:font-semibold"
+                  className="gap-1.5 px-2 text-xs data-[state=active]:font-semibold"
                 >
-                  <HelpCircle className="h-3.5 w-3.5 text-amber-500" />
-                  <span className="truncate">3. Unresolved Horizons</span>
+                  <HelpCircle className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+                  <span className="truncate">
+                    <span className="font-bold">3.</span> Horizons
+                  </span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="full"
-                  className="gap-1.5 text-xs data-[state=active]:font-semibold"
+                  className="gap-1.5 px-2 text-xs data-[state=active]:font-semibold"
                 >
-                  <FileText className="h-3.5 w-3.5 text-slate-500" />
-                  <span className="truncate">Full Markdown</span>
+                  <FileText className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+                  <span className="truncate">Full Synthesis</span>
                 </TabsTrigger>
               </TabsList>
 
@@ -487,14 +493,20 @@ export function LiteratureReviewDialog({
                                 key={idx}
                                 className="space-y-2 rounded-xl border border-red-200/80 bg-red-50/40 p-4 dark:border-red-900/40 dark:bg-red-950/20"
                               >
-                                <div className="flex items-center justify-between text-xs font-semibold text-red-900 dark:text-red-200">
-                                  <span className="text-foreground max-w-[45%] truncate font-semibold">
+                                <div className="flex items-center justify-between gap-3 text-xs font-semibold text-red-900 dark:text-red-200">
+                                  <span
+                                    className="text-foreground min-w-0 flex-1 truncate font-semibold"
+                                    title={clash.citing}
+                                  >
                                     {clash.citing}
                                   </span>
-                                  <span className="rounded bg-red-100 px-2 py-0.5 text-[11px] font-bold tracking-wider text-red-700 uppercase dark:bg-red-900/60 dark:text-red-300">
+                                  <span className="shrink-0 whitespace-nowrap rounded bg-red-100 px-2.5 py-0.5 text-[11px] font-bold tracking-wider text-red-700 uppercase shadow-xs dark:bg-red-900/60 dark:text-red-300">
                                     CONTRADICTS
                                   </span>
-                                  <span className="text-foreground max-w-[45%] truncate text-right font-semibold">
+                                  <span
+                                    className="text-foreground min-w-0 flex-1 truncate text-right font-semibold"
+                                    title={clash.target}
+                                  >
                                     {clash.target}
                                   </span>
                                 </div>

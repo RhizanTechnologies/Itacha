@@ -13,6 +13,8 @@ import {
   ControlsContainer,
   ZoomControl,
   FullScreenControl,
+  useSetSettings,
+  useSigma,
 } from "@react-sigma/core";
 import "@react-sigma/core/lib/react-sigma.min.css";
 import { useTheme } from "next-themes";
@@ -52,6 +54,7 @@ import { InstitutionalArchiveToggle } from "@/components/canvas/institutional-ar
 import {
   NewArgumentToast,
   createThemeAwareHoverDrawer,
+  createThemeAwareNodeLabelDrawer,
 } from "@/components/canvas/canvas-utils";
 import { GraphLoader } from "@/components/canvas/graph-loader";
 import { ActiveDebatesDock } from "@/components/canvas/active-debates-dock";
@@ -94,6 +97,7 @@ import type { CanvasInteractionApi } from "@/types/graph";
 import type { PaperData } from "@/components/inspector/paper-inspector";
 import { graphAPI } from "@/lib/api/graph-api";
 import { Button } from "../ui/button";
+import { useCanvasStore } from "@/stores/canvas-store";
 
 // Context hooks
 import {
@@ -105,6 +109,59 @@ import {
 // Extracted hooks
 import { useCanvasInteraction } from "@/hooks/useCanvasInteraction";
 import { useCanvasSelection } from "@/hooks/useCanvasSelection";
+
+const SIGMA_CONTAINER_STYLE: React.CSSProperties = {
+  height: "100%",
+  width: "100%",
+  background: "transparent",
+};
+
+const STATIC_SIGMA_SETTINGS = {
+  allowInvalidContainer: true,
+  renderLabels: true,
+  labelRenderedSizeThreshold: LABELS.SIZE_THRESHOLD,
+  labelDensity: LABELS.DENSITY,
+  labelGridCellSize: LABELS.GRID_CELL_SIZE,
+  labelColor: { color: "#ffffff" },
+  hideEdgesOnMove: true,
+  hideLabelsOnMove: true,
+  renderEdgeLabels: false,
+  zIndex: true,
+  defaultEdgeType: "arrow",
+  defaultNodeType: "circle",
+  nodeProgramClasses: { circle: NodeCircleProgram },
+  enableEdgeEvents: true,
+  labelFont: LABELS.FONT,
+  labelWeight: LABELS.WEIGHT,
+} as const;
+
+/**
+ * CanvasThemeController dynamically manages Sigma settings (labelColor, hoverDrawer)
+ * without triggering SigmaContainer unmount/re-initialization or wiping graph data.
+ */
+function CanvasThemeController() {
+  const { resolvedTheme, theme } = useTheme();
+  const isDark = (resolvedTheme || theme) === "dark";
+  const setSettings = useSetSettings();
+  const sigma = useSigma();
+
+  useEffect(() => {
+    const hoverDrawer = createThemeAwareHoverDrawer(isDark);
+    const labelDrawer = createThemeAwareNodeLabelDrawer(isDark);
+    setSettings({
+      labelColor: { color: isDark ? "#ffffff" : "#000000" },
+      defaultDrawNodeHover: hoverDrawer,
+      defaultDrawNodeLabel: labelDrawer,
+    });
+    try {
+      sigma?.refresh();
+    } catch {
+      // Sigma may still be mounting
+    }
+  }, [isDark, setSettings, sigma]);
+
+  return null;
+}
 
 // =============================================================================
 // MAIN CANVAS COMPONENT
@@ -173,6 +230,39 @@ export function ExploreCanvas() {
     });
   }, []);
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      (window as any).__canvasStore = useCanvasStore;
+      (window as any).__graphAPI = graphAPI;
+      (window as any).__canvasRefs = refs;
+    }
+  }, [refs]);
+
+  // Keyboard shortcut: 'L' toggles the Paper List panel
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        target?.isContentEditable
+      ) {
+        return;
+      }
+      if (
+        (e.key === "l" || e.key === "L") &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        !e.altKey
+      ) {
+        e.preventDefault();
+        actions.setListPanelOpen(!state.listPanelOpen);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [state.listPanelOpen, actions]);
+
   const handleOnboardingComplete = useCallback(() => {
     if (onboardingFinishedRef.current) return;
     onboardingFinishedRef.current = true;
@@ -207,11 +297,6 @@ export function ExploreCanvas() {
       .length;
   }, [state.visiblePapers]);
 
-  // Memoize the theme-aware hover drawer
-  const themeAwareHoverDrawer = useMemo(
-    () => createThemeAwareHoverDrawer(isDark),
-    [isDark],
-  );
 
   // GraphLoader callback registrations (stable refs, defined once)
   const handleRegisterApi = useCallback(
@@ -280,6 +365,21 @@ export function ExploreCanvas() {
       const graph = refs.graphRef.current;
       if (!graph || !graph.hasNode(nodeId)) return;
       const attrs = graph.getNodeAttributes(nodeId);
+
+      let supports = attrs.supports || 0;
+      let refutes = attrs.refutes || 0;
+      let sCount = 0;
+      let rCount = 0;
+      graph.inEdges(nodeId).forEach((inEdgeKey) => {
+        const type = graph.getEdgeAttribute(inEdgeKey, "edgeType");
+        if (type === "supports") sCount++;
+        if (type === "contradicts") rCount++;
+      });
+      if (sCount > 0 || rCount > 0) {
+        supports = sCount;
+        refutes = rCount;
+      }
+
       const paperData = {
         id: attrs.paperId || nodeId,
         title: attrs.title || attrs.label || "Unknown",
@@ -291,8 +391,8 @@ export function ExploreCanvas() {
         openAccessUrl: attrs.openAccessUrl,
         citations: attrs.citations || 0,
         references: attrs.references || 0,
-        supports: attrs.supports || 0,
-        refutes: attrs.refutes || 0,
+        supports,
+        refutes,
         abstract: attrs.abstract,
         aiSummary: attrs.aiSummary,
         status: attrs.status,
@@ -325,8 +425,23 @@ export function ExploreCanvas() {
       if (paper) {
         // Fetch real evidence when selecting from list (same as clicking node)
         const evidence = await graphAPI.getEvidence(nodeId);
-        actions.selectPaper(paper, evidence);
         const graph = refs.graphRef.current;
+        let supports = paper.supports;
+        let refutes = paper.refutes;
+        if (graph && graph.hasNode(nodeId)) {
+          let sCount = 0;
+          let rCount = 0;
+          graph.inEdges(nodeId).forEach((inEdgeKey) => {
+            const type = graph.getEdgeAttribute(inEdgeKey, "edgeType");
+            if (type === "supports") sCount++;
+            if (type === "contradicts") rCount++;
+          });
+          if (sCount > 0 || rCount > 0) {
+            supports = sCount;
+            refutes = rCount;
+          }
+        }
+        actions.selectPaper({ ...paper, supports, refutes }, evidence);
         if (graph && graph.hasNode(nodeId)) {
           const pos = graph.getNodeAttributes(nodeId);
           refs.sigmaRef.current?.getCamera().animate(
@@ -408,38 +523,15 @@ export function ExploreCanvas() {
         <E2eEdgeOpener />
       </Suspense>
       {/* Main Canvas Area */}
-      <div className="relative h-full min-w-[320px] flex-1 overflow-x-auto">
+      <div className="relative h-full min-w-[320px] flex-1 overflow-x-auto bg-[#F6F7F8] dark:bg-[#0B0C10] transition-colors">
         <CanvasErrorBoundary
           onError={(error) => debug.error("Canvas rendering error:", error)}
         >
           <SigmaContainer
-            style={{
-              height: "100%",
-              width: "100%",
-              background: isDark ? "#0B0C10" : "#F6F7F8",
-            }}
-            settings={
-              {
-                allowInvalidContainer: true,
-                renderLabels: true,
-                labelRenderedSizeThreshold: LABELS.SIZE_THRESHOLD,
-                labelDensity: LABELS.DENSITY,
-                labelGridCellSize: LABELS.GRID_CELL_SIZE,
-                labelColor: { color: isDark ? "#fff" : "#000" },
-                hideEdgesOnMove: true,
-                hideLabelsOnMove: true,
-                renderEdgeLabels: false,
-                zIndex: true,
-                defaultEdgeType: "arrow",
-                defaultNodeType: "circle",
-                nodeProgramClasses: { circle: NodeCircleProgram },
-                enableEdgeEvents: true,
-                labelFont: LABELS.FONT,
-                labelWeight: LABELS.WEIGHT,
-                defaultDrawNodeHover: themeAwareHoverDrawer,
-              } as const
-            }
+            style={SIGMA_CONTAINER_STYLE}
+            settings={STATIC_SIGMA_SETTINGS}
           >
+            <CanvasThemeController />
             <GraphLoader
               onNodeClick={handleNodeClick}
               onEdgeClick={handleEdgeClick}
@@ -515,7 +607,7 @@ export function ExploreCanvas() {
         </CanvasErrorBoundary>
 
         {/* Empty State */}
-        {!state.isLoading && state.graphStats.nodeCount === 0 && (
+        {!state.isLoading && state.graphStats.nodeCount === 0 && !state.searchTarget && (
           <CanvasEmptyState
             relationshipFocus={state.relationshipFocus}
             onRelationshipFocusChange={(focus) =>
@@ -544,29 +636,35 @@ export function ExploreCanvas() {
         <OverlayManager>
           {/* Top-left: filters & paper count (desktop/tablet only) */}
           {!isMobile && (
-            <TopLeftZone>
-              <GlobalFilters
-                filters={state.filters}
-                onFiltersChange={actions.setFilters}
-                hiddenEdgeCount={state.filterStats.hiddenEdges}
-                open={state.filtersOpen}
-                onToggle={() => actions.toggleFilters()}
-                maxCitations={state.dataRanges.maxCitations}
-                minYear={state.dataRanges.minYear}
-                maxYear={state.dataRanges.maxYear}
-                onOpenQueryBuilder={() => actions.setQueryBuilderOpen(true)}
-              />
-              <SchoolsViewControl schoolCount={state.schoolsOfThought.length} />
-              <InstitutionalArchiveToggle
-                active={state.sovereignFilterActive}
-                onToggle={() => actions.toggleSovereignFilter()}
-              />
-              <PaperCountControl
-                count={state.paperCount}
-                onChange={handlePaperCountChange}
-                onRefresh={() => actions.triggerRefresh()}
-                isLoading={state.isLoading}
-              />
+            <TopLeftZone className="flex flex-col gap-2">
+              <div className="bg-card/90 dark:bg-card/85 border-border/80 flex items-center gap-1.5 rounded-xl border p-1 shadow-md backdrop-blur-md">
+                <GlobalFilters
+                  filters={state.filters}
+                  onFiltersChange={actions.setFilters}
+                  hiddenEdgeCount={state.filterStats.hiddenEdges}
+                  open={state.filtersOpen}
+                  onToggle={() => actions.toggleFilters()}
+                  maxCitations={state.dataRanges.maxCitations}
+                  minYear={state.dataRanges.minYear}
+                  maxYear={state.dataRanges.maxYear}
+                  onOpenQueryBuilder={() => actions.setQueryBuilderOpen(true)}
+                />
+                <div className="bg-border/60 h-5 w-px" />
+                <SchoolsViewControl schoolCount={state.schoolsOfThought.length} />
+                <div className="bg-border/60 h-5 w-px" />
+                <InstitutionalArchiveToggle
+                  active={state.sovereignFilterActive}
+                  onToggle={() => actions.toggleSovereignFilter()}
+                />
+                <div className="bg-border/60 h-5 w-px" />
+                <PaperCountControl
+                  count={state.paperCount}
+                  onChange={handlePaperCountChange}
+                  onRefresh={() => actions.triggerRefresh()}
+                  isLoading={state.isLoading}
+                  embedded
+                />
+              </div>
             </TopLeftZone>
           )}
 
@@ -1040,6 +1138,7 @@ export function ExploreCanvas() {
           edgeCount: state.graphStats.edgeCount,
           selectedNode: state.selectedNodes[0] || null,
           papers: state.visiblePapers.slice(0, 30).map((p) => ({
+            id: p.id,
             title: p.title,
             authors: p.authors,
             year: p.year,
@@ -1049,6 +1148,7 @@ export function ExploreCanvas() {
           })),
         }}
         onNavigateToPaper={handleSearchPaper}
+        onSelectPaper={handleListSelectNode}
         onFocusNode={(nodeId) => {
           refs.graphApiRef.current?.focusNodes([nodeId]);
         }}

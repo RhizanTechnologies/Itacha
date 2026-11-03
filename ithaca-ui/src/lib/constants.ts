@@ -73,8 +73,8 @@ export const GRAPH = {
 // =============================================================================
 
 export const FILTERS = {
-  /** Minimum year for publication filter (dynamic, can be updated) */
-  MIN_YEAR: 2015,
+  /** Minimum year for publication filter (dynamic, supports historical foundations) */
+  MIN_YEAR: 1900,
   /** Maximum year for publication filter (current year + 1 for preprints) */
   get MAX_YEAR() {
     return new Date().getFullYear() + 1;
@@ -99,9 +99,30 @@ export const COLORS = {
   /** Edge color for unknown/uncertain relationships */
   UNKNOWN: "#94a3b8",
   /** Edge color for neutral citation (default) */
-  CITES: "#a1a1aa",
+  CITES: "#94a3b8",
   /** Cluster colors for node grouping */
   CLUSTERS: ["#3b82f6", "#8b5cf6", "#ec4899", "#f97316", "#14b8a6"] as const,
+  /** High-contrast jewel tones for light mode nodes */
+  CLUSTERS_LIGHT: ["#2563eb", "#7c3aed", "#db2777", "#ea580c", "#0d9488"] as const,
+  /** Luminous tones for dark mode nodes */
+  CLUSTERS_DARK: ["#3b82f6", "#8b5cf6", "#ec4899", "#f97316", "#14b8a6"] as const,
+  /** Theme-calibrated edge colors */
+  EDGES: {
+    LIGHT: {
+      CITES: "#64748b", // slate-500: crisp and clearly visible on #F6F7F8
+      CONTRADICTS: "#dc2626", // bold crimson (red-600)
+      SUPPORTS: "#16a34a", // rich green (green-600)
+      EXTENDS: "#2563eb", // royal blue (blue-600)
+      UNKNOWN: "#94a3b8",
+    },
+    DARK: {
+      CITES: "#475569", // luminous slate-600 on #0B0C10
+      CONTRADICTS: "#f43f5e", // neon rose
+      SUPPORTS: "#10b981", // vibrant emerald
+      EXTENDS: "#38bdf8", // electric sky
+      UNKNOWN: "#64748b",
+    },
+  },
   /** Ghost node opacity (hex alpha suffix) */
   GHOST_ALPHA: "40",
   /** Dimmed color opacity factor */

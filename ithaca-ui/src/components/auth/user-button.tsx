@@ -1,6 +1,6 @@
 "use client";
 
-import { User, Settings, LogOut } from "lucide-react";
+import { User, Settings, LogOut, ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -55,16 +55,23 @@ export function UserButton() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-          <Avatar className="h-8 w-8">
+        <Button
+          variant="ghost"
+          className="hover:bg-muted/70 relative flex h-9 items-center gap-2 rounded-full p-1 pl-1 pr-2.5 transition-colors"
+        >
+          <Avatar className="border-primary/20 size-7 border">
             <AvatarImage
               src={user.image || undefined}
               alt={user.name || "User"}
             />
-            <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
+            <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
               {initials}
             </AvatarFallback>
           </Avatar>
+          <span className="text-foreground hidden max-w-[120px] truncate text-xs font-medium md:inline-block">
+            {user.name || "User"}
+          </span>
+          <ChevronDown className="text-muted-foreground/70 hidden size-3 md:inline-block" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end" forceMount>
@@ -80,16 +87,16 @@ export function UserButton() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => router.push("/dashboard")}>
-          <User />
-          Dashboard
+          <User className="mr-2 h-4 w-4" />
+          Research Hub
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => router.push("/settings")}>
-          <Settings />
-          Settings
+        <DropdownMenuItem onClick={() => router.push("/dashboard?tab=settings")}>
+          <Settings className="mr-2 h-4 w-4" />
+          Settings & Privacy
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleSignOut}>
-          <LogOut />
+          <LogOut className="mr-2 h-4 w-4" />
           Log out
         </DropdownMenuItem>
       </DropdownMenuContent>

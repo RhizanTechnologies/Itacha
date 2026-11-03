@@ -9,9 +9,8 @@ import {
   createApiContext,
 } from "@/lib/api/api-contracts";
 import {
-  requireApiAuth,
+  getOptionalApiAuth,
   checkApiRateLimit,
-  isRejection,
 } from "@/lib/api/api-auth";
 import {
   assertAiBudgetAvailable,
@@ -95,14 +94,22 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const authResult = await requireApiAuth(request, context);
-  if (isRejection(authResult)) return authResult;
+  const authResult = await getOptionalApiAuth(request);
+  if (!authResult) {
+    return apiError(
+      "AUTHENTICATION_REQUIRED",
+      "Authentication required",
+      context,
+    );
+  }
+  const userId = authResult.user.id;
 
   const rateLimited = await checkApiRateLimit(
-    authResult.user.id,
+    userId,
     "chat",
-    20,
+    40,
     context,
+    orgContext?.organizationId,
   );
   if (rateLimited) return rateLimited;
 
@@ -111,7 +118,7 @@ export async function POST(request: NextRequest) {
       context,
       {
         route: "/api/chat",
-        userId: authResult.user.id,
+        userId,
         organizationId: orgContext?.organizationId,
       },
       async () => {

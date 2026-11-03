@@ -85,4 +85,27 @@ SEMANTIC SCHOLAR INTENT LABELS: ResultComparison`,
     expect(response.provider).toBe(LOCAL_PROVIDER_NAME);
     expect(response.content).toContain("I'm Ithaca's AI Graph Assistant");
   });
+
+  it("LocalMoatProvider and LLMRouter stream tokens progressively via streamChat", async () => {
+    const provider = new LocalMoatProvider();
+    const router = new LLMRouter([provider]);
+
+    const messages: LLMMessage[] = [
+      {
+        role: "system",
+        content: "You are Ithaca, an AI research assistant.",
+      },
+      { role: "user", content: "hello" },
+    ];
+
+    const tokens: string[] = [];
+    for await (const chunk of router.streamChat(messages)) {
+      expect(chunk.provider).toBe(LOCAL_PROVIDER_NAME);
+      tokens.push(chunk.token);
+    }
+
+    expect(tokens.length).toBeGreaterThan(1);
+    const combined = tokens.join("");
+    expect(combined).toContain("I'm Ithaca's AI Graph Assistant");
+  });
 });

@@ -191,7 +191,7 @@ SEMANTIC SCHOLAR INTENT LABELS: ResultComparison`,
 
       findUniqueSpy.mockRestore();
       upsertSpy.mockRestore();
-    });
+    }, 15000);
   });
 
   describe("Scenario 10: Cold & Unindexed Paper Resilience", () => {

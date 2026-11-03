@@ -1,7 +1,16 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Search, ArrowRight, FileText, Sparkles, Loader2 } from "lucide-react";
+import {
+  Search,
+  ArrowRight,
+  FileText,
+  Sparkles,
+  Loader2,
+  GitFork,
+  Flame,
+  Layers,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { graphAPI, type SearchResult } from "@/lib/api/graph-api";
@@ -23,13 +32,52 @@ interface CanvasEmptyStateProps {
   onRelationshipFocusChange?: (focus: RelationshipFocusType) => void;
 }
 
-// Curated topic suggestions shown before user types
+interface CuratedDebate {
+  id: string;
+  topic: string;
+  category: string;
+  papersCount: number;
+  disputeCount: number;
+  badge: string;
+  badgeVariant: "contradicts" | "supports" | "extends";
+}
+
+// Curated dialectic starter landscapes
+const CURATED_DEBATES: CuratedDebate[] = [
+  {
+    id: "transformers-context",
+    topic: "How do transformers handle long context?",
+    category: "AI Architecture",
+    papersCount: 42,
+    disputeCount: 8,
+    badge: "Active Debate",
+    badgeVariant: "contradicts",
+  },
+  {
+    id: "crispr-editing",
+    topic: "CRISPR gene editing",
+    category: "Genomics",
+    papersCount: 64,
+    disputeCount: 14,
+    badge: "Consensus Lineage",
+    badgeVariant: "supports",
+  },
+  {
+    id: "metformin-cancer",
+    topic: "Does metformin reduce cancer risk?",
+    category: "Oncology",
+    papersCount: 31,
+    disputeCount: 11,
+    badge: "Bifurcated Trials",
+    badgeVariant: "extends",
+  },
+];
+
+// Curated topic suggestions shown as quick chips
 const SUGGESTED_TOPICS = [
-  "Does metformin reduce cancer risk?",
-  "How do transformers handle long context?",
-  "CRISPR gene editing",
   "Large language models",
   "mRNA vaccines",
+  "Piaget vs Vygotsky cognitive schemas",
 ];
 
 /**
@@ -145,7 +193,7 @@ export function CanvasEmptyState({
 
       {/* Main content */}
       <motion.div
-        className="relative z-10 flex w-full max-w-xl flex-col items-center px-6 text-center"
+        className="relative z-10 flex w-full max-w-3xl flex-col items-center px-6 text-center"
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
@@ -284,9 +332,66 @@ export function CanvasEmptyState({
           for advanced search
         </p>
 
-        {/* Suggested topics */}
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-          <span className="text-muted-foreground mr-1 text-xs">Try:</span>
+        {/* Curated Dialectic Starters */}
+        <div className="mt-8 w-full text-left">
+          <div className="mb-3 flex items-center justify-between px-1">
+            <span className="text-muted-foreground flex items-center gap-1.5 text-[11px] font-bold tracking-wider uppercase">
+              <Sparkles className="text-primary size-3.5" />
+              Curated Scientific Debates
+            </span>
+            <span className="text-muted-foreground/80 text-[10px]">
+              1-Click Topology Load
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {CURATED_DEBATES.map((debate) => {
+              const badgeColors = {
+                contradicts:
+                  "bg-contradicts/10 text-contradicts border-contradicts/30",
+                supports: "bg-supports/10 text-supports border-supports/30",
+                extends: "bg-extends/10 text-extends border-extends/30",
+              }[debate.badgeVariant];
+
+              return (
+                <button
+                  key={debate.id}
+                  onClick={() => handleTopicClick(debate.topic)}
+                  className="group border-border/80 bg-card/60 hover:border-primary/50 hover:bg-card relative flex flex-col justify-between rounded-xl border p-3.5 text-left transition-all hover:-translate-y-0.5 hover:shadow-lg"
+                >
+                  <div>
+                    <div className="mb-2 flex items-center justify-between gap-1">
+                      <span
+                        className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[9px] font-bold tracking-wide uppercase ${badgeColors}`}
+                      >
+                        {debate.badge}
+                      </span>
+                      <span className="text-muted-foreground font-mono text-[10px]">
+                        {debate.category}
+                      </span>
+                    </div>
+                    <h4 className="text-foreground group-hover:text-primary line-clamp-2 text-xs font-semibold transition-colors">
+                      {debate.topic}
+                    </h4>
+                  </div>
+
+                  <div className="border-border/40 text-muted-foreground mt-3 flex items-center justify-between border-t pt-2 text-[10px]">
+                    <span>
+                      {debate.papersCount} papers · {debate.disputeCount} disputes
+                    </span>
+                    <ArrowRight className="text-primary size-3 transition-transform group-hover:translate-x-1" />
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Quick query chips */}
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+          <span className="text-muted-foreground mr-1 text-xs">
+            More prompts:
+          </span>
           {SUGGESTED_TOPICS.map((topic) => (
             <button
               key={topic}

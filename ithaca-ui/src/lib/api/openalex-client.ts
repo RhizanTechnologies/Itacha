@@ -86,9 +86,17 @@ class SimpleRateLimiter {
   }
 }
 
+function getOpenAlexEmail(): string {
+  return (
+    process.env.NEXT_PUBLIC_OPENALEX_EMAIL ||
+    process.env.OPENALEX_EMAIL ||
+    "engineering@rhizan.com"
+  );
+}
+
 // Polite pool (with email) = 10 rps, common pool = 1 rps
 const rateLimiter = new SimpleRateLimiter(
-  process.env.OPENALEX_EMAIL ? 8 : 1, // Leave buffer below actual limits
+  getOpenAlexEmail() ? 8 : 1, // Leave buffer below actual limits
 );
 
 // =============================================================================
@@ -96,7 +104,7 @@ const rateLimiter = new SimpleRateLimiter(
 // =============================================================================
 
 function getUserAgent(): string {
-  const email = process.env.OPENALEX_EMAIL;
+  const email = getOpenAlexEmail();
   if (email) {
     return `Ithaca/1.0 (mailto:${email})`;
   }
@@ -116,7 +124,7 @@ async function openAlexFetch<T>(
   }
 
   // Always add mailto for polite pool
-  const email = process.env.OPENALEX_EMAIL;
+  const email = getOpenAlexEmail();
   if (email) {
     url.searchParams.set("mailto", email);
   }
@@ -135,7 +143,14 @@ async function openAlexFetch<T>(
       if (response.status === 429) {
         // Rate limited — wait and retry
         const retryAfter = response.headers.get("retry-after");
-        const waitMs = retryAfter ? parseInt(retryAfter) * 1000 : 2000;
+        const rawWait = retryAfter ? parseInt(retryAfter, 10) * 1000 : 2000;
+        // If wait is excessive (e.g. daily quota reset in hours), throw so we don't freeze the client thread indefinitely
+        if (rawWait > 5000) {
+          throw new Error(
+            `OpenAlex rate limit exceeded (${Math.round(rawWait / 1000)}s retry-after).`,
+          );
+        }
+        const waitMs = Math.min(Math.max(rawWait, 500), 5000);
         console.warn(
           `[OpenAlex] Rate limited, waiting ${waitMs}ms (attempt ${attempt + 1}/${retries + 1})`,
         );

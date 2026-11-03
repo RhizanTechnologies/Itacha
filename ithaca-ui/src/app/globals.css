@@ -357,23 +357,43 @@
 }
 
 .blob {
-  width: 320px;
-  height: 320px;
+  width: 380px;
+  height: 380px;
   border-radius: 50%;
-  filter: blur(48px);
+  filter: blur(72px);
   transform: translateZ(0);
-  mix-blend-mode: screen;
-  opacity: 0.9;
+  opacity: 0.4;
   will-change: transform;
-  animation: blob-float 8s ease-in-out infinite;
+  animation: blob-float 10s ease-in-out infinite;
   contain: layout style paint;
   backface-visibility: hidden;
+  pointer-events: none;
+}
+
+.blob--primary {
+  background: radial-gradient(
+    circle,
+    color-mix(in oklch, var(--primary) 35%, transparent) 0%,
+    transparent 70%
+  );
+}
+
+.blob--accent {
+  background: radial-gradient(
+    circle,
+    color-mix(in oklch, var(--supports) 28%, transparent) 0%,
+    transparent 70%
+  );
+}
+
+.dark .blob {
+  opacity: 0.6;
 }
 
 .blob:nth-child(2) {
-  width: 420px;
-  height: 420px;
-  animation-delay: 2s;
+  width: 440px;
+  height: 440px;
+  animation-delay: 2.5s;
 }
 
 @keyframes blob-float {
@@ -397,10 +417,43 @@
   position: absolute;
   inset: auto 0 0 0;
   margin: 0 auto;
-  opacity: 0.9;
-  color: var(--primary);
-  contain: layout style paint;
+  opacity: 0.45;
+  pointer-events: none;
+  contain: layout style;
   overflow: visible;
+}
+
+.dark .constellation {
+  opacity: 0.65;
+}
+
+/* Epistemic Card Interactive Glows */
+.epistemic-card {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.epistemic-card-supports:hover {
+  border-color: color-mix(in oklch, var(--supports) 55%, transparent);
+  box-shadow: 0 14px 36px -10px color-mix(in oklch, var(--supports) 22%, transparent);
+}
+
+.epistemic-card-contradicts:hover {
+  border-color: color-mix(in oklch, var(--contradicts) 55%, transparent);
+  box-shadow: 0 14px 36px -10px color-mix(in oklch, var(--contradicts) 22%, transparent);
+}
+
+.epistemic-card-extends:hover {
+  border-color: color-mix(in oklch, var(--extends) 55%, transparent);
+  box-shadow: 0 14px 36px -10px color-mix(in oklch, var(--extends) 22%, transparent);
+}
+
+/* Demo Explorer Window */
+.demo-window-frame {
+  box-shadow:
+    0 0 0 1px color-mix(in oklch, var(--border) 80%, transparent),
+    0 24px 68px -12px color-mix(in oklch, var(--foreground) 10%, transparent);
 }
 
 .constellation-edges {
